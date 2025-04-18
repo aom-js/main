@@ -1,19 +1,22 @@
 {
-  "name": "@aom/core",
+  "name": "@aom/main",
   "version": "0.0.1",
-  "description": "`@aom` meta-framework core",
-  "homepage": "https://github.com/aom-js/core#readme",
+  "description": "`@aom` meta-framework main code",
+  "homepage": "https://github.com/aom-js/main#readme",
   "bugs": {
-    "url": "https://github.com/aom-js/core/issues"
+    "url": "https://github.com/aom-js/main/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aom-js/core.git"
+    "url": "git+https://github.com/aom-js/main.git"
   },
   "license": "ISC",
   "author": "Grigory B. Kholstinnikov (scarych)",
   "type": "module",
   "main": "lib/",
+  "exports": {
+    "./": "./lib"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prebuild": "rm -rf lib/",
