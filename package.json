@@ -13,13 +13,13 @@
   "license": "ISC",
   "author": "Grigory B. Kholstinnikov (scarych)",
   "type": "module",
-  "main": "lib/",
+  "main": "dist/",
   "exports": {
-    "./": "./lib"
+    ".": "./dist"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prebuild": "rm -rf lib/",
+    "prebuild": "rm -rf dist/",
     "build": "tsc --project tsconfig.build.json",
     "prepare_": "npm run build"
   },

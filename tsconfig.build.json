@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": false,
     "module": "CommonJS",
-    "outDir": "lib",
+    "outDir": "dist",
     "declaration": true,
   },
 }
