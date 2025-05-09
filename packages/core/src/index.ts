@@ -1,3 +1,3 @@
-import { AOMCore } from "./defines/types";
+export { AomCore } from "./core";
 
-export class aom extends AOMCore {}
+export * from "./defines";

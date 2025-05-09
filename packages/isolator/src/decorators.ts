@@ -1,4 +1,4 @@
-import { Constructor, Property } from "@aom/common";
+import { Constructor, Property } from "@aom/core";
 import * as rxjs from "rxjs";
 import * as rxjsOperators from "rxjs/operators";
 import crypto from "node:crypto";

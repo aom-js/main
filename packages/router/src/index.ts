@@ -1,4 +1,4 @@
-import { Constructor } from "@aom/common";
+import { Constructor } from "@aom/core";
 import { resolve, join } from "path";
 import { AomRoute, AomHttp, HTTPMethods, AomCursor } from "./common";
 import { OpenApi } from "./decorators";

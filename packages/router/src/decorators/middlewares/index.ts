@@ -1,4 +1,4 @@
-import { CombinedDecorator, Constructor } from "@aom/common";
+import { CombinedDecorator, Constructor } from "@aom/core";
 
 import * as constants from "../../constants";
 import { FwdContainer, HandlerFunction, MarkerHandler, MiddlewareHandler } from "../../common";

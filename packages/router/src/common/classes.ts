@@ -1,5 +1,4 @@
-import { aom } from "@aom/core";
-import { ClassInstanceMap } from "@aom/common";
+import { ClassInstanceMap, AomCore } from "@aom/core";
 import { from, throwError } from "rxjs";
 import { concatMap, catchError, takeWhile } from "rxjs/operators";
 
@@ -90,7 +89,7 @@ class AomHttpRoute {
   nextpoint: AomHttp;
 }
 
-export class AomHttp extends aom {
+export class AomHttp extends AomCore {
   openApi = new AomHttpOpenApi();
 
   route = new AomHttpRoute();

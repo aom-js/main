@@ -1,5 +1,4 @@
-import { Constructor, ClassConstructor } from "@aom/common";
-import { aom } from "@aom/core";
+import { AomCore, Constructor, ClassConstructor } from "@aom/core";
 
 import {
   IsolatorConfig,
@@ -10,7 +9,7 @@ import {
   IsolatorNextFunction,
 } from "./types";
 
-export class AomIsolator extends aom {
+export class AomIsolator extends AomCore {
   isolator: Isolator;
 
   isolatedMethods: AomIsolator[] = [];

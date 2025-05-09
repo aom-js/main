@@ -1,4 +1,4 @@
-import { ClassConstructor } from "@aom/common";
+import { ClassConstructor } from "@aom/core";
 
 export declare type ConnectionSchema = (() => ClassConstructor) | ClassConstructor;
 

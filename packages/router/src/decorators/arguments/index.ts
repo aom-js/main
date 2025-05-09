@@ -1,4 +1,4 @@
-import { ClassConstructor } from "@aom/common";
+import { ClassConstructor } from "@aom/core";
 import * as constants from "../../constants";
 
 import { ArgumentsDecoratorHandler, ArgumentsHandlerParameters } from "../../common";

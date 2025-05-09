@@ -20,7 +20,6 @@
     "prepare_": "npm run build"
   },
   "dependencies": {
-    "@aom/common": "*",
     "@aom/core": "*",
     "rxjs": "^7.8.2"
   },

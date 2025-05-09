@@ -1,5 +1,5 @@
-import { AomSchemas, Schemer } from "@aom/schemer";
-import { isClass } from "@aom/common";
+import { AomSchemas } from "@aom/schemer";
+import { isClass } from "@aom/core";
 
 // import * as constants from "../common/constants";
 // import { Constructor, ICursor, IRoute } from "../common/declares";
@@ -21,6 +21,8 @@ import {
 // import { getDisplayName } from "../special/display-name";
 
 export class OpenApi {
+  static readonly refPointerPrefix = "#/components/schemas/";
+
   private tagsSeparator = " > ";
   private data: OpenAPIObject;
 
@@ -190,7 +192,7 @@ export class OpenApi {
           this.schemaExtract(schema, cursor);
         });
       }
-      return { $ref: `${Schemer.refPointerPrefix}${name}` };
+      return { $ref: `${OpenApi.refPointerPrefix}${name}` };
     } else {
       return schema;
     }

@@ -1,5 +1,3 @@
-import { ClassConstructor, Constructor, Property } from "@aom/common";
-
 // локальные импорты
 import { Schemer, AomSchemas } from "./module";
 import { ConnectionSchema } from "./types";

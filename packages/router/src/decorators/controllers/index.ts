@@ -1,4 +1,4 @@
-import { Constructor } from "@aom/common";
+import { Constructor } from "@aom/core";
 import { AomHttp } from "../../common";
 
 export function Controller() {

@@ -1,16 +1,14 @@
-import { Property } from "@aom/common";
-import { aom } from "@aom/core";
+import { AomCore, Property } from "@aom/core";
 
 import { ConnectionSchema, SchemerConfig, RenderHandler } from "./types";
 
-export class AomSchemas extends aom {
+export class AomSchemas extends AomCore {
   schemer: Schemer;
 
   connections: Map<Property, ConnectionSchema> = new Map();
 }
 
 export class Schemer implements SchemerConfig {
-  static readonly refPointerPrefix = "#/components/schemas/";
   // функция для рендера данных
   render: RenderHandler;
 
