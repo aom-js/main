@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { Constructor } from "@aom/core";
 import { resolve, join } from "path";
 import { AomRoute, AomHttp, HTTPMethods, AomCursor } from "./common";
@@ -7,6 +8,8 @@ export * from "./decorators";
 export * from "./specials";
 export * from "./types";
 export * from "./common/openapi";
+export * from "./common/classes";
+export * from "./common/types";
 
 export class Router {
   routes: AomRoute[] = [];

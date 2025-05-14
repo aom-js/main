@@ -1,4 +1,4 @@
-import { isClass, ClassConstructor, CombinedDecorator, Constructor, Property } from "./defines";
+import { isClass, ClassConstructor, CombinedDecorator, Constructor, Property } from ".";
 
 declare type AomHandler<T extends AomCore> = ($: T) => void;
 

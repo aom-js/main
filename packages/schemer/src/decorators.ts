@@ -5,16 +5,16 @@ import { ConnectionSchema } from "./types";
 
 /**
  * Декоратор для определения компонентной схемы
- * @param jsonSchema конфигурация визуализации
+ * @param schemer конфигурация визуализации
  * @returns Декоратор класса
  */
-export function ComponentSchema(jsonSchema?: Schemer): ClassDecorator {
+export function ComponentSchema(schemer?: Schemer): ClassDecorator {
   //
-  if (!jsonSchema) {
-    jsonSchema = Schemer.default;
+  if (!schemer) {
+    schemer = Schemer.default;
   }
   return AomSchemas.classDecorator(($) => {
-    $.schemer = jsonSchema;
+    $.schemer = schemer;
   });
 }
 

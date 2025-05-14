@@ -13,10 +13,25 @@
   },
   "license": "ISC",
   "author": "Grigory B. Kholstinnikov (scarych)",
+  "type": "module",
+  "main": "dist/cjs/index.js",
+  "module": "dist/mjs/index.js",
+  "types": "dist/cjs/index.d.ts",
+  "files": [
+    "dist/cjs",
+    "dist/mjs"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/mjs/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/cjs/index.d.ts"
+    }
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prebuild": "rm -rf dist/",
-    "build": "tsc --project tsconfig.build.json",
+    "build": "tsc --project tsconfig.build.json && tsc --project tsconfig.build.mjs.json",
     "prepare_": "npm run build"
   },
   "dependencies": {},

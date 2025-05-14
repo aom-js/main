@@ -1,7 +1,7 @@
 {
-  "name": "@aom/isolator",
+  "name": "@aom/transfer",
   "version": "0.0.1",
-  "description": "`@aom` meta-framework core code",
+  "description": "`@aom` meta-framework transfer code",
   "homepage": "https://github.com/aom-js/main#readme",
   "bugs": {
     "url": "https://github.com/aom-js/main/issues"
@@ -9,10 +9,26 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/aom-js/main.git",
-    "directory": "packages/isolator"
+    "directory": "packages/transfer"
   },
   "license": "ISC",
   "author": "Grigory B. Kholstinnikov (scarych)",
+
+  "type": "module",
+  "main": "dist/cjs/index.js",
+  "module": "dist/mjs/index.js",
+  "types": "dist/cjs/index.d.ts",
+  "files": [
+    "dist/cjs",
+    "dist/mjs"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/mjs/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/cjs/index.d.ts"
+    }
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prebuild": "rm -rf dist/",

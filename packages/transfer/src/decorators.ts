@@ -4,21 +4,21 @@ import * as rxjsOperators from "rxjs/operators";
 import crypto from "node:crypto";
 
 // локальные импорты
-import { Isolator, AomIsolator } from "./isolator";
-import { IsolatedCallbackResponse, IsolatedMessageHeaders } from "./types";
+import { Transfer, AomTransfer } from "./main";
+import { TransferCallbackResponse, TransferMessageHeaders } from "./types";
 
 /**
  * Декоратор для изоляции класса
- * @param isolator Сконфигурированный изолятор
+ * @param transfer Сконфигурированный изолятор
  * @returns Декоратор класса
  */
-export function Isolation(isolator?: Isolator): ClassDecorator {
+export function Isolator(transfer?: Transfer): ClassDecorator {
   //
-  if (!isolator) {
-    isolator = Isolator.default;
+  if (!transfer) {
+    transfer = Transfer.default;
   }
-  return AomIsolator.classDecorator(($) => {
-    $.isolator = isolator;
+  return AomTransfer.classDecorator(($) => {
+    $.transfer = transfer;
   });
 }
 
@@ -47,17 +47,17 @@ export function ResponseTopic(singletone?: boolean): MethodDecorator {
  * @returns Декоратор метода
  */
 function AutoTopic(waitForResponse: boolean, singletone?: boolean): MethodDecorator {
-  return AomIsolator.methodDecorator(($, descriptor) => {
+  return AomTransfer.methodDecorator(($, descriptor) => {
     const constructor = $._.target;
     const propertyKey = $._.property;
 
     // тут такое ограничение, потому что из эволюционных
     if (propertyKey) {
       // Добавляем метод в список изолированных
-      $._.root.isolatedMethods.push($);
+      $._.root.transferedMethods.push($);
 
       // Получаем сконфигурированный изолятор и карту топиков
-      const { isolator, topicsMap } = $._.root;
+      const { transfer: isolator, topicsMap } = $._.root;
 
       // Карта для хранения процессов по топикам
       const topicProcessMap = new Map();
@@ -108,7 +108,7 @@ function AutoTopic(waitForResponse: boolean, singletone?: boolean): MethodDecora
         const topicProcessKey = `${topic}_${hash}_${singletone ? "singletone" : uniqKey}`;
 
         // установим заголовок, сохраним оригинальный топик
-        const headers: IsolatedMessageHeaders = {
+        const headers: TransferMessageHeaders = {
           replyTopic,
           uniqKey,
         };
@@ -184,13 +184,13 @@ function AutoTopic(waitForResponse: boolean, singletone?: boolean): MethodDecora
  * @param instanceId Идентификатор экземпляра
  * @returns Декоратор класса
  */
-export function Execution(instanceId?: string): ClassDecorator {
-  return AomIsolator.classDecorator(($) => {
+export function Executor(instanceId?: string): ClassDecorator {
+  return AomTransfer.classDecorator(($) => {
     const constructor = $._.target;
-    const parent$ = AomIsolator.instance(Object.getPrototypeOf(constructor));
+    const parent$ = AomTransfer.instance(Object.getPrototypeOf(constructor));
 
     // Для каждого изолированного метода устанавливаем обработчик
-    parent$.isolatedMethods.forEach((_$) => {
+    parent$.transferedMethods.forEach((_$) => {
       const { property } = _$._;
       if (property) {
         if (Reflect.getOwnPropertyDescriptor(constructor, property)) {
@@ -212,11 +212,11 @@ export function Execution(instanceId?: string): ClassDecorator {
  */
 function attachIsolation(constructor: Constructor, propertyKey: Property, instanceId?: string) {
   const parentConstructor = Object.getPrototypeOf(constructor);
-  const parent$ = AomIsolator.instance(Object.getPrototypeOf(constructor));
+  const parent$ = AomTransfer.instance(Object.getPrototypeOf(constructor));
 
   const { name } = constructor;
   // Получаем изолятор и карту топиков
-  const { isolator, topicsMap } = parent$;
+  const { transfer: isolator, topicsMap } = parent$;
   const isolatedTopic = topicsMap.get(parentConstructor[propertyKey]);
 
   // Проверяем наличие топика
@@ -225,7 +225,7 @@ function attachIsolation(constructor: Constructor, propertyKey: Property, instan
   }
 
   // Создаем топик с учетом идентификатора экземпляра
-  const instanceTopic = Isolator.instanceTopic(isolatedTopic, instanceId);
+  const instanceTopic = Transfer.instanceTopic(isolatedTopic, instanceId);
   // Подписываемся на топик и связываем с методом выполнения
   isolator.subscriber(instanceTopic, isolator.execHandler(constructor, <string>propertyKey));
 }
@@ -259,7 +259,7 @@ function callbackObserver(observer: rxjs.Observer<unknown>) {
   };
 
   // Возвращаем функцию обработки результата
-  return (result: IsolatedCallbackResponse) => {
+  return (result: TransferCallbackResponse) => {
     //
     const { error, value, topic, isCompleted } = result;
 

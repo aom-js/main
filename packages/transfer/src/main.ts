@@ -1,35 +1,35 @@
 import { AomCore, Constructor, ClassConstructor } from "@aom/core";
 
 import {
-  IsolatorConfig,
-  IsolatorPublishHandler,
-  IsolatorSubscribeHandler,
-  IsolatedCallbackHandler,
-  IsolatedMessageSchema,
-  IsolatorNextFunction,
+  TransferConfig,
+  TransferPublishHandler,
+  TransferSubscribeHandler,
+  TransferCallbackHandler,
+  TransferMessageSchema,
+  TransferNextFunction,
 } from "./types";
 
-export class AomIsolator extends AomCore {
-  isolator: Isolator;
+export class AomTransfer extends AomCore {
+  transfer: Transfer;
 
-  isolatedMethods: AomIsolator[] = [];
+  transferedMethods: AomTransfer[] = [];
 
   topicsMap: WeakMap<Constructor, string> = new WeakMap();
 
   instanceId?: string;
 
   instanceTopic(topic: string) {
-    const result = Isolator.instanceTopic(topic, this.instanceId);
+    const result = Transfer.instanceTopic(topic, this.instanceId);
     this.instanceId = undefined;
     return result;
   }
 }
 
 /**
- * Класс Isolator, реализующий конфигурацию изолятора
+ * Класс Transfer, реализующий конфигурацию транспортера
  * Обеспечивает изоляцию и коммуникацию между компонентами
  */
-export class Isolator implements IsolatorConfig {
+export class Transfer implements TransferConfig {
   // имя инстанса
   instanceName: string;
 
@@ -37,19 +37,19 @@ export class Isolator implements IsolatorConfig {
   instanceKey: string;
 
   // функция для публикации данных
-  publisher: IsolatorPublishHandler;
+  publisher: TransferPublishHandler;
 
   // функция для подписки на данные
-  subscriber: IsolatorSubscribeHandler;
+  subscriber: TransferSubscribeHandler;
 
   // карта коллбеков для обработки ответов
-  callbackMap: Map<string, IsolatedCallbackHandler>;
+  callbackMap: Map<string, TransferCallbackHandler>;
 
   /**
    * Конструктор класса Isolator
    * @param config Конфигурация изолятора
    */
-  constructor(config: IsolatorConfig) {
+  constructor(config: TransferConfig) {
     //
     this.publisher = config.publisher;
     this.subscriber = config.subscriber;
@@ -61,13 +61,13 @@ export class Isolator implements IsolatorConfig {
   }
 
   // конфигурация по умолчанию
-  static default: Isolator;
+  static default: Transfer;
 
   /**
    * Устанавливает конфигурацию по умолчанию
    * @param config Конфигурация изолятора
    */
-  static config(config: IsolatorConfig) {
+  static config(config: TransferConfig) {
     this.default = new this(config);
   }
 
@@ -78,7 +78,7 @@ export class Isolator implements IsolatorConfig {
    * @param instanceId ID экземпляра
    */
   static toInstance<T extends ClassConstructor<any>>(constructor: T, instanceId: string): T {
-    AomIsolator.instance(constructor).instanceId = instanceId;
+    AomTransfer.instance(constructor).instanceId = instanceId;
     return constructor;
   }
 
@@ -97,8 +97,8 @@ export class Isolator implements IsolatorConfig {
    * @param topic Топик, для которого создается обработчик
    * @returns Функция-обработчик для обработки ответных сообщений
    */
-  replyHandler(topic: string): IsolatorNextFunction {
-    return (message: IsolatedMessageSchema): void => {
+  replyHandler(topic: string): TransferNextFunction {
+    return (message: TransferMessageSchema): void => {
       // Извлекаем значение и заголовки из сообщения
       const { value, headers } = message;
       // Извлекаем уникальный ключ и флаг ошибки из заголовков
@@ -124,8 +124,8 @@ export class Isolator implements IsolatorConfig {
    * @param propertyKey Ключ свойства (метода)
    * @returns Функция-обработчик следующего сообщения
    */
-  execHandler(constructor: Constructor, propertyKey: string): IsolatorNextFunction {
-    return (message: IsolatedMessageSchema) => {
+  execHandler(constructor: Constructor, propertyKey: string): TransferNextFunction {
+    return (message: TransferMessageSchema) => {
       const { value, headers } = message;
 
       const { replyTopic, uniqKey } = headers;

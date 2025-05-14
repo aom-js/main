@@ -21,24 +21,28 @@ export enum TagsRules {
   REPLACE = "replace",
 }
 
-export declare type ArgumentsHandlerParameters = { context: RxContext; cursor: AomCursor };
+export declare type ArgumentsHandlerParameters = {
+  context: RxContext;
+  cursor: AomCursor;
+  route: AomRoute;
+};
 
 export declare type ArgumentsDecoratorHandler = (args: ArgumentsHandlerParameters) => any;
 
-export declare type MarkerHandler = (cursor: AomCursor) => void | unknown;
+export declare type MarkerHandler = (route: AomRoute, cursor: AomCursor) => void | unknown;
 
-export declare interface Bridge {
+export declare interface AomBridge {
   prefix: string;
   next: AomHttp;
   $: AomHttp;
 }
 
-export declare interface Marker {
+export declare interface AomMarker {
   marker: AomHttp;
   $: AomHttp;
 }
 
-export declare interface Endpoint {
+export declare interface AomEndpoint {
   path: string;
   method: HTTPMethods;
   $: AomHttp;
@@ -76,11 +80,11 @@ class AomHttpRoute {
 
   isEndpoint: boolean;
 
-  bridges: Bridge[] = [];
+  bridges: AomBridge[] = [];
 
-  markers: Marker[] = [];
+  markers: AomMarker[] = [];
 
-  endpoints: Endpoint[] = [];
+  endpoints: AomEndpoint[] = [];
 
   parametersHandlers: ArgumentsDecoratorHandler[] = [];
 
@@ -97,39 +101,52 @@ export class AomHttp extends AomCore {
   title: string;
 
   description: string;
+
+  toString() {
+    const { name } = this._.target;
+    const property = this._.property;
+    return [name, property].filter(Boolean).map(String).join(".");
+  }
 }
 
 export class AomCursor {
-  endpoint: Endpoint;
+  endpoint: AomEndpoint;
 
   prefix: string;
 
+  index: number;
+
   $: AomHttp;
 
-  constructor($: AomHttp, prefix: string, endpoint?: Endpoint) {
+  constructor($: AomHttp, prefix: string, endpoint?: AomEndpoint) {
     this.$ = $;
     this.prefix = prefix;
     this.endpoint = endpoint;
   }
 
-  setEndpoint(endpoint: Endpoint) {
+  setEndpoint(endpoint: AomEndpoint) {
     this.endpoint = endpoint;
     return this;
   }
 }
 
 export class AomRoute {
-  endpoint: Endpoint;
+  endpoint: AomEndpoint;
+
+  markers: Record<string, any> = {};
 
   cursors: AomCursor[] = [];
 
-  constructor(endpoint: Endpoint, cursors: AomCursor[]) {
+  constructor(endpoint: AomEndpoint, cursors: AomCursor[]) {
     this.endpoint = endpoint;
 
     this.plain([
       ...cursors.map((cursor) => cursor.setEndpoint(endpoint)),
       new AomCursor(endpoint.$, endpoint.path, endpoint),
     ]);
+
+    // назначим индексы для курсоров
+    this.cursors.forEach((cursor, index) => (cursor.index = index));
   }
 
   private plain(cursors: AomCursor[]) {
@@ -150,7 +167,7 @@ export class AomRoute {
   }
 
   apply(context: HttpContextValues) {
-    return new RxContext(context).run(this.cursors);
+    return new RxContext(context, this).run(this.cursors);
   }
 }
 
@@ -158,14 +175,19 @@ class RxContext {
   values: HttpContextValues;
 
   state: ClassInstanceMap;
+
+  route: AomRoute;
   //
-  constructor(context: HttpContextValues) {
+  constructor(context: HttpContextValues, route: AomRoute) {
     this.values = context;
+
+    this.route = route;
 
     this.state = new ClassInstanceMap();
   }
 
   run(cursors: AomCursor[]) {
+    const { route } = this;
     return new Promise((resolve, reject) => {
       from(cursors)
         .pipe(
@@ -174,7 +196,7 @@ class RxContext {
               const { $ } = cursor;
               const args = await Promise.all(
                 $.route.parametersHandlers.map((parameterHandler) =>
-                  Reflect.apply(parameterHandler, $._.target, [{ context: this, cursor }])
+                  Reflect.apply(parameterHandler, $._.target, [{ context: this, cursor, route }])
                 )
               );
 

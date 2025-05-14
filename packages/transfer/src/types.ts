@@ -2,7 +2,7 @@
  * Интерфейс заголовков изолированного сообщения
  * Содержит метаданные, необходимые для маршрутизации и обработки сообщений
  */
-export declare interface IsolatedMessageHeaders {
+export declare interface TransferMessageHeaders {
   /** Уникальный идентификатор сообщения для отслеживания и сопоставления запросов/ответов */
   uniqKey: string;
 
@@ -17,7 +17,7 @@ export declare interface IsolatedMessageHeaders {
  * Интерфейс структуры ответа в функции обратного вызова
  * Определяет формат данных, возвращаемых в callback после обработки сообщения
  */
-export declare interface IsolatedCallbackResponse {
+export declare interface TransferCallbackResponse {
   /** Топик, связанный с ответом */
   topic: string;
 
@@ -35,15 +35,15 @@ export declare interface IsolatedCallbackResponse {
  * Тип обработчика обратного вызова для изолированных сообщений
  * Функция, вызываемая при получении ответа на изолированное сообщение
  */
-export declare type IsolatedCallbackHandler = (response: IsolatedCallbackResponse) => void;
+export declare type TransferCallbackHandler = (response: TransferCallbackResponse) => void;
 
 /**
  * Интерфейс схемы изолированного сообщения
  * Определяет структуру сообщений, передаваемых между изолированными компонентами
  */
-export declare interface IsolatedMessageSchema {
+export declare interface TransferMessageSchema {
   /** Заголовки сообщения с метаданными */
-  headers: IsolatedMessageHeaders;
+  headers: TransferMessageHeaders;
 
   /** Полезная нагрузка сообщения */
   value: any;
@@ -53,28 +53,31 @@ export declare interface IsolatedMessageSchema {
  * Тип функции для обработки следующего сообщения
  * Вызывается при получении нового сообщения в подписке
  */
-export declare type IsolatorNextFunction = (message: IsolatedMessageSchema) => void;
+export declare type TransferNextFunction = (message: TransferMessageSchema) => void;
 
 /**
  * Тип обработчика публикации для изолятора
  * Функция для отправки сообщений в определенный топик
  */
-export declare type IsolatorPublishHandler = (
+export declare type TransferPublishHandler = (
   topic: string,
-  message: IsolatedMessageSchema
+  message: TransferMessageSchema
 ) => void;
 
 /**
  * Тип обработчика подписки для изолятора
  * Функция для подписки на определенный топик и обработки входящих сообщений
  */
-export declare type IsolatorSubscribeHandler = (topic: string, next: IsolatorNextFunction) => void;
+export declare type TransferSubscribeHandler = (
+  topic: string,
+  next: TransferNextFunction
+) => void;
 
 /**
  * Интерфейс конфигурации изолятора
  * Определяет настройки и обработчики для экземпляра изолятора
  */
-export declare interface IsolatorConfig {
+export declare interface TransferConfig {
   /** Имя экземпляра изолятора для идентификации */
   instanceName: string;
 
@@ -82,8 +85,8 @@ export declare interface IsolatorConfig {
   instanceKey: string;
 
   /** Функция для публикации сообщений в топики */
-  publisher: IsolatorPublishHandler;
+  publisher: TransferPublishHandler;
 
   /** Функция для подписки на топики и получения сообщений */
-  subscriber: IsolatorSubscribeHandler;
+  subscriber: TransferSubscribeHandler;
 }

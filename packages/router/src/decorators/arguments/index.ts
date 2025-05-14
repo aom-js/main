@@ -115,10 +115,12 @@ export function Next(): ReturnType<typeof Args> {
     // return (...handlers: HandlerFunction[]) => nextSequences(handlers, args);
     return (...handlers: HandlerFunction[]) => {
       // восстановим из handler-ов курсоры с тем же эндпоинтом
-      const cursors = handlers.map((handler) => {
+      const { prefix, endpoint } = cursor;
+      const cursors = handlers.map((handler, index) => {
         const $ = AomHttp.instance(handler);
-        const result = new AomCursor($, cursor.prefix, cursor.endpoint);
-        return result;
+        const cursor = new AomCursor($, prefix, endpoint);
+        cursor.index = index;
+        return cursor;
       });
       // вызовем рекурсивно тот же контекст, передав в него новый перечень курсоров
       // которые могут быть указаны внутри next()
@@ -173,15 +175,15 @@ export function Res() {
 // ---
 export function Cursor(): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = function ({ cursor }) {
-    return cursor.$;
+    return cursor;
   };
   return Args(handler);
 }
 
 // ---
 export function Route(): ReturnType<typeof Args> {
-  const handler: ArgumentsDecoratorHandler = function ({ cursor }) {
-    return cursor.endpoint.$;
+  const handler: ArgumentsDecoratorHandler = function ({ route }) {
+    return route;
   };
   return Args(handler);
 }
