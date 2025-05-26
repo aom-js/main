@@ -1,4 +1,12 @@
-import { isClass, ClassConstructor, CombinedDecorator, Constructor, Property } from ".";
+import {
+  ClassConstructor,
+  CombinedDecorator,
+  Constructor,
+  Property,
+  DecoratorsQueueStore,
+  InstanceTarget,
+} from "./types";
+import { isClass } from "./functions";
 
 declare type AomHandler<T extends AomCore> = ($: T) => void;
 
@@ -19,6 +27,150 @@ declare type AomParameterHandler<T extends AomCore> = ($: T, parameterIndex: num
 // Вспомогательный тип, объединяющий сигнатуру конструктора и статические методы AOM
 type AomClass<T extends AomCore> = ClassConstructor<T> & typeof AomCore;
 
+type LazyCall<T extends AomCore> = [
+  (
+    | AomHandler<T>
+    | AomСombinedHandler<T>
+    | AomMethodHandler<T>
+    | AomPropertyHandler<T>
+    | AomParameterHandler<T>
+  ),
+  args: [T, ...any]
+];
+
+type OriginDescriptor = {
+  target: InstanceTarget;
+  property: Property;
+  descriptor: PropertyDescriptor;
+};
+
+class AomCallstackQueue<T extends AomCore> {
+  private queue: LazyCall<T>[];
+  private fired: LazyCall<T>[];
+
+  private callstack: AomCallstack<T>;
+
+  private type?: DecoratorsQueueStore;
+
+  private async: boolean;
+
+  private indexed: boolean;
+
+  constructor(callstack: AomCallstack<T>, type: DecoratorsQueueStore, indexed?: boolean) {
+    this.callstack = callstack;
+
+    this.queue = [];
+    this.fired = [];
+
+    this.type = type;
+    this.indexed = indexed;
+    this.async = [DecoratorsQueueStore.DELAY].includes(type);
+  }
+
+  add(value: LazyCall<T>, index?: number) {
+    //
+    const { type } = this;
+    // если это отложенный запуск или запуск в последний момент - то просто добавим в очередь
+    // возможно позже добавить сюда DecoratorsQueueStore.DELAY
+    if ([DecoratorsQueueStore.LAST, DecoratorsQueueStore.DELAY].includes(type)) {
+      index >= 0 ? (this.queue[index] = value) : this.queue.push(value);
+    } else if ([DecoratorsQueueStore.FIRST].includes(type)) {
+      // если стартуем первым - то выполним и добавим в список
+      index >= 0 ? (this.fired[index] = value) : this.fired.push(value);
+      return this.run(value);
+    } else if (type === DecoratorsQueueStore.INSTANT) {
+      // если мгновенный запуск, то нигде не сохраняем, а просто выполняем
+      return this.run(value);
+    }
+  }
+
+  exec() {
+    // разберем очередь и перенесём всё в выполненные
+    while (this.queue.length) {
+      const value = this.queue.shift();
+      this.run(value);
+      this.fired.push(value);
+    }
+  }
+
+  run([handler, args]: LazyCall<T>) {
+    if (this.async) {
+      setTimeout(() => {
+        Reflect.apply(handler, null, args);
+      });
+    } else {
+      return Reflect.apply(handler, null, args);
+    }
+  }
+
+  transferTo(target: T) {
+    const { type, indexed } = this;
+    // вызовем с заменой контекста
+    const replaceContext = (value: LazyCall<T>, index?: number) => {
+      const [handler, args] = value;
+      args[0] = target;
+      return target._.callstack.add([handler, args], type, index);
+    };
+    // если это индексированный контекст, то проверим, чтобы в целевой структуре был строго пустой список (индексированные декораторы не переносятся, если они уже есть)
+    if (indexed) {
+      const targetIndexedStore = target._.callstack.indexes[type];
+      const targetExistsIndexed =
+        targetIndexedStore.queue.length || targetIndexedStore.fired.length;
+      if (!targetExistsIndexed) {
+        // сначала переносятся уже выполненные, а затем ожидающие
+        this.fired.forEach((value, index) => replaceContext(value, index));
+        this.queue.forEach((value, index) => replaceContext(value, index));
+      }
+    } else {
+      // перенесем данные из очередей и выполненных с заменой контекста и сохранением типа хранилища при переносе
+      // сначала переносятся уже выполненные, а затем ожидающие
+      this.fired.forEach((value) => replaceContext(value));
+      this.queue.forEach((value) => replaceContext(value));
+    }
+  }
+}
+
+class AomCallstack<T extends AomCore> {
+  _: AomNode<T>;
+
+  stores: { [key in DecoratorsQueueStore]: AomCallstackQueue<T> };
+
+  indexes: { [key in DecoratorsQueueStore]: AomCallstackQueue<T> };
+
+  constructor(_: AomNode<T>) {
+    this._ = _;
+
+    this.stores = {} as any;
+    this.indexes = {} as any;
+    Object.values(DecoratorsQueueStore).forEach((type) => {
+      this.stores[type] = new AomCallstackQueue<T>(this, type);
+      this.indexes[type] = new AomCallstackQueue<T>(this, type, true);
+    });
+  }
+
+  add(value: LazyCall<T>, storeFlag: DecoratorsQueueStore, index?: number) {
+    if (index >= 0) {
+      this.indexes[storeFlag].add(value, index);
+    } else {
+      this.stores[storeFlag].add(value);
+    }
+  }
+
+  apply() {
+    Object.values(DecoratorsQueueStore).forEach((type) => {
+      this.stores[type].exec();
+      this.indexes[type].exec();
+    });
+  }
+
+  transferTo(target: T) {
+    Object.values(DecoratorsQueueStore).forEach((type) => {
+      this.stores[type].transferTo(target);
+      this.indexes[type].transferTo(target);
+    });
+  }
+}
+
 class AomNode<T extends AomCore> {
   base: AomClass<T>;
 
@@ -33,11 +185,22 @@ class AomNode<T extends AomCore> {
 
   self: T;
 
+  origins: OriginDescriptor[];
+
   properties: Map<Property, T>;
 
   statics: Map<Property, T>;
 
-  constructor(self: T, base: AomClass<any>, target: ClassConstructor, property?: Property) {
+  // стек вызовов, которые надо выполнить
+  callstack: AomCallstack<T>;
+
+  constructor(
+    self: T,
+    base: AomClass<any>,
+    target: ClassConstructor,
+    property?: Property,
+    origin?: OriginDescriptor
+  ) {
     this.self = self;
     this.base = base;
     this.target = target;
@@ -46,25 +209,56 @@ class AomNode<T extends AomCore> {
     this.properties = new Map();
     this.statics = new Map();
 
+    this.origins = [];
+    this.callstack = new AomCallstack(this);
+
     // если указано конкретное свойство, то зафиксируем с ним связь в инстансе от исходного конструктора
     if (property) {
       this.root = this.base.instance(target);
+      if (origin && !origin.descriptor?.enumerable) {
+        this.root._.origins.push(origin);
+      }
     } else {
       this.root = this.self;
     }
   }
-}
 
-type InstanceTarget = Constructor | object;
+  apply() {
+    // выполним все отложенные действия на собственных свойствах
+    this.properties.forEach(($) => {
+      $._.callstack.apply();
+    });
+
+    // выполним все отложенные действия на статичных свойствах
+    this.statics.forEach(($) => {
+      $._.callstack.apply();
+    });
+
+    // разберем всё по дескрипторам
+    this.origins.forEach(({ descriptor }) => {
+      this.base.instance(descriptor.value)._.callstack.apply();
+    });
+
+    // выполним собственные отложенные вызовы
+    this.callstack.apply();
+  }
+}
 
 export class AomCore {
   _: AomNode<this>;
 
-  constructor(base: AomClass<any>, target: ClassConstructor, property?: Property) {
-    this._ = new AomNode<this>(this, base, target, property);
+  constructor(
+    base: AomClass<any>,
+    target: ClassConstructor,
+    property?: Property,
+    origin?: OriginDescriptor
+  ) {
+    this._ = new AomNode<this>(this, base, target, property, origin);
   }
 
-  private static instancesMap<T extends AomCore, E extends InstanceTarget>(this: AomClass<T>) {
+  private static instancesMap<T extends AomCore, E extends InstanceTarget>(
+    this: AomClass<T>
+  ): WeakMap<E | T, T> {
     //
     const mapSymbol = Symbol.for(`AOM_MAP_${this.name}`);
 
@@ -93,14 +287,15 @@ export class AomCore {
     let instanceKey: T | E;
     // если указано конкретное свойство, и текущий контекст происходит для конкретного класса
     if (property && isClass(constructor)) {
-      // извлечем его собственный инстанс
-      const constructorInstance = this.instance(constructor);
       const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+
       if (descriptor && !descriptor.enumerable) {
         // если это метод, то возьмем в качестве ключа инстанса значение дескриптора
         // на которое будет ссылаться и метод по его названию
         instanceKey = descriptor.value as E;
       } else {
+        // извлечем его собственный инстанс
+        const constructorInstance = this.instance(constructor);
         // если это свойство, то следует понять, оно статическое или собственное, и извлечь оттуда релевантную карту
         let propertiesMap: Map<Property, T>;
         // входящий target равен constructor, то это статический контекст
@@ -148,6 +343,7 @@ export class AomCore {
     const map = this.instancesMap();
 
     const instanceKey = this.instanceKey(target, property);
+
     // извлечем конструктор, который будет корневым
     const constructor = (
       target instanceof Function ? target : target.constructor
@@ -155,17 +351,22 @@ export class AomCore {
 
     let instance = map.get(instanceKey);
 
+    // console.log("defined instance key", { target, property, instanceKey, instance });
+
+    const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
+    const originDescriptor = { target, property, descriptor };
+
     // Если инстанса нет
     if (!instance) {
       // Создаем новый инстанс текущего класса ('this')
-      instance = new this(this, constructor, property);
+      instance = new this(this, constructor, property, originDescriptor);
       // Сохраняем его в карте
       map.set(instanceKey, instance);
     } else if (property && instance._.target !== constructor) {
       // тут хитрый момент, который может произойти, если инстанс для какой-то статистической функции был создан раньше,
       // чем объявлен какой-то полезный декоратор для самого свойства
       // в этом случае для него следует заменить значение `_` на корректное, с учетом правильных target, root и property
-      instance._ = new AomNode(instance, this, constructor, property);
+      instance._ = new AomNode(instance, this, constructor, property, originDescriptor);
     }
 
     // Возвращаем найденный или созданный инстанс
@@ -175,14 +376,14 @@ export class AomCore {
   // Используем AOMClass для 'this'
   static classDecorator<T extends AomCore>(
     this: AomClass<T>,
-    handler: AomHandler<T>
+    handler: AomHandler<T>,
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
   ): ClassDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: Constructor) {
       // Получаем AOM-инстанс для этого конструктора
       const targetInstance = self.instance(target);
-      // Вызываем обработчик
-      return handler(targetInstance);
+      return targetInstance._.callstack.add([handler, [targetInstance]], storeFlag);
       // Классные декораторы могут возвращать конструктор, но здесь мы только для сайд-эффекта
     };
   }
@@ -190,57 +391,65 @@ export class AomCore {
   // Используем AOMClass для 'this'
   static combinedDecorator<T extends AomCore>(
     this: AomClass<T>,
-    handler: AomСombinedHandler<T>
+    handler: AomСombinedHandler<T>,
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
   ): CombinedDecorator {
     const self = this;
     return function (target: Constructor, property?: Property, descriptor?: PropertyDescriptor) {
       // Получаем AOM-инстанс для этого конструктора
       const targetInstance = self.instance(target, property);
+      return targetInstance._.callstack.add([handler, [targetInstance, descriptor]], storeFlag);
       // Вызываем обработчик
-      return handler(targetInstance, descriptor);
+      // return handler(targetInstance, descriptor);
     };
   }
 
   // Используем AOMClass для 'this'
   static methodDecorator<T extends AomCore>(
     this: AomClass<T>,
-    handler: AomMethodHandler<T>
+    handler: AomMethodHandler<T>,
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
   ): MethodDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: Constructor, property: Property, descriptor: PropertyDescriptor) {
       // Получаем AOM-инстанс для конструктора класса
-      const aomInstance = self.instance(target, property);
-      // Вызываем обработчик
-      return handler(aomInstance, descriptor);
+      const targetInstance = self.instance(target, property);
+      return targetInstance._.callstack.add([handler, [targetInstance, descriptor]], storeFlag);
+      // return handler(targetInstance, descriptor);
     };
   }
 
   // Используем AOMClass для 'this'
   static propertyDecorator<T extends AomCore>(
     this: AomClass<T>,
-    handler: AomPropertyHandler<T>
+    handler: AomPropertyHandler<T>,
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
   ): PropertyDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: Constructor, property: Property) {
       // Получаем AOM-инстанс для конструктора класса
-      const aomInstance = self.instance(target, property);
-      // Вызываем обработчик
-      return handler(aomInstance);
+      const targetInstance = self.instance(target, property);
+      return targetInstance._.callstack.add([handler, [targetInstance]], storeFlag);
+      // return handler(targetInstance);
     };
   }
 
   // Используем AOMClass для 'this'
   static parameterDecorator<T extends AomCore>(
     this: AomClass<T>,
-    handler: AomParameterHandler<T>
+    handler: AomParameterHandler<T>,
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
   ): ParameterDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: Constructor, property: Property, parameterIndex: number) {
       // Получаем AOM-инстанс для конструктора класса
-      const aomInstance = self.instance(target, property);
-      // aomInstance.setCurrentProperty(property);
-      // Вызываем обработчик
-      return handler(aomInstance, parameterIndex);
+      const targetInstance = self.instance(target, property);
+      //
+      return targetInstance._.callstack.add(
+        [handler, [targetInstance, parameterIndex]],
+        storeFlag,
+        parameterIndex
+      );
     };
   }
 }

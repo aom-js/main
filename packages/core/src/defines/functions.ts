@@ -1,5 +1,11 @@
-import { Constructor } from "./types";
+import { Constructor, InstanceTarget, Property } from "./types";
 
-export function isClass(value: Constructor) {
-  return typeof value === "function" && /^class\s/.test(Function.prototype.toString.call(value));
+export function isClass(value: InstanceTarget) {
+  return (
+    typeof value === "function" && /^class[\s\{]/.test(Function.prototype.toString.call(value))
+  );
+}
+
+export function hasOwnProperty(target: Constructor, property: Property): boolean {
+  return Object.prototype.hasOwnProperty.call(target, property);
 }

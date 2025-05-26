@@ -18,3 +18,8 @@ yarn.lock
 
 tsconfig.json
 tsconfig.build.json
+tsconfig.build.mjs.json
+tsconfig.build.types.json
+
+package.src.json
+package.version.json

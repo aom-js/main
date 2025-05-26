@@ -1,5 +1,7 @@
 .DS_Store
 
+packages/**/package.json
+
 .yarn/
 node_modules/
 dist/

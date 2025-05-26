@@ -1,0 +1,24 @@
+{
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/mjs/index.js",
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "./dist/cjs",
+    "./dist/mjs"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/mjs/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "rm -rf dist/",
+    "prebuild": "rm -rf dist/",
+    "build": "tsc --project tsconfig.build.json && tsc --project tsconfig.build.mjs.json  && tsc --project tsconfig.build.types.json ",
+    "prepare": "npm run build"
+  }
+}
