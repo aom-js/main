@@ -65,27 +65,23 @@ export class OpenApi {
     cursors.forEach((cursor: AomCursor) => {
       const { $ } = cursor;
 
-      // console.log(
-      //   "do cursor",
-      //   cursor.prefix,
-      //   cursor.$._.target.name,
-      //   cursor.$._.property?.toString()
-      // );
-      // console.log("~~~~~~~~~~~~~~~~~");
-
       const { target, property } = $._;
       // такая процедура используется для того, чтобы на одном и том же курсоре не вызывать повторно отложенный стек
       // то есть в изолированном контексте он вызывается однократно, а затем удаляется из очереди
-      while ($.openApi.delayStack.length) {
-        const handler = $.openApi.delayStack.shift();
-        // вызовем отложенные действия
-        if (handler instanceof FwdContainer) {
-          Reflect.decorate([...handler.exec()], target, property);
-        } else if (handler instanceof ThisRefContainer) {
-          Reflect.decorate([...handler.exec(cursor.$._.target)], target, property);
-        } else if (handler instanceof RouteRefContainer) {
-          Reflect.decorate([...handler.exec(cursor.endpoint.$._.target)], target, property);
+      if ($.openApi.delayStack.length) {
+        while ($.openApi.delayStack.length) {
+          const handler = $.openApi.delayStack.shift();
+          // вызовем отложенные действия
+          if (handler instanceof FwdContainer) {
+            Reflect.decorate([...handler.exec()], target, property);
+          } else if (handler instanceof ThisRefContainer) {
+            Reflect.decorate([...handler.exec(cursor.$._.target)], target, property);
+          } else if (handler instanceof RouteRefContainer) {
+            Reflect.decorate([...handler.exec(cursor.endpoint.$._.target)], target, property);
+          }
         }
+        // применим вероятные отложенные вызовы
+        $._.apply();
       }
 
       // console.log("delayStack success started");
