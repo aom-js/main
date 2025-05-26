@@ -1,6 +1,7 @@
 .DS_Store
 
 packages/**/package.json
+packages/**/tsconfig.build.*.json
 
 .yarn/
 node_modules/
