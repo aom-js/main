@@ -5,7 +5,8 @@
   "types": "./dist/types/index.d.ts",
   "files": [
     "./dist/cjs",
-    "./dist/mjs"
+    "./dist/mjs",
+    "./dist/types"
   ],
   "exports": {
     ".": {
