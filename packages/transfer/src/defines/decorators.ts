@@ -1,4 +1,4 @@
-import { Constructor, DecoratorsQueueStore, Property } from "@aom/core";
+import { Constructor, DecoratorsQueueStore, Property } from "@aom-js/core";
 import * as rxjs from "rxjs";
 import * as rxjsOperators from "rxjs/operators";
 import crypto from "node:crypto";

@@ -1,4 +1,4 @@
-import { Constructor } from "@aom/core";
+import { Constructor } from "@aom-js/core";
 
 export declare type HTTPMethods = "get" | "post" | "put" | "patch" | "delete" | "options" | "all" | "sockets";
 

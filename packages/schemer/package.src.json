@@ -1,5 +1,5 @@
 {
-  "name": "@aom/schemer",
+  "name": "@aom-js/schemer",
   "description": "`@aom` meta-framework schemer code",
   "homepage": "https://github.com/aom-js/main#readme",
   "bugs": {
@@ -13,7 +13,7 @@
   "license": "ISC",
   "author": "Grigory B. Kholstinnikov (scarych)",
   "dependencies": {
-    "@aom/core": "*"
+    "@aom-js/core": "*"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

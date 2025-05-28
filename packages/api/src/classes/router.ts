@@ -1,4 +1,4 @@
-import { Constructor } from "@aom/core";
+import { Constructor } from "@aom-js/core";
 import { resolve, join } from "node:path";
 import { AomRoute, AomApi, AomCursor } from "../common";
 import { OpenApi } from "./openapi";

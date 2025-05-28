@@ -1,3 +1,3 @@
-# `@aom/api`
+# `@aom-js/api`
 
 Basic api-builder 

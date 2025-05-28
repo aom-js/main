@@ -1,5 +1,5 @@
 {
-  "name": "@aom/api",
+  "name": "@aom-js/api",
   "description": "`@aom` meta-framework api code",
   "homepage": "https://github.com/aom-js/main#readme",
   "bugs": {
@@ -13,8 +13,8 @@
   "license": "ISC",
   "author": "Grigory B. Kholstinnikov (scarych)",
   "dependencies": {
-    "@aom/core": "*",
-    "@aom/schemer": "*",
+    "@aom-js/core": "*",
+    "@aom-js/schemer": "*",
     "openapi3-ts": "^4.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"

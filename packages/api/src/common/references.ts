@@ -1,4 +1,4 @@
-import { Constructor } from "@aom/core";
+import { Constructor } from "@aom-js/core";
 import { ContainerFunction, FwdFunction, RefFunction } from "./types";
 
 class RefContainer {

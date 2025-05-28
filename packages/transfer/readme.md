@@ -1,3 +1,3 @@
-# `@aom/transfer`
+# `@aom-js/transfer`
 
 Abstract data transfer module.

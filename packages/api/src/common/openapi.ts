@@ -1,4 +1,4 @@
-import { Constructor } from "@aom/core";
+import { Constructor } from "@aom-js/core";
 import { ParameterLocation, SchemaObject, SecuritySchemeObject } from "openapi3-ts/oas31";
 
 import { RouteRefContainer, ThisRefContainer } from "./references";

@@ -1,4 +1,4 @@
-import { ClassInstanceMap, AomCore } from "@aom/core";
+import { ClassInstanceMap, AomCore } from "@aom-js/core";
 import { resolve, join } from "node:path";
 import { from, throwError } from "rxjs";
 import { concatMap, catchError, takeWhile } from "rxjs/operators";

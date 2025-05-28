@@ -1,5 +1,5 @@
 {
-  "name": "@aom/transfer",
+  "name": "@aom-js/transfer",
   "description": "`@aom` meta-framework transfer code",
   "homepage": "https://github.com/aom-js/main#readme",
   "bugs": {
@@ -13,7 +13,7 @@
   "license": "ISC",
   "author": "Grigory B. Kholstinnikov (scarych)",
   "dependencies": {
-    "@aom/core": "*",
+    "@aom-js/core": "*",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },

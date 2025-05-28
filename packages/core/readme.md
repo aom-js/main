@@ -1,4 +1,4 @@
-# `@aom/core`
+# `@aom-js/core`
 
 `aom` - `abstract-oriented models`.
 

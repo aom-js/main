@@ -1,5 +1,5 @@
 {
-  "name": "@aom/main",
+  "name": "@aom-js/main",
   "version": "0.0.1",
   "description": "`@aom` meta-framework monorepo",
   "homepage": "https://github.com/aom-js/main#readme",
@@ -17,10 +17,10 @@
     "packages/*"
   ],
   "scripts": {
-    "build:core": "yarn workspace @aom/core build",
-    "build:schemer": "yarn workspace @aom/schemer build",
-    "build:api": "yarn workspace @aom/api build",
-    "build:transfer": "yarn workspace @aom/transfer build",
+    "build:core": "yarn workspace @aom-js/core build",
+    "build:schemer": "yarn workspace @aom-js/schemer build",
+    "build:api": "yarn workspace @aom-js/api build",
+    "build:transfer": "yarn workspace @aom-js/transfer build",
     "build": "yarn build:core && yarn build:schemer && yarn build:api && yarn build:transfer",
     "test": "yarn workspaces run test",
     "lint": "yarn workspaces run lint",

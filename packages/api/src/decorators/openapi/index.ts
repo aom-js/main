@@ -1,4 +1,4 @@
-import { DecoratorsQueueStore } from "@aom/core";
+import { DecoratorsQueueStore } from "@aom-js/core";
 
 import {
   AomApi,

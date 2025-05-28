@@ -1,4 +1,4 @@
-import { ClassConstructor, DecoratorsQueueStore } from "@aom/core";
+import { ClassConstructor, DecoratorsQueueStore } from "@aom-js/core";
 import * as constants from "../../constants";
 
 import { ArgumentsDecoratorHandler, ArgumentsHandlerParameters } from "../../common";

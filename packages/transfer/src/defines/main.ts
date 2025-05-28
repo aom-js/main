@@ -1,4 +1,4 @@
-import { AomCore, Constructor, ClassConstructor } from "@aom/core";
+import { AomCore, Constructor, ClassConstructor } from "@aom-js/core";
 
 import {
   TransferConfig,

@@ -1,4 +1,4 @@
-import { CombinedDecorator, Constructor, DecoratorsQueueStore } from "@aom/core";
+import { CombinedDecorator, Constructor, DecoratorsQueueStore } from "@aom-js/core";
 
 import * as constants from "../../constants";
 import { FwdContainer, HandlerFunction, MarkerHandler, MiddlewareHandler } from "../../common";

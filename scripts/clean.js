@@ -11,6 +11,10 @@ packages.forEach((package) => {
       fs.rmSync(tsconfig);
     }
   });
+  const distDir = path.join(package, "dist");
+  if (fs.existsSync(distDir)) {
+    fs.rmSync(distDir, { force: true, recursive: true });
+  }
   // восстановим нулевой package.json из исходного
   const packageJsonFile = path.join(package, "package.json");
   const packageJson = {};

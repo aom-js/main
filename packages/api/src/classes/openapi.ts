@@ -1,5 +1,5 @@
-import { AomSchemas } from "@aom/schemer";
-import { isClass } from "@aom/core";
+import { AomSchemas } from "@aom-js/schemer";
+import { isClass } from "@aom-js/core";
 
 import { OpenAPIObject, OperationObject, PathsObject } from "openapi3-ts/oas31";
 import {

@@ -1,4 +1,4 @@
-import { AomCore, Property } from "@aom/core";
+import { AomCore, Property } from "@aom-js/core";
 
 import { ConnectionSchema, SchemerConfig, RenderHandler } from "./types";
 

@@ -1,4 +1,4 @@
-import { Constructor } from "@aom/core";
+import { Constructor } from "@aom-js/core";
 import { AomApi, TagsRules } from "../../common";
 
 export function UseTag(constructor: Constructor) {

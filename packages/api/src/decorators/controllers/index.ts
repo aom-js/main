@@ -4,7 +4,7 @@ import {
   hasOwnProperty,
   InstanceTarget,
   Property,
-} from "@aom/core";
+} from "@aom-js/core";
 import { AomApi } from "../../common";
 
 export function Controller() {

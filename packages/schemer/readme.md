@@ -1,3 +1,3 @@
-# `@aom/schemer`
+# `@aom-js/schemer`
 
 Schemas controls processing
