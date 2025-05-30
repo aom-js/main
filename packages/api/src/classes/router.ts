@@ -21,7 +21,7 @@ export class Router {
     // на каждой итерации создается свой массив курсором, чтобы последующие действия не создавал перекрытий
     const routeCursors = [].concat(cursors);
     // объединим миддлвари
-    routeCursors.push(...root.element.middlewares.map(($) => new AomCursor($, root, prefix)));
+    routeCursors.push(...root.element.pre_middlewares.map(($) => new AomCursor($, root, prefix)));
 
     root.element.endpoints.forEach((endpoint) => {
       const route = new AomRoute(prefix, endpoint, [].concat(routeCursors));

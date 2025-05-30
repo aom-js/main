@@ -119,7 +119,9 @@ class AomApiElement {
 
   parameters: AomHttpParameters;
 
-  middlewares: AomApi[] = [];
+  pre_middlewares: AomApi[] = [];
+
+  post_middlewares: AomApi[] = [];
 
   nextpoint: AomApi;
 
@@ -130,8 +132,12 @@ class AomApiElement {
     this.parameters = new AomHttpParameters(api);
   }
 
-  addMiddlewares(...middlewares: AomApi[]) {
-    this.middlewares.push(...middlewares);
+  addPreMiddlewares(...middlewares: AomApi[]) {
+    this.pre_middlewares.push(...middlewares);
+  }
+
+  addPostMiddlewares(...middlewares: AomApi[]) {
+    this.post_middlewares.push(...middlewares);
   }
 
   addNextpoint(nextpoint: AomApi) {
@@ -230,12 +236,19 @@ export class AomRoute {
     cursors.forEach((cursor) => {
       // сначала загоним в качестве значений собственные миддлвари текущего курсора
       this.plain(
-        cursor.$.element.middlewares.map(
+        cursor.$.element.pre_middlewares.map(
           (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint)
         )
       );
       // затем поместим сам курсор, который может быть как миддлварей так и
       this.cursors.push(cursor);
+
+      this.plain(
+        cursor.$.element.post_middlewares.map(
+          (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint)
+        )
+      );
+
       // если у текущего курсора есть nextpoint, то рекурсивно обработаем его, включив вероятные миддлвари и nextpoint-ы
       if (cursor.$.element.nextpoint) {
         this.plain([

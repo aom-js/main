@@ -8,13 +8,27 @@ import { AomApi } from "../../common";
 // ...
 export function Use(...middlewares: MiddlewareHandler[]): CombinedDecorator {
   return AomApi.combinedDecorator(($) => {
-    $.element.addMiddlewares(
+    $.element.addPreMiddlewares(
       ...middlewares
         .map((middleware) => AomApi.instance(middleware))
         .filter(($) => $.element.isMiddleware)
     );
   }, DecoratorsQueueStore.LAST);
 }
+
+export const UseBefore = Use;
+
+// ...
+export function UseAfter(...middlewares: MiddlewareHandler[]): CombinedDecorator {
+  return AomApi.combinedDecorator(($) => {
+    $.element.addPostMiddlewares(
+      ...middlewares
+        .map((middleware) => AomApi.instance(middleware))
+        .filter(($) => $.element.isMiddleware)
+    );
+  }, DecoratorsQueueStore.LAST);
+}
+
 // ************************************************ //
 // ...
 export function Middleware(): MethodDecorator {
@@ -36,7 +50,7 @@ export function Bridge(prefix: string, nextRoute: Constructor): CombinedDecorato
     // то добавим его в качестве самого первого вызова у следующего роута
     if (descriptor) {
       $.element.descriptor = descriptor;
-      next.element.middlewares = [$, ...next.element.middlewares];
+      next.element.pre_middlewares = [$, ...next.element.pre_middlewares];
     }
     $._.root.element.bridges.push({ prefix, next, $ });
   });
