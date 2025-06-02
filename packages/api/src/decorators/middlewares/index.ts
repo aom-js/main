@@ -6,7 +6,7 @@ import { FwdContainer, HandlerFunction, MarkerHandler, MiddlewareHandler } from 
 import { AomApi } from "../../common";
 // ************************************************ //
 // ...
-export function Use(...middlewares: MiddlewareHandler[]): CombinedDecorator {
+export function Before(...middlewares: MiddlewareHandler[]): CombinedDecorator {
   return AomApi.combinedDecorator(($) => {
     $.element.addPreMiddlewares(
       ...middlewares
@@ -16,10 +16,10 @@ export function Use(...middlewares: MiddlewareHandler[]): CombinedDecorator {
   }, DecoratorsQueueStore.LAST);
 }
 
-export const UseBefore = Use;
+// export const UseBefore = Use;
 
 // ...
-export function UseAfter(...middlewares: MiddlewareHandler[]): CombinedDecorator {
+export function After(...middlewares: MiddlewareHandler[]): CombinedDecorator {
   return AomApi.combinedDecorator(($) => {
     $.element.addPostMiddlewares(
       ...middlewares
@@ -79,7 +79,7 @@ export function UseMarker(handler: MarkerHandler): MethodDecorator {
 }
 
 // ************************************************ //
-export function UseNext(handler: HandlerFunction | FwdContainer): MethodDecorator {
+export function Next(handler: HandlerFunction | FwdContainer): MethodDecorator {
   return AomApi.methodDecorator(($, descriptor) => {
     const handlerInstance = AomApi.instance(
       handler instanceof FwdContainer ? handler.exec() : handler

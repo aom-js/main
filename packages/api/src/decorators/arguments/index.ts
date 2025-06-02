@@ -1,9 +1,14 @@
 import { ClassConstructor, DecoratorsQueueStore } from "@aom-js/core";
 import * as constants from "../../constants";
 
-import { ArgumentsDecoratorHandler, ArgumentsHandlerParameters } from "../../common";
+import {
+  AomCursor,
+  ArgumentsDecoratorHandler,
+  ArgumentsHandlerParameters,
+  HandlerFunction,
+} from "../../common";
 import { FwdContainer, ThisRefContainer, RouteRefContainer } from "../../common";
-import { HandlerFunction, AomApi, AomCursor } from "../../common";
+import { AomApi } from "../../common";
 
 function defaultHandler(args: ArgumentsHandlerParameters | any) {
   return args;
@@ -114,7 +119,7 @@ export function Headers(
 }
 
 // ---
-export function Next(): ReturnType<typeof Args> {
+export function Run(): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = function ({ context, cursor }) {
     // return (...handlers: HandlerFunction[]) => nextSequences(handlers, args);
     return (...handlers: HandlerFunction[]) => {

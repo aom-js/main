@@ -1,6 +1,6 @@
 import { HandlerFunction } from "../common/types";
 
-export declare type NextFunction = (...middlewares: HandlerFunction[]) => Promise<HandlerFunction>;
+export declare type RunFunction = (...middlewares: HandlerFunction[]) => Promise<any>;
 
 export declare interface HttpContextValues {
   ctx: any;

@@ -216,13 +216,6 @@ export class AomRoute {
 
     // назначим индексы для курсоров
     this.cursors.forEach((cursor, index) => {
-      // если текущий применяет курсор использует контекст, который тянется из его собственного
-      // родительского класса то есть сработало наследование, но перенос контекста не состоялся
-      if (cursor.origin._.target.prototype instanceof cursor.$._.target) {
-        // то заменим в текущем курсоре его основание из контекста собственного класса места сцепки
-        cursor.$ = cursor.$._.base.instance(cursor.origin._.target, cursor.$._.property);
-      }
-
       // применим маркеры в контексте того класса, где они объявлены
       cursor.$.element.markers.forEach((marker) => {
         Reflect.apply(marker.element.descriptor.value, marker._.target, [this, cursor]);
@@ -234,12 +227,20 @@ export class AomRoute {
 
   private plain(cursors: AomCursor[]) {
     cursors.forEach((cursor) => {
+      // если текущий применяет курсор использует контекст, который тянется из его собственного
+      // родительского класса то есть сработало наследование, но перенос контекста не состоялся
+      if (cursor.origin._.target.prototype instanceof cursor.$._.target) {
+        // то заменим в текущем курсоре его основание из контекста собственного класса места сцепки
+        cursor.$ = cursor.$._.base.instance(cursor.origin._.target, cursor.$._.property);
+      }
+
       // сначала загоним в качестве значений собственные миддлвари текущего курсора
       this.plain(
         cursor.$.element.pre_middlewares.map(
           (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint)
         )
       );
+
       // затем поместим сам курсор, который может быть как миддлварей так и
       this.cursors.push(cursor);
 
@@ -290,7 +291,11 @@ class RxContext {
                 $.element.parameters.apply({ context: this, cursor, route })
               );
 
-              const result = await Reflect.apply($.element.descriptor?.value, $._.target, args);
+              const result = await Reflect.apply(
+                $.element.descriptor?.value || new Function(),
+                $._.target,
+                args
+              );
 
               // Если результат - ошибка, выбрасываем её
               if (result instanceof Error) {
