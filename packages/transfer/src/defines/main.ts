@@ -65,18 +65,6 @@ export class Transfer implements TransferConfig {
     this.callbackMap = new Map();
   }
 
-  // конфигурация по умолчанию
-  static default: Transfer;
-
-  /**
-   * Устанавливает конфигурацию по умолчанию
-   * @param config Конфигурация изолятора
-   */
-  static config(config: TransferConfig): Transfer {
-    this.default = new this(config);
-    return this.default;
-  }
-
   /**
    * Связывает изолированный конструктор с именем экземпляра
    * Запускается непосредственно перед вызовом изолированного метода

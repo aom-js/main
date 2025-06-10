@@ -9,14 +9,11 @@ import { TransferCallbackResponse, TransferMessageHeaders, TransferTopics } from
 
 /**
  * Декоратор для изоляции класса
- * @param transfer Сконфигурированный изолятор
+ * @param transfer Сконфигурированный транспорт
  * @returns Декоратор класса
  */
-export function Isolator(transfer?: Transfer): ClassDecorator {
+export function Isolator(transfer: Transfer): ClassDecorator {
   //
-  if (!transfer) {
-    transfer = Transfer.default;
-  }
   return AomIsolator.classDecorator(($) => {
     $.transfer = transfer;
     $._.apply();
