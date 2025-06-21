@@ -15,6 +15,9 @@ export function Controller() {
     // унаследовать декораторы
     const inheritDecorators = (parent: Constructor) => {
       const $parent = $._.base.instance(parent);
+      
+      // перенесем собственные вызовы с родителя на конечного потомка
+      $parent._.callstack.transferTo($);
 
       const transferDescritorWithDecorators = (
         target: InstanceTarget,
