@@ -9,7 +9,7 @@ export declare interface TransferTopics {
  */
 export declare interface TransferMessageHeaders {
   /** Уникальный идентификатор сообщения для отслеживания и сопоставления запросов/ответов */
-  uniqKey: string;
+  uniqKey?: string;
 
   /** Топик, на который следует отправить ответ (опционально) */
   replyTopic?: string;
@@ -61,34 +61,61 @@ export declare interface TransferMessageSchema {
 export declare type TransferNextFunction = (message: TransferMessageSchema) => void;
 
 /**
+ * Интерфейс схемы изолированного сообщения
+ * Определяет структуру сообщений, передаваемых между изолированными компонентами
+ */
+export declare interface StructureReceiveSchema {
+  instance: InstancesData;
+
+  value: any;
+}
+
+export declare type StructureCollectorFunction = (data: StructureReceiveSchema) => void;
+
+export declare type TransferPublishHandlerArgs = {
+  topic: string;
+  message: TransferMessageSchema;
+};
+
+/**
  * Тип обработчика публикации для изолятора
  * Функция для отправки сообщений в определенный топик
  */
-export declare type TransferPublishHandler = (
-  topic: string,
-  message: TransferMessageSchema
-) => void;
+export declare type TransferPublishHandler = (args: TransferPublishHandlerArgs) => void;
 
+export declare type TransferSubscribeHandlerArgs = {
+  topic: string;
+  next: TransferNextFunction;
+  queue?: boolean;
+};
 /**
  * Тип обработчика подписки для изолятора
  * Функция для подписки на определенный топик и обработки входящих сообщений
  */
-export declare type TransferSubscribeHandler = (topic: string, next: TransferNextFunction) => void;
+export declare type TransferSubscribeHandler = (args: TransferSubscribeHandlerArgs) => void;
 
-/**
- * Интерфейс конфигурации изолятора
- * Определяет настройки и обработчики для экземпляра изолятора
- */
-export declare interface TransferConfig {
+export declare interface InstancesData {
   /** Имя экземпляра изолятора для идентификации */
   instanceName: string;
 
   /** Уникальный ключ экземпляра изолятора */
   instanceKey: string;
+}
 
+/**
+ * Интерфейс конфигурации изолятора
+ * Определяет настройки и обработчики для экземпляра изолятора
+ */
+export declare interface TransferConfig extends InstancesData {
   /** Функция для публикации сообщений в топики */
   publisher: TransferPublishHandler;
 
   /** Функция для подписки на топики и получения сообщений */
   subscriber: TransferSubscribeHandler;
+}
+
+export declare interface TransferRegisty {
+  receiver: InstancesData;
+  sender: InstancesData;
+  schemas: any;
 }
