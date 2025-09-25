@@ -27,6 +27,7 @@ export declare interface BaseDescriptionsProperties {
   message?: string | ((validationArguments: ValidationArguments) => string);
   groups?: string[];
   always?: boolean;
+  decorators?: PropertyDecorator[];
 }
 
 export enum SchemaTypes {
@@ -35,5 +36,6 @@ export enum SchemaTypes {
   NUMBER = "Number",
   BOOLEAN = "Boolean",
   ENUM = "Enum",
+  ANY = "Any",
   TYPE = "Type",
 }

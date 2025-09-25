@@ -1,4 +1,5 @@
 import {
+  Allow,
   IsBoolean,
   IsDate,
   IsEnum,
@@ -18,6 +19,7 @@ import { AomSchemas } from "./module";
 import { ClassConstructor, DecoratorsQueueStore, isClass } from "@aom-js/core";
 import { Transform, Type } from "class-transformer";
 import { JSONSchema } from "class-validator-jsonschema";
+import { IsNullable } from "./helpers";
 
 // дескрипторные декораторы, позволяющие описывать структуру
 
@@ -53,12 +55,14 @@ const _String = (params: StringDescriptionsProperties): PropertyDecorator => {
       params.isOptional ? IsOptional() : undefined,
       params.maxLength ? MaxLength(params.maxLength) : undefined,
       params.minLength ? MinLength(params.minLength) : undefined,
+      params.nullable ? IsNullable() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
       }),
+      ...(params.decorators || []), // добавим дополнительные декораторы
     ].filter(Boolean);
 
     // применим соответствующие декораторы
@@ -104,6 +108,7 @@ const _Number = (params: NumberDescriptionsProperties) => {
         if (params.nullable && value === null) return null;
         return Number(value);
       }),
+      ...(params.decorators || []), // добавим дополнительные декораторы
     ].filter(Boolean);
 
     // применим соответствующие декораторы
@@ -132,6 +137,7 @@ const _Boolean = (params: BooleanDescriptionsProperties) => {
         always: params.always,
       }),
       params.isOptional ? IsOptional() : undefined,
+      params.nullable ? IsNullable() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
@@ -147,6 +153,43 @@ const _Boolean = (params: BooleanDescriptionsProperties) => {
         if (isFalse) return false;
         return typeof value === "boolean" ? value : Boolean(+value);
       }),
+      ...(params.decorators || []), // добавим дополнительные декораторы
+    ].filter(Boolean);
+
+    // применим соответствующие декораторы
+    Reflect.decorate(decorators, originInstance, property);
+  }, DecoratorsQueueStore.LAST);
+};
+
+declare interface AnyDescriptionsProperties extends BaseDescriptionsProperties {
+  default?: any;
+}
+// любой тип
+const _Any = (params: AnyDescriptionsProperties) => {
+  //
+  return AomSchemas.propertyDecorator(($) => {
+    checkExistsSchemaParams($);
+    $.schemaName = SchemaTypes.ANY;
+    $.schemaParams = params;
+
+    const { originInstance, property } = $._;
+
+    const decorators = [
+      Allow({
+        each: params.isArray,
+        message: params.message,
+        groups: params.groups,
+        always: params.always,
+      }),
+      params.isOptional ? IsOptional() : undefined,
+      params.nullable ? IsNullable() : undefined,
+      JSONSchema({
+        description: params.description,
+        deprecated: params.deprecated,
+        nullable: params.nullable,
+        default: params.default,
+      }),
+      ...(params.decorators || []), // добавим дополнительные декораторы
     ].filter(Boolean);
 
     // применим соответствующие декораторы
@@ -180,12 +223,14 @@ const _Enum = <T extends EnumLike>(params: EnumDescriptionsProperties<T>) => {
         always: params.always,
       }),
       params.isOptional ? IsOptional() : undefined,
+      params.nullable ? IsNullable() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
       }),
+      ...(params.decorators || []), // добавим дополнительные декораторы
     ].filter(Boolean);
 
     // применим соответствующие декораторы
@@ -220,6 +265,7 @@ const _Date = <T extends EnumLike>(params: DateDescriptionsProperties<T>) => {
       params.maxDate ? MaxDate(params.maxDate) : undefined,
       params.minDate ? MinDate(params.minDate) : undefined,
       params.isOptional ? IsOptional() : undefined,
+      params.nullable ? IsNullable() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
@@ -261,6 +307,7 @@ const _Type = (params: TypeDescriptionsProperties) => {
         always: params.always,
       }),
       params.isOptional ? IsOptional() : undefined,
+      params.nullable ? IsNullable() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
@@ -278,5 +325,6 @@ export const Schema = {
   [SchemaTypes.NUMBER]: _Number,
   [SchemaTypes.BOOLEAN]: _Boolean,
   [SchemaTypes.ENUM]: _Enum,
+  [SchemaTypes.ANY]: _Any,
   [SchemaTypes.TYPE]: _Type,
 };
