@@ -20,13 +20,14 @@ export function Isolator(transfer: Transfer): ClassDecorator {
   });
 }
 
+// признак того, что вызов данного метода является распределенной очередью (то есть не обрабатывается всеми исполнителями)
 export function IsQueue() {
-  return AomIsolator.methodDecorator(($, descriptor) => {
+  return AomIsolator.methodDecorator(($) => {
     $.queue = true;
   });
 }
 
-// добавим признак того, что этот класс общий
+// добавим признак того, что этот класс распределенный
 export function IsDistributed() {
   return AomIsolator.classDecorator(($) => {
     // тут значением должна быть схема, которая будет распаковываться на других инстансах

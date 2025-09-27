@@ -107,6 +107,7 @@ export class Transfer implements TransferConfig {
       next: (message) => this.requestRegistry(message.value),
     });
 
+    // подписаться на топик с ответами с составом имеющихся схем
     this.subscriber({
       topic: this.registryResponseTopic,
       next: (message) => this.acceptRegistry(message.value),
@@ -134,6 +135,8 @@ export class Transfer implements TransferConfig {
     return [topic, instanceId].filter(Boolean).join("_");
   }
 
+  // определить сборщик распределенных схем
+  // получает на вход функцию, в которую будут передаваться данные из опрашиваемых узлов
   collectDistributions(colllectCallbackHandler: StructureCollectorFunction) {
     // зафиксируем функцию получатель
     this.structureCollector = colllectCallbackHandler;
@@ -147,6 +150,9 @@ export class Transfer implements TransferConfig {
     });
   }
 
+  // получение запроса о данных в реестре
+  // если запрос получен из узла, который не является текущим изоляционным инстансом
+  // отправителю этого сообщения передается информация о текущих распределенных методах
   private requestRegistry(sender: InstancesData) {
     const { instanceName, instanceKey } = this;
     if (!(sender.instanceName === instanceName && sender.instanceKey === instanceKey)) {
@@ -156,6 +162,11 @@ export class Transfer implements TransferConfig {
     }
   }
 
+  // получить данные из реестра
+  // проверяет, что в текущем узле установлен сборщик структуры
+  // и если получателем сообщения из реестра является текущая нода
+  // то вызывается тот самый сборщик, в который передается информация о текущих распределенных методах
+  // впоследствии на основании этих данных должна собраться codegen структура
   private acceptRegistry(registry: TransferRegisty) {
     const { receiver } = registry;
     const { instanceName, instanceKey } = this;
@@ -171,6 +182,4 @@ export class Transfer implements TransferConfig {
       Reflect.apply(this.structureCollector, null, [structureData]);
     }
   }
-
-  // вот тут должны
 }
