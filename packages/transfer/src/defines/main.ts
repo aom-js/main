@@ -1,5 +1,9 @@
 import { AomCore, Constructor, ClassConstructor } from "@aom-js/core";
 
+import * as rxjs from "rxjs";
+import * as rxjsOperators from "rxjs/operators";
+import crypto from "node:crypto";
+
 import {
   TransferConfig,
   TransferPublishHandler,
@@ -8,14 +12,39 @@ import {
   TransferMessageSchema,
   TransferNextFunction,
   TransferTopics,
+  TransferMessageHeaders,
+  TransferCallbackResponse,
+  InstancesData,
+  TransferRegisty,
+  StructureCollectorFunction,
+  StructureReceiveSchema,
 } from "./types";
+import { RxTransfer } from "./rx-transfer";
 
 export class AomIsolator extends AomCore {
   transfer: Transfer;
 
+  rx: RxTransfer;
+
+  singletone: boolean;
+
+  waitForResponse: boolean;
+
+  originDescriptorValue: Function;
+
+  queue: boolean;
+
+  registry: boolean;
+
+  replySubscribers: Record<string, boolean> = {};
+
+  topicProcessMap: Map<string, any> = new Map();
+
   isolatedMethods: AomIsolator[] = [];
 
   topicsMap: WeakMap<Constructor, TransferTopics> = new WeakMap();
+
+  instancesMap: WeakMap<Constructor, AomIsolator> = new WeakMap();
 
   instanceId?: string;
 
@@ -47,8 +76,16 @@ export class Transfer implements TransferConfig {
   // функция для подписки на данные
   subscriber: TransferSubscribeHandler;
 
+  // функция получения информации о структурах
+  private structureCollector?: StructureCollectorFunction;
+
   // карта коллбеков для обработки ответов
   callbackMap: Map<string, TransferCallbackHandler>;
+
+  readonly registryRequestTopic = `!Transfer_Registry_Request!`;
+  readonly registryResponseTopic = `!Transfer_Registry_Notification!`;
+
+  readonly registryMap: Map<ClassConstructor, any> = new Map();
 
   /**
    * Конструктор класса Isolator
@@ -63,6 +100,18 @@ export class Transfer implements TransferConfig {
     this.instanceName = config.instanceName;
 
     this.callbackMap = new Map();
+
+    // подписаться на топик, в ответ на который будет отправлен состав имеющихся схем
+    this.subscriber({
+      topic: this.registryRequestTopic,
+      next: (message) => this.requestRegistry(message.value),
+    });
+
+    // подписаться на топик с ответами с составом имеющихся схем
+    this.subscriber({
+      topic: this.registryResponseTopic,
+      next: (message) => this.acceptRegistry(message.value),
+    });
   }
 
   /**
@@ -86,64 +135,51 @@ export class Transfer implements TransferConfig {
     return [topic, instanceId].filter(Boolean).join("_");
   }
 
-  /**
-   * Создает обработчик ответов для указанного топика
-   * @param topic Топик, для которого создается обработчик
-   * @returns Функция-обработчик для обработки ответных сообщений
-   */
-  replyHandler(topic: string): TransferNextFunction {
-    return (message: TransferMessageSchema): void => {
-      // Извлекаем значение и заголовки из сообщения
-      const { value, headers } = message;
-      // Извлекаем уникальный ключ и флаг ошибки из заголовков
-      const { uniqKey, error } = headers;
-      // Получаем функцию обратного вызова по уникальному ключу
-      const callback = this.callbackMap.get(uniqKey);
-      // Если функция обратного вызова существует
-      if (callback) {
-        // Если в заголовках указан флаг ошибки, вызываем callback с ошибкой
-        if (error) {
-          callback({ error: value, topic });
-        } else {
-          // Иначе вызываем callback с успешным результатом
-          callback({ topic, value });
-        }
-      }
-    };
+  // определить сборщик распределенных схем
+  // получает на вход функцию, в которую будут передаваться данные из опрашиваемых узлов
+  collectDistributions(colllectCallbackHandler: StructureCollectorFunction) {
+    // зафиксируем функцию получатель
+    this.structureCollector = colllectCallbackHandler;
+    // соберем информацию о текущем инстанса
+    const { instanceName, instanceKey } = this;
+    const value = { instanceName, instanceKey };
+    //  опубликуем от текущей ноды запрос в о структурах в общем реестре
+    this.publisher({
+      topic: this.registryRequestTopic,
+      message: { value, headers: {} },
+    });
   }
 
-  /**
-   * Создает функцию-обработчик для выполнения метода
-   * @param constructor Конструктор класса
-   * @param propertyKey Ключ свойства (метода)
-   * @returns Функция-обработчик следующего сообщения
-   */
-  execHandler(constructor: Constructor, propertyKey: string): TransferNextFunction {
-    return (message: TransferMessageSchema) => {
-      const { value, headers } = message;
+  // получение запроса о данных в реестре
+  // если запрос получен из узла, который не является текущим изоляционным инстансом
+  // отправителю этого сообщения передается информация о текущих распределенных методах
+  private requestRegistry(sender: InstancesData) {
+    const { instanceName, instanceKey } = this;
+    if (!(sender.instanceName === instanceName && sender.instanceKey === instanceKey)) {
+      const schemas = this.registryMap.entries();
+      const value = { receiver: sender, sender: { instanceName, instanceKey }, schemas };
+      this.publisher({ topic: this.registryResponseTopic, message: { value, headers: {} } });
+    }
+  }
 
-      const { replyTopic, uniqKey } = headers;
-
-      // выполняем оригинальную функцию, сохраняя контекст
-      Promise.all([Reflect.apply(constructor[propertyKey], constructor, value)])
-        .then(([result]) => {
-          // если указан топик для ответа, отправляем результат
-          replyTopic &&
-            this.publisher(replyTopic, {
-              value: result || {},
-              headers: { uniqKey },
-            });
-        })
-        .catch((error) => {
-          console.error("caught isolator error", error, value);
-
-          // в случае ошибки отправляем её в топик для ответа
-          replyTopic &&
-            this.publisher(replyTopic, {
-              value: error,
-              headers: { uniqKey, error: true },
-            });
-        });
-    };
+  // получить данные из реестра
+  // проверяет, что в текущем узле установлен сборщик структуры
+  // и если получателем сообщения из реестра является текущая нода
+  // то вызывается тот самый сборщик, в который передается информация о текущих распределенных методах
+  // впоследствии на основании этих данных должна собраться codegen структура
+  private acceptRegistry(registry: TransferRegisty) {
+    const { receiver } = registry;
+    const { instanceName, instanceKey } = this;
+    if (
+      this.structureCollector &&
+      receiver.instanceName === instanceName &&
+      receiver.instanceKey === instanceKey
+    ) {
+      const { schemas, sender } = registry;
+      // тут сформируем структуру для её обработки в функции получения данных из реестра
+      const structureData: StructureReceiveSchema = { instance: sender, value: schemas };
+      // и вызовем сборщик структур, передав релевантную информацию
+      Reflect.apply(this.structureCollector, null, [structureData]);
+    }
   }
 }
