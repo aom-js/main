@@ -4,9 +4,9 @@ import { targetConstructorToSchema } from "class-validator-jsonschema";
 
 import {
   ConnectionSchema,
-  SchemerConfig,
-  RenderHandler,
-  BaseDescriptionsProperties,
+  // SchemerConfig,
+  // RenderHandler,
+  CommonDescriptionsProperties,
   SchemaTypes,
 } from "./types";
 
@@ -17,7 +17,7 @@ export class AomSchemas extends AomCore {
   connections: Map<Property, ConnectionSchema> = new Map();
 
   schemaName?: SchemaTypes;
-  schemaParams?: BaseDescriptionsProperties;
+  schemaParams?: CommonDescriptionsProperties;
 }
 
 export class Schemer {

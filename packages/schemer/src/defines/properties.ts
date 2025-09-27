@@ -14,9 +14,9 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
-import { BaseDescriptionsProperties, ConnectionSchema, SchemaTypes } from "./types";
+import { CommonDescriptionsProperties, ConnectionSchema, SchemaTypes } from "./types";
 import { AomSchemas } from "./module";
-import { ClassConstructor, DecoratorsQueueStore, isClass } from "@aom-js/core";
+import { DecoratorsQueueStore } from "@aom-js/core";
 import { Transform, Type } from "class-transformer";
 import { JSONSchema } from "class-validator-jsonschema";
 import { IsNullable } from "./helpers";
@@ -29,7 +29,7 @@ function checkExistsSchemaParams($: AomSchemas) {
   }
 }
 
-declare interface StringDescriptionsProperties extends BaseDescriptionsProperties {
+declare interface StringDescriptionsProperties extends CommonDescriptionsProperties {
   minLength?: number;
   maxLength?: number;
   pattern?: string;
@@ -61,6 +61,7 @@ const _String = (params: StringDescriptionsProperties): PropertyDecorator => {
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
+        examples: params.examples,
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
     ].filter(Boolean);
@@ -70,7 +71,7 @@ const _String = (params: StringDescriptionsProperties): PropertyDecorator => {
   }, DecoratorsQueueStore.LAST);
 };
 
-declare interface NumberDescriptionsProperties extends BaseDescriptionsProperties {
+declare interface NumberDescriptionsProperties extends CommonDescriptionsProperties {
   minValue?: number;
   maxValue?: number;
   default?: number;
@@ -103,6 +104,7 @@ const _Number = (params: NumberDescriptionsProperties) => {
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
+        examples: params.examples,
       }),
       Transform(({ value }) => {
         if (params.nullable && value === null) return null;
@@ -116,7 +118,7 @@ const _Number = (params: NumberDescriptionsProperties) => {
   }, DecoratorsQueueStore.LAST);
 };
 
-declare interface BooleanDescriptionsProperties extends BaseDescriptionsProperties {
+declare interface BooleanDescriptionsProperties extends CommonDescriptionsProperties {
   default?: boolean;
 }
 
@@ -143,6 +145,7 @@ const _Boolean = (params: BooleanDescriptionsProperties) => {
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
+        examples: params.examples,
       }),
       Transform(({ value }) => {
         if (params.nullable && value === null) return null;
@@ -161,7 +164,7 @@ const _Boolean = (params: BooleanDescriptionsProperties) => {
   }, DecoratorsQueueStore.LAST);
 };
 
-declare interface AnyDescriptionsProperties extends BaseDescriptionsProperties {
+declare interface AnyDescriptionsProperties extends CommonDescriptionsProperties {
   default?: any;
 }
 // любой тип
@@ -188,6 +191,7 @@ const _Any = (params: AnyDescriptionsProperties) => {
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
+        examples: params.examples,
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
     ].filter(Boolean);
@@ -200,7 +204,7 @@ const _Any = (params: AnyDescriptionsProperties) => {
 type EnumLike = Record<string, string | number>;
 
 declare interface EnumDescriptionsProperties<T extends EnumLike>
-  extends BaseDescriptionsProperties {
+  extends CommonDescriptionsProperties {
   value: T;
   default?: T[keyof T];
 }
@@ -229,6 +233,7 @@ const _Enum = <T extends EnumLike>(params: EnumDescriptionsProperties<T>) => {
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
+        examples: params.examples,
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
     ].filter(Boolean);
@@ -238,14 +243,13 @@ const _Enum = <T extends EnumLike>(params: EnumDescriptionsProperties<T>) => {
   }, DecoratorsQueueStore.LAST);
 };
 
-declare interface DateDescriptionsProperties<T extends EnumLike>
-  extends BaseDescriptionsProperties {
-  minDate: Date;
-  maxDate: Date;
-  default: Date;
+declare interface DateDescriptionsProperties extends CommonDescriptionsProperties {
+  minDate?: Date;
+  maxDate?: Date;
+  default?: Date;
 }
 
-const _Date = <T extends EnumLike>(params: DateDescriptionsProperties<T>) => {
+const _Date = (params: DateDescriptionsProperties) => {
   //
   //
   return AomSchemas.propertyDecorator(($) => {
@@ -271,6 +275,7 @@ const _Date = <T extends EnumLike>(params: DateDescriptionsProperties<T>) => {
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
+        examples: params.examples,
       }),
       Transform(({ value }) => {
         if (params.nullable && value === null) return null;
@@ -283,7 +288,7 @@ const _Date = <T extends EnumLike>(params: DateDescriptionsProperties<T>) => {
   }, DecoratorsQueueStore.LAST);
 };
 
-declare interface TypeDescriptionsProperties extends BaseDescriptionsProperties {
+declare interface TypeDescriptionsProperties extends CommonDescriptionsProperties {
   value: ConnectionSchema;
 }
 
@@ -320,9 +325,10 @@ const _Type = (params: TypeDescriptionsProperties) => {
   }, DecoratorsQueueStore.LAST);
 };
 
-export const Schema = {
+export const PropertySchema = {
   [SchemaTypes.STRING]: _String,
   [SchemaTypes.NUMBER]: _Number,
+  [SchemaTypes.DATE]: _Date,
   [SchemaTypes.BOOLEAN]: _Boolean,
   [SchemaTypes.ENUM]: _Enum,
   [SchemaTypes.ANY]: _Any,

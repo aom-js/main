@@ -5,8 +5,8 @@ import { RemoveFieldsWithType } from "./types/remove-fields-with-type.type";
 import { AomSchemas } from "../module";
 import { ComponentSchema } from "../decorators";
 import { InstanceTarget, Property } from "@aom-js/core";
-import { BaseDescriptionsProperties, SchemaTypes } from "../types";
-import { Schema } from "../descriptors";
+import { CommonDescriptionsProperties, SchemaTypes } from "../types";
+import { PropertySchema } from "../properties";
 
 // https://stackoverflow.com/questions/50374908/transform-union-type-to-intersection-type
 type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void
@@ -37,7 +37,7 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
     InstanceTarget,
     PropertyDescriptor,
     SchemaTypes,
-    BaseDescriptionsProperties
+    CommonDescriptionsProperties
   ];
   const intersectionsMap: Map<Property, intersectionValue> = new Map();
   const intersectionsProtoMap: Map<Property, intersectionValue> = new Map();
@@ -65,13 +65,23 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
   intersectionsMap.forEach((value, property) => {
     const [target, descriptor, schemaName, schemaParams] = value;
     Reflect.defineProperty(target, property, { ...descriptor });
-    Reflect.decorate([Schema[schemaName](schemaParams)], target, property);
+    Reflect.decorate(
+      // [Schema[schemaName](schemaParams)],
+      [Reflect.apply(PropertySchema[schemaName], undefined, [schemaParams])],
+      target,
+      property
+    );
   });
 
   intersectionsProtoMap.forEach((value, property) => {
     const [target, descriptor, schemaName, schemaParams] = value;
     Reflect.defineProperty(target, property, { ...descriptor });
-    Reflect.decorate([Schema[schemaName](schemaParams)], target, property);
+    Reflect.decorate(
+      // [Schema[schemaName](schemaParams)],
+      [Reflect.apply(PropertySchema[schemaName], undefined, [schemaParams])],
+      target,
+      property
+    );
   });
 
   Reflect.decorate([ComponentSchema()], IntersectionClassType);

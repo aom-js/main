@@ -5,7 +5,7 @@ import { MappedType } from "./mapped-type.interface";
 import { AomSchemas } from "../module";
 import { ComponentSchema } from "../decorators";
 
-import { Schema } from "../descriptors";
+import { PropertySchema } from "../properties";
 import { RemoveFieldsWithType } from "./types/remove-fields-with-type.type";
 
 /**
@@ -29,7 +29,8 @@ export function PartialType<T>(classRef: Type<T>) {
       // определим соответствующее свойство и добавим на него декоратор
       Reflect.defineProperty(target, origin.property, { ...origin.descriptor });
       Reflect.decorate(
-        [Schema[schemaName]({ ...schemaParams, isOptional: true })],
+        // [Schema[schemaName]({ ...schemaParams, isOptional: true })],
+        [Reflect.apply(PropertySchema[schemaName], undefined, [{ ...schemaParams, isOptional: true }])],
         target,
         origin.property
       );

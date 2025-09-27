@@ -1,3 +1,5 @@
+// добавим декоратор для описания класса
+import { JSONSchema } from "class-validator-jsonschema";
 // локальные импорты
 import {
   Constructor,
@@ -7,7 +9,7 @@ import {
   Property,
 } from "@aom-js/core";
 import { Schemer, AomSchemas } from "./module";
-import { ConnectionSchema } from "./types";
+import { BaseDescriptionsProperties } from "./types";
 // import { IsolatedCallbackResponse, IsolatedMessageHeaders } from "./types";
 
 /**
@@ -15,7 +17,7 @@ import { ConnectionSchema } from "./types";
  * @param schemer конфигурация визуализации
  * @returns Декоратор класса
  */
-export function ComponentSchema(): ClassDecorator {
+export function ComponentSchema(params?: BaseDescriptionsProperties): ClassDecorator {
   //
   return AomSchemas.classDecorator(($) => {
     // $.schemer = schemer;
@@ -95,7 +97,13 @@ export function ComponentSchema(): ClassDecorator {
       // }
     };
     inheritDecorators(Object.getPrototypeOf($._.target));
-    // console.log ($._, $._.origins);
+
+    // если указаны параметры, то применим соответствующее описание классу
+    if (params) {
+      const decorators = [JSONSchema({ ...params })];
+      Reflect.decorate(decorators, $._.target);
+    }
+
     $._.apply(); // применим остальные декораторы
     if (errors.length) {
       console.error("ComponentSchema inherit errors", errors);

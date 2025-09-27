@@ -5,12 +5,9 @@ import { RemoveFieldsWithType } from "./types/remove-fields-with-type.type";
 import { AomSchemas } from "../module";
 import { ComponentSchema } from "../decorators";
 
-import { Schema } from "../descriptors";
+import { PropertySchema } from "../properties";
 
-export function PickType<T, K extends keyof T>(
-  classRef: Type<T>,
-  keys: readonly K[]
-): Type<Pick<T, (typeof keys)[number]>> {
+export function PickType<T, K extends keyof T>(classRef: Type<T>, keys: readonly K[]) {
   abstract class PickTypeClass {}
 
   const $classInstance = AomSchemas.checkExists(classRef);
@@ -29,7 +26,11 @@ export function PickType<T, K extends keyof T>(
         const target = isClassOrigin ? PickTypeClass : PickTypeClass.prototype;
         // определим соответствующее свойство и добавим на него декоратор
         Reflect.defineProperty(target, origin.property, { ...origin.descriptor });
-        Reflect.decorate([Schema[schemaName](schemaParams)], target, origin.property);
+        Reflect.decorate(
+          [Reflect.apply(PropertySchema[schemaName], undefined, [schemaParams])],
+          target,
+          origin.property
+        );
       }
     }
   });

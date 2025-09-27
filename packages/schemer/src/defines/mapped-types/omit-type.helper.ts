@@ -5,7 +5,7 @@ import { RemoveFieldsWithType } from "./types/remove-fields-with-type.type";
 import { AomSchemas } from "../module";
 import { ComponentSchema } from "../decorators";
 
-import { Schema } from "../descriptors";
+import { PropertySchema } from "../properties";
 
 export function OmitType<T, K extends keyof T>(classRef: Type<T>, keys: readonly K[]) {
   abstract class OmitTypeClass {}
@@ -26,7 +26,12 @@ export function OmitType<T, K extends keyof T>(classRef: Type<T>, keys: readonly
         const target = isClassOrigin ? OmitTypeClass : OmitTypeClass.prototype;
         // определим соответствующее свойство и добавим на него декоратор
         Reflect.defineProperty(target, origin.property, { ...origin.descriptor });
-        Reflect.decorate([Schema[schemaName](schemaParams)], target, origin.property);
+        Reflect.decorate(
+          //[Schema[schemaName](schemaParams)]
+          [Reflect.apply(PropertySchema[schemaName], undefined, [schemaParams])],
+          target,
+          origin.property
+        );
       }
     }
   });
