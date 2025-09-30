@@ -44,6 +44,8 @@ type OriginDescriptor = {
   descriptor: PropertyDescriptor;
 };
 
+type NodeOriginDescriptor<T extends AomCore> = { _: AomNode<T>; self: T } & OriginDescriptor;
+
 class AomCallstackQueue<T extends AomCore> {
   private queue: LazyCall<T>[];
   private fired: LazyCall<T>[];
@@ -185,7 +187,9 @@ class AomNode<T extends AomCore> {
 
   self: T;
 
-  origins: OriginDescriptor[];
+  originInstance: InstanceTarget;
+
+  origins: NodeOriginDescriptor<T>[];
 
   properties: Map<Property, T>;
 
@@ -215,8 +219,9 @@ class AomNode<T extends AomCore> {
     // если указано конкретное свойство, то зафиксируем с ним связь в инстансе от исходного конструктора
     if (property) {
       this.root = this.base.instance(target);
+      this.originInstance = origin.target;
       if (origin && !origin.descriptor?.enumerable) {
-        this.root._.origins.push(origin);
+        this.root._.origins.push({ _: this, self, ...origin });
       }
     } else {
       this.root = this.self;
@@ -235,8 +240,9 @@ class AomNode<T extends AomCore> {
     });
 
     // разберем всё по дескрипторам
-    this.origins.forEach(({ descriptor }) => {
-      this.base.instance(descriptor.value)._.callstack.apply();
+    this.origins.forEach(({ _ }) => {
+      // this.base.instance(descriptor.value)._.callstack.apply();
+      _.callstack.apply();
     });
 
     // выполним собственные отложенные вызовы
@@ -284,12 +290,14 @@ export class AomCore {
       target instanceof Function ? target : target.constructor
     ) as ClassConstructor;
 
+    const map = this.instancesMap();
+
     let instanceKey: T | E;
     // если указано конкретное свойство, и текущий контекст происходит для конкретного класса
     if (property && isClass(constructor)) {
       const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
 
-      if (descriptor && !descriptor.enumerable) {
+      if (descriptor && descriptor.value && !descriptor.enumerable) {
         // если это метод, то возьмем в качестве ключа инстанса значение дескриптора
         // на которое будет ссылаться и метод по его названию
         instanceKey = descriptor.value as E;
@@ -307,8 +315,12 @@ export class AomCore {
         }
         instanceKey = propertiesMap.get(property);
         if (!instanceKey) {
+          const originDescriptor = { target, property, descriptor };
+
           // создадим интанс
-          instanceKey = new this(this, constructor, property);
+          instanceKey = new this(this, constructor, property, originDescriptor);
+          // запишем его в общую карту
+          map.set(instanceKey, instanceKey);
           // сохраним его в релевантной карте
           propertiesMap.set(property, instanceKey);
         }

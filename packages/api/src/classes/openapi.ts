@@ -1,4 +1,4 @@
-import { AomSchemas } from "@aom-js/schemer";
+import { AomSchemas, Schemer } from "@aom-js/schemer";
 import { isClass } from "@aom-js/core";
 
 import { OpenAPIObject, OperationObject, PathsObject } from "openapi3-ts/oas31";
@@ -26,6 +26,8 @@ export class OpenApi {
   private componentsMap = new Map();
 
   private paths: PathsObject = {};
+
+  private schemer = new Schemer(OpenApi.refPointerPrefix);
 
   constructor(initData: OpenAPIObject) {
     // ...
@@ -186,16 +188,17 @@ export class OpenApi {
 
     // проверим, что данная схема существует в качестве сохраненного значения в компонентной базе
     const savedComponentSchema = AomSchemas.checkExists(schema);
-    if (savedComponentSchema && savedComponentSchema.schemer) {
+    if (savedComponentSchema && savedComponentSchema.isComponentSchema) {
       const { name } = savedComponentSchema._.target;
       if (!this.componentsMap.get(name)) {
-        this.componentsMap.set(name, savedComponentSchema.schemer.render(schema));
+        this.componentsMap.set(name, this.schemer.render(schema));
         // пройдёмся по всем собственным соединениям, и добавим в схемы соответствующие значения
-        savedComponentSchema.connections.forEach((schema) => {
+        savedComponentSchema.connections.forEach((schemaConnection) => {
+          const schema = Reflect.apply(schemaConnection, null, []);
           // если схема не является классом, значит эт функция, и для её получения надо её запустить
-          if (!isClass(schema)) {
-            schema = Reflect.apply(schema, null, []);
-          }
+          // if (!isClass(schemaConnection)) {
+          //   schemaConnection = Reflect.apply(schemaConnection, null, []);
+          // }
           // далее рекурсивно применим ту же самую процедуру, чтобы зафиксировать соответствующее значение в карте
           // результат никак не обрабатываем, подразумеваем, что он будет в схемах, которые отрендерятся стандартным образом
           this.schemaExtract(schema, cursor);

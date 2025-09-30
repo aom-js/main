@@ -1,34 +1,54 @@
-import { AomCore, Property } from "@aom-js/core";
+import { AomCore, Constructor, Property } from "@aom-js/core";
+import { defaultMetadataStorage } from "class-transformer/cjs/storage";
+import { targetConstructorToSchema } from "class-validator-jsonschema";
 
-import { ConnectionSchema, SchemerConfig, RenderHandler } from "./types";
+import {
+  ConnectionSchema,
+  // SchemerConfig,
+  // RenderHandler,
+  CommonDescriptionsProperties,
+  SchemaTypes,
+} from "./types";
 
 export class AomSchemas extends AomCore {
   schemer: Schemer;
 
+  isComponentSchema: boolean;
   connections: Map<Property, ConnectionSchema> = new Map();
+
+  schemaName?: SchemaTypes;
+  schemaParams?: CommonDescriptionsProperties;
 }
 
-export class Schemer implements SchemerConfig {
-  // функция для рендера данных
-  render: RenderHandler;
+export class Schemer {
+  private refPointerPrefix: string;
 
   /**
    * Конструктор класса Schemer
    * @param config Конфигурация схемера
    */
-  constructor(config: SchemerConfig) {
+  constructor(refPointerPrefix: string) {
+    this.refPointerPrefix = refPointerPrefix;
     //
-    this.render = config.render;
+    // this.render = config.render;
   }
 
-  // конфигурация по умолчанию
-  static default: Schemer;
-
-  /**
-   * Устанавливает конфигурацию по умолчанию
-   * @param config Конфигурация схемера
-   */
-  static config(config: SchemerConfig) {
-    this.default = new this(config);
+  // функция для рендера данных
+  render(target: Constructor): ReturnType<typeof targetConstructorToSchema> {
+    return targetConstructorToSchema(target, {
+      classTransformerMetadataStorage: defaultMetadataStorage,
+      refPointerPrefix: this.refPointerPrefix,
+    });
   }
+
+  // // конфигурация по умолчанию
+  // static default: Schemer;
+
+  // /**
+  //  * Устанавливает конфигурацию по умолчанию
+  //  * @param config Конфигурация схемера
+  //  */
+  // static config(config: SchemerConfig) {
+  //   this.default = new this(config);
+  // }
 }
