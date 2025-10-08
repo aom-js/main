@@ -1,24 +1,11 @@
-import {
-  Allow,
-  IsBoolean,
-  IsDate,
-  IsEnum,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  MaxDate,
-  MaxLength,
-  Min,
-  MinDate,
-  MinLength,
-  ValidateNested,
-} from "class-validator";
+import { Allow, IsBoolean, IsDate, IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
+import { Max, MaxDate, MaxLength, Min, MinDate, MinLength, ValidateNested } from "class-validator";
+import { Exclude, Transform, Type } from "class-transformer";
+import { DecoratorsQueueStore } from "@aom-js/core";
+import { JSONSchema } from "class-validator-jsonschema";
+//
 import { CommonDescriptionsProperties, ConnectionSchema, SchemaTypes } from "./types";
 import { AomSchemas } from "./module";
-import { DecoratorsQueueStore } from "@aom-js/core";
-import { Transform, Type } from "class-transformer";
-import { JSONSchema } from "class-validator-jsonschema";
 import { IsNullable } from "./helpers";
 
 // дескрипторные декораторы, позволяющие описывать структуру
@@ -56,12 +43,14 @@ const _String = (params: StringDescriptionsProperties): PropertyDecorator => {
       params.maxLength ? MaxLength(params.maxLength) : undefined,
       params.minLength ? MinLength(params.minLength) : undefined,
       params.nullable ? IsNullable() : undefined,
+      params.hidden ? Exclude() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
         examples: params.examples,
+        readOnly: params.readOnly,
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
     ].filter(Boolean);
@@ -99,12 +88,14 @@ const _Number = (params: NumberDescriptionsProperties) => {
       params.isOptional ? IsOptional() : undefined,
       params.maxValue ? Max(params.maxValue) : undefined,
       params.minValue ? Min(params.minValue) : undefined,
+      params.hidden ? Exclude() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
         examples: params.examples,
+        readOnly: params.readOnly,
       }),
       Transform(({ value }) => {
         if (params.nullable && value === null) return null;
@@ -140,12 +131,14 @@ const _Boolean = (params: BooleanDescriptionsProperties) => {
       }),
       params.isOptional ? IsOptional() : undefined,
       params.nullable ? IsNullable() : undefined,
+      params.hidden ? Exclude() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
         examples: params.examples,
+        readOnly: params.readOnly,
       }),
       Transform(({ value }) => {
         if (params.nullable && value === null) return null;
@@ -186,12 +179,14 @@ const _Any = (params: AnyDescriptionsProperties) => {
       }),
       params.isOptional ? IsOptional() : undefined,
       params.nullable ? IsNullable() : undefined,
+      params.hidden ? Exclude() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
         nullable: params.nullable,
         default: params.default,
         examples: params.examples,
+        readOnly: params.readOnly,
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
     ].filter(Boolean);
@@ -228,6 +223,7 @@ const _Enum = <T extends EnumLike>(params: EnumDescriptionsProperties<T>) => {
       }),
       params.isOptional ? IsOptional() : undefined,
       params.nullable ? IsNullable() : undefined,
+      params.hidden ? Exclude() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
@@ -270,6 +266,7 @@ const _Date = (params: DateDescriptionsProperties) => {
       params.minDate ? MinDate(params.minDate) : undefined,
       params.isOptional ? IsOptional() : undefined,
       params.nullable ? IsNullable() : undefined,
+      params.hidden ? Exclude() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,
@@ -313,6 +310,7 @@ const _Type = (params: TypeDescriptionsProperties) => {
       }),
       params.isOptional ? IsOptional() : undefined,
       params.nullable ? IsNullable() : undefined,
+      params.hidden ? Exclude() : undefined,
       JSONSchema({
         description: params.description,
         deprecated: params.deprecated,

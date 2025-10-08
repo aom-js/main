@@ -27,6 +27,8 @@ export declare interface CommonDescriptionsProperties extends BaseDescriptionsPr
   nullable?: boolean;
   examples?: any[];
   isOptional?: boolean;
+  hidden?: boolean;
+  readOnly?: boolean;
   isArray?: boolean;
   message?: string | ((validationArguments: ValidationArguments) => string);
   groups?: string[];

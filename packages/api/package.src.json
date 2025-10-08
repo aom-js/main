@@ -14,7 +14,7 @@
   "author": "Grigory B. Kholstinnikov (scarych)",
   "dependencies": {
     "@aom-js/core": "^0.0.2",
-    "@aom-js/schemer": "^0.0.3",
+    "@aom-js/schemer": "^0.0.5",
     "openapi3-ts": "^4.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
