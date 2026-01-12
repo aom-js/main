@@ -16,7 +16,8 @@ import {
 export class OpenApi {
   static readonly refPointerPrefix = "#/components/schemas/";
 
-  private tagsSeparator = " > ";
+  static tagsSeparator = " > ";
+
   private data: OpenAPIObject;
 
   private tagsSet = new Set<string>();
@@ -157,7 +158,7 @@ export class OpenApi {
     // если набраны теги
     if (tags.length) {
       // то зафиксируем их для текущего метода, используя разделитель
-      currentMethod.tags = [tags.join(this.tagsSeparator)];
+      currentMethod.tags = [tags.join(OpenApi.tagsSeparator)];
       // и сохраним в соответствующем сете
       this.tagsSet.add(currentMethod.tags[0]);
     }

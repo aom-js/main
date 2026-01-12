@@ -63,6 +63,7 @@ const _String = (params: StringDescriptionsProperties): PropertyDecorator => {
 declare interface NumberDescriptionsProperties extends CommonDescriptionsProperties {
   minValue?: number;
   maxValue?: number;
+  maxDecimalPlaces?: number;
   default?: number;
 }
 
@@ -77,7 +78,7 @@ const _Number = (params: NumberDescriptionsProperties) => {
 
     const decorators = [
       IsNumber(
-        {},
+        { maxDecimalPlaces: params.maxDecimalPlaces },
         {
           each: params.isArray,
           message: params.message,
@@ -253,7 +254,7 @@ const _Date = (params: DateDescriptionsProperties) => {
     $.schemaName = SchemaTypes.DATE;
     $.schemaParams = params;
 
-    const { target, property } = $._;
+    const { originInstance, property } = $._;
 
     const decorators = [
       IsDate({
@@ -281,7 +282,7 @@ const _Date = (params: DateDescriptionsProperties) => {
     ].filter(Boolean);
 
     // применим соответствующие декораторы
-    Reflect.decorate(decorators, Object.getPrototypeOf(target), property);
+    Reflect.decorate(decorators, originInstance, property);
   }, DecoratorsQueueStore.LAST);
 };
 

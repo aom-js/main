@@ -183,11 +183,6 @@ export class AomCursor {
     this.prefix = prefix;
     this.endpoint = endpoint;
   }
-
-  setEndpoint(endpoint: AomEndpoint) {
-    this.endpoint = endpoint;
-    return this;
-  }
 }
 
 export class AomRoute {
@@ -210,7 +205,10 @@ export class AomRoute {
     this.endpoint = endpoint;
 
     this.plain([
-      ...cursors.map((cursor) => cursor.setEndpoint(endpoint)),
+      ...cursors.map((cursor) => {
+        cursor.endpoint = endpoint;
+        return cursor;
+      }),
       new AomCursor(endpoint.$, endpoint.$, this.path, endpoint), // сам ендпоинт тоже является курсором
     ]);
 
@@ -287,6 +285,19 @@ class RxContext {
           concatMap(async (cursor: AomCursor) => {
             try {
               const { $ } = cursor;
+              // на уровне каждого курсора проверим, что для него есть существуюший инстанс в state
+              // и создадим его, если его нет (работает в том числе с учетом декорированных constructor)
+              if (!this.state.get($._.target)) {
+                const { target } = $._;
+                const $target = AomApi.instance(target);
+                const instanceArgs = await Promise.all(
+                  $target.element.parameters.apply({ context: this, cursor, route })
+                );
+
+                const instance = Reflect.construct(target, instanceArgs);
+
+                this.state.set(target, instance);
+              }
               const args = await Promise.all(
                 $.element.parameters.apply({ context: this, cursor, route })
               );

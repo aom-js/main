@@ -10,6 +10,8 @@ import {
   TransferNextFunction,
 } from "./types";
 
+rxjs.config.onUnhandledError = (err: Error) => console.error("rxjs unhandled error", err);
+
 export class RxTransfer {
   private transfer: Transfer;
 

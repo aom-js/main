@@ -23,6 +23,10 @@ export declare interface BaseDescriptionsProperties {
   deprecated?: boolean;
 }
 
+export declare interface ClassDescriptionsProperties extends BaseDescriptionsProperties {
+  decorators?: ClassDecorator[];
+}
+
 export declare interface CommonDescriptionsProperties extends BaseDescriptionsProperties {
   nullable?: boolean;
   examples?: any[];

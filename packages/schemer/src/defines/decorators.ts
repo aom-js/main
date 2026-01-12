@@ -9,7 +9,7 @@ import {
   Property,
 } from "@aom-js/core";
 import { Schemer, AomSchemas } from "./module";
-import { BaseDescriptionsProperties } from "./types";
+import { ClassDescriptionsProperties } from "./types";
 // import { IsolatedCallbackResponse, IsolatedMessageHeaders } from "./types";
 
 /**
@@ -17,7 +17,7 @@ import { BaseDescriptionsProperties } from "./types";
  * @param schemer конфигурация визуализации
  * @returns Декоратор класса
  */
-export function ComponentSchema(params?: BaseDescriptionsProperties): ClassDecorator {
+export function ComponentSchema(params?: ClassDescriptionsProperties): ClassDecorator {
   //
   return AomSchemas.classDecorator(($) => {
     // $.schemer = schemer;
@@ -45,16 +45,16 @@ export function ComponentSchema(params?: BaseDescriptionsProperties): ClassDecor
         source: AomSchemas,
         descriptor: PropertyDescriptor
       ) => {
-        // здесь обязательно каррирование, так как иначе будет замена контекста исходного дескриптора изначального родительского класса
-        const curriedDescriptor =
-          descriptor && descriptor.value
-            ? (...args: any) => Reflect.apply(descriptor.value, null, args)
-            : undefined;
-        // определим дескриптор с учётом карирования
-        Reflect.defineProperty(target, property, {
-          ...descriptor,
-          value: curriedDescriptor,
-        });
+        // // здесь обязательно каррирование, так как иначе будет замена контекста исходного дескриптора изначального родительского класса
+        // const curriedDescriptor =
+        //   descriptor && descriptor.value
+        //     ? (...args: any) => Reflect.apply(descriptor.value, null, args)
+        //     : undefined;
+        // // определим дескриптор с учётом карирования
+        // Reflect.defineProperty(target, property, {
+        //   ...descriptor,
+        //   value: curriedDescriptor,
+        // });
 
         const $childInstance = $._.base.instance(target, property);
         // и вот тут должен быть соответствующий перенос всех декораторов за счет переноса релевантных значений в callstack
@@ -105,6 +105,8 @@ export function ComponentSchema(params?: BaseDescriptionsProperties): ClassDecor
     }
 
     $._.apply(); // применим остальные декораторы
+
+    Reflect.decorate(params?.decorators || [], $._.target); // применим декораторы добавленные в контекст компоненты
     if (errors.length) {
       console.error("ComponentSchema inherit errors", errors);
     }

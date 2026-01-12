@@ -27,7 +27,7 @@ export function PartialType<T>(classRef: Type<T>) {
       const isClassOrigin = origin.target === origin._.target;
       const target = isClassOrigin ? PartialClassType : PartialClassType.prototype;
       // определим соответствующее свойство и добавим на него декоратор
-      Reflect.defineProperty(target, origin.property, { ...origin.descriptor });
+      // Reflect.defineProperty(target, origin.property, { ...origin.descriptor });
       Reflect.decorate(
         // [Schema[schemaName]({ ...schemaParams, isOptional: true })],
         [Reflect.apply(PropertySchema[schemaName], undefined, [{ ...schemaParams, isOptional: true }])],

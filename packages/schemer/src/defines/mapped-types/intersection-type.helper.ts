@@ -64,7 +64,7 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
 
   intersectionsMap.forEach((value, property) => {
     const [target, descriptor, schemaName, schemaParams] = value;
-    Reflect.defineProperty(target, property, { ...descriptor });
+    // Reflect.defineProperty(target, property, { ...descriptor });
     Reflect.decorate(
       // [Schema[schemaName](schemaParams)],
       [Reflect.apply(PropertySchema[schemaName], undefined, [schemaParams])],
@@ -75,7 +75,7 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
 
   intersectionsProtoMap.forEach((value, property) => {
     const [target, descriptor, schemaName, schemaParams] = value;
-    Reflect.defineProperty(target, property, { ...descriptor });
+    // Reflect.defineProperty(target, property, { ...descriptor });
     Reflect.decorate(
       // [Schema[schemaName](schemaParams)],
       [Reflect.apply(PropertySchema[schemaName], undefined, [schemaParams])],

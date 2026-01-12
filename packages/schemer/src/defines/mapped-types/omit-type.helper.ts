@@ -25,7 +25,7 @@ export function OmitType<T, K extends keyof T>(classRef: Type<T>, keys: readonly
         const isClassOrigin = origin.target === origin._.target;
         const target = isClassOrigin ? OmitTypeClass : OmitTypeClass.prototype;
         // определим соответствующее свойство и добавим на него декоратор
-        Reflect.defineProperty(target, origin.property, { ...origin.descriptor });
+        // Reflect.defineProperty(target, origin.property, { ...origin.descriptor });
         Reflect.decorate(
           //[Schema[schemaName](schemaParams)]
           [Reflect.apply(PropertySchema[schemaName], undefined, [schemaParams])],
