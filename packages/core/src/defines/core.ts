@@ -10,14 +10,16 @@ import { isClass } from "./functions";
 
 declare type AomHandler<T extends AomCore> = ($: T) => void;
 
+type InferAomType<T> = T extends AomCore<infer U> ? U : T;
+
 declare type AomСombinedHandler<T extends AomCore> = (
   $: T,
-  descriptor?: PropertyDescriptor
+  descriptor?: PropertyDescriptor,
 ) => void;
 
 declare type AomMethodHandler<T extends AomCore> = (
   $: T,
-  descriptor: PropertyDescriptor
+  descriptor: PropertyDescriptor,
 ) => PropertyDescriptor | void;
 
 declare type AomPropertyHandler<T extends AomCore> = ($: T) => void;
@@ -35,7 +37,7 @@ type LazyCall<T extends AomCore> = [
     | AomPropertyHandler<T>
     | AomParameterHandler<T>
   ),
-  args: [T, ...any]
+  args: [T, ...any],
 ];
 
 type OriginDescriptor = {
@@ -203,7 +205,7 @@ class AomNode<T extends AomCore> {
     base: AomClass<any>,
     target: ClassConstructor,
     property?: Property,
-    origin?: OriginDescriptor
+    origin?: OriginDescriptor,
   ) {
     this.self = self;
     this.base = base;
@@ -250,20 +252,20 @@ class AomNode<T extends AomCore> {
   }
 }
 
-export class AomCore {
-  _: AomNode<this>;
+export class AomCore<T extends AomCore = any> {
+  _: AomNode<InferAomType<T>>;
 
   constructor(
-    base: AomClass<any>,
+    base: AomClass<InferAomType<T>>,
     target: ClassConstructor,
     property?: Property,
-    origin?: OriginDescriptor
+    origin?: OriginDescriptor,
   ) {
-    this._ = new AomNode<this>(this, base, target, property, origin);
+    this._ = new AomNode<InferAomType<T>>(this as any, base, target, property, origin);
   }
 
   private static instancesMap<T extends AomCore, E extends InstanceTarget>(
-    this: AomClass<T>
+    this: AomClass<T>,
   ): WeakMap<E | T, T> {
     //
     const mapSymbol = Symbol.for(`AOM_MAP_${this.name}`);
@@ -283,7 +285,7 @@ export class AomCore {
   private static instanceKey<T extends AomCore, E extends InstanceTarget, K = keyof E>(
     this: AomClass<T>,
     target: E,
-    property?: K & Property
+    property?: K & Property,
   ): T | E {
     // извлечем конструктор, который будет корневым
     const constructor = (
@@ -318,7 +320,7 @@ export class AomCore {
           const originDescriptor = { target, property, descriptor };
 
           // создадим интанс
-          instanceKey = new this(this, constructor, property, originDescriptor);
+          instanceKey = new this(this as any, constructor, property, originDescriptor);
           // запишем его в общую карту
           map.set(instanceKey, instanceKey);
           // сохраним его в релевантной карте
@@ -335,7 +337,7 @@ export class AomCore {
   static checkExists<T extends AomCore, E extends InstanceTarget, K = keyof E>(
     this: AomClass<T>,
     target: E,
-    property?: K & Property
+    property?: K & Property,
   ): T | undefined {
     const map = this.instancesMap();
 
@@ -347,7 +349,7 @@ export class AomCore {
   static instance<T extends AomCore, E extends InstanceTarget, K = keyof E>(
     this: AomClass<T>,
     target: E,
-    property?: K & Property
+    property?: K & Property,
   ): T {
     // Используем Symbol для уникального ключа карты на каждом классе-наследнике
     // Ищем существующий инстанс для target в карте этого класса
@@ -371,7 +373,7 @@ export class AomCore {
     // Если инстанса нет
     if (!instance) {
       // Создаем новый инстанс текущего класса ('this')
-      instance = new this(this, constructor, property, originDescriptor);
+      instance = new this(this as any, constructor, property, originDescriptor);
       // Сохраняем его в карте
       map.set(instanceKey, instance);
     } else if (property && instance._.target !== constructor) {
@@ -389,7 +391,7 @@ export class AomCore {
   static classDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
   ): ClassDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: Constructor) {
@@ -404,7 +406,7 @@ export class AomCore {
   static combinedDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomСombinedHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
   ): CombinedDecorator {
     const self = this;
     return function (target: Constructor, property?: Property, descriptor?: PropertyDescriptor) {
@@ -420,7 +422,7 @@ export class AomCore {
   static methodDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomMethodHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
   ): MethodDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: Constructor, property: Property, descriptor: PropertyDescriptor) {
@@ -435,7 +437,7 @@ export class AomCore {
   static propertyDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomPropertyHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
   ): PropertyDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: Constructor, property: Property) {
@@ -450,7 +452,7 @@ export class AomCore {
   static parameterDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomParameterHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST
+    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
   ): ParameterDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: Constructor, property: Property, parameterIndex: number) {
@@ -460,7 +462,7 @@ export class AomCore {
       return targetInstance._.callstack.add(
         [handler, [targetInstance, parameterIndex]],
         storeFlag,
-        parameterIndex
+        parameterIndex,
       );
     };
   }
