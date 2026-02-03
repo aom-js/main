@@ -52,12 +52,10 @@ export class RxTransfer {
       replyTopic,
       uniqKey,
     };
-    // console.log("check keys", topicProcessMap.keys(), topicProcessKey);
     // проверим, есть ли существующий процесс для текущего топика (актуально для синглотонов)
     const existsProcess = $.topicProcessMap.get(topicProcessKey);
     // если есть, то вернем его, не запуская процедуру повторно
     if (existsProcess) {
-      // console.log("exists process is", existsProcess);
       return existsProcess;
     }
 
@@ -81,8 +79,8 @@ export class RxTransfer {
               return () => {
                 this.transfer.callbackMap.delete(uniqKey);
               };
-            })
-        )
+            }),
+        ),
       );
     let result: any;
     // если следует дождаться ответа
@@ -119,13 +117,14 @@ export class RxTransfer {
    * @returns Функция-обработчик для обработки ответных сообщений
    */
   replyHandler(topic: string): TransferNextFunction {
-    return (message: TransferMessageSchema): void => {
+    return (data: TransferMessageSchema): void => {
       // Извлекаем значение и заголовки из сообщения
-      const { value, headers } = message;
+      const { value, headers } = data;
       // Извлекаем уникальный ключ и флаг ошибки из заголовков
       const { uniqKey, error } = headers;
       // Получаем функцию обратного вызова по уникальному ключу
       const callback = this.transfer.callbackMap.get(uniqKey);
+
       // Если функция обратного вызова существует
       if (callback) {
         // Если в заголовках указан флаг ошибки, вызываем callback с ошибкой
@@ -133,7 +132,7 @@ export class RxTransfer {
           callback({ error: value, topic });
         } else {
           // Иначе вызываем callback с успешным результатом
-          callback({ topic, value });
+          callback({ topic, value, isCompleted: true });
         }
       }
     };
@@ -159,17 +158,15 @@ export class RxTransfer {
           replyTopic &&
             this.transfer.publisher({
               topic: replyTopic,
-              message: { value: result || {}, headers: { uniqKey } },
+              message: { value: result || {}, headers: { uniqKey, replyTopic } },
             });
         })
         .catch((error) => {
-          console.error("caught isolator error", error, value);
-
           // в случае ошибки отправляем её в топик для ответа
           replyTopic &&
             this.transfer.publisher({
               topic: replyTopic,
-              message: { value: error, headers: { uniqKey, error: true } },
+              message: { value: error, headers: { uniqKey, replyTopic, error: true } },
             });
         });
     };

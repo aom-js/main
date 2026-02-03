@@ -11,7 +11,7 @@ export function Before(...middlewares: MiddlewareHandler[]): CombinedDecorator {
     $.element.addPreMiddlewares(
       ...middlewares
         .map((middleware) => AomApi.instance(middleware))
-        .filter(($) => $.element.isMiddleware)
+        .filter(($) => $.element.isMiddleware),
     );
   }, DecoratorsQueueStore.LAST);
 }
@@ -24,7 +24,7 @@ export function After(...middlewares: MiddlewareHandler[]): CombinedDecorator {
     $.element.addPostMiddlewares(
       ...middlewares
         .map((middleware) => AomApi.instance(middleware))
-        .filter(($) => $.element.isMiddleware)
+        .filter(($) => $.element.isMiddleware),
     );
   }, DecoratorsQueueStore.LAST);
 }
@@ -33,7 +33,12 @@ export function After(...middlewares: MiddlewareHandler[]): CombinedDecorator {
 // ...
 export function Middleware(): MethodDecorator {
   return AomApi.methodDecorator(($, descriptor) => {
-    if ($.element.isNextpoint || $.element.isEndpoint || $.element.isWebsocket) {
+    if (
+      $.element.isNextpoint ||
+      $.element.isEndpoint ||
+      $.element.isWebsocket ||
+      $.element.isInstance
+    ) {
       throw new Error(constants.MIDDLEWARE_DEFINE_ERROR);
     } else {
       $.element.descriptor = descriptor;
@@ -82,7 +87,7 @@ export function UseMarker(handler: MarkerHandler): MethodDecorator {
 export function Next(handler: HandlerFunction | FwdContainer): MethodDecorator {
   return AomApi.methodDecorator(($, descriptor) => {
     const handlerInstance = AomApi.instance(
-      handler instanceof FwdContainer ? handler.exec() : handler
+      handler instanceof FwdContainer ? handler.exec() : handler,
     );
     if (handlerInstance.element.isNextpoint) {
       $.element.addNextpoint(handlerInstance);
@@ -90,4 +95,23 @@ export function Next(handler: HandlerFunction | FwdContainer): MethodDecorator {
       throw new Error(constants.USE_NEXT_DEFINE_ERROR);
     }
   }, DecoratorsQueueStore.LAST);
+}
+
+// ************************************************ //
+// ...
+export function OnInstance(): MethodDecorator {
+  return AomApi.methodDecorator(($, descriptor) => {
+    if (
+      $.element.isNextpoint ||
+      $.element.isEndpoint ||
+      $.element.isWebsocket ||
+      $.element.isMiddleware
+    ) {
+      throw new Error(constants.ON_INSTANCE_DEFINE_ERROR);
+    } else {
+      $.element.descriptor = descriptor;
+      $.element.isInstance = true;
+      $._.root.element.instanceHooks.push($);
+    }
+  });
 }

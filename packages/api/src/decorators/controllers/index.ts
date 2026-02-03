@@ -23,7 +23,7 @@ export function Controller() {
         target: InstanceTarget,
         property: Property,
         source: AomApi,
-        descriptor: PropertyDescriptor
+        descriptor: PropertyDescriptor,
       ) => {
         // здесь обязательно каррирование, так как иначе будет замена контекста исходного дескриптора изначального родительского класса
         const curriedDescriptor = (...args: any) => Reflect.apply(descriptor.value, null, args);
@@ -32,7 +32,7 @@ export function Controller() {
           ...descriptor,
           value: curriedDescriptor,
         });
-        const $childInstance = $._.base.instance(target, property);
+        const $childInstance = $._.base.instance(target, property as string);
         // и вот тут должен быть соответствующий перенос всех декораторов за счет переноса релевантных значений в callstack
         source._.callstack.transferTo($childInstance);
       };
@@ -42,24 +42,24 @@ export function Controller() {
         const $origin = $._.base.instance(origin.descriptor.value);
         const isClassOrigin = origin.target === $origin._.target;
 
-        if (isClassOrigin && !hasOwnProperty($._.target, $origin._.property)) {
+        if (isClassOrigin && !hasOwnProperty($._.target, $origin._.property!)) {
           transferDescritorWithDecorators(
             $._.target,
-            $origin._.property,
+            $origin._.property!,
             $origin,
-            origin.descriptor
+            origin.descriptor,
           );
-        } else if (!isClassOrigin && !hasOwnProperty($._.target.prototype, $origin._.property)) {
+        } else if (!isClassOrigin && !hasOwnProperty($._.target.prototype, $origin._.property!)) {
           // иначе проверим, что это свойство самого инстанса, и надо создать соответствующие перенос
           transferDescritorWithDecorators(
             $._.target.prototype,
-            $origin._.property,
+            $origin._.property!,
             $origin,
-            origin.descriptor
+            origin.descriptor,
           );
         } else {
           errors.push(
-            new Error(`same property exists ${$._.target.name}.${origin.property.toString()}`)
+            new Error(`same property exists ${$._.target.name}.${origin.property.toString()}`),
           );
         }
       });

@@ -15,7 +15,7 @@ function defaultHandler(args: ArgumentsHandlerParameters | any) {
 }
 
 export function Args(
-  handler: ArgumentsDecoratorHandler = defaultHandler
+  handler: ArgumentsDecoratorHandler = defaultHandler,
 ): ReturnType<typeof AomApi.parameterDecorator> {
   if (typeof handler !== "function") throw new Error(constants.PARAMETER_HANDLER_ERROR);
   return AomApi.parameterDecorator(($, parameterIndex) => {
@@ -25,7 +25,7 @@ export function Args(
 
 // ---
 export function Query(
-  queryHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler
+  queryHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
 ): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = function (args) {
     const { context, cursor } = args;
@@ -33,7 +33,7 @@ export function Query(
     if (queryHandler instanceof ThisRefContainer) {
       resultHandler = queryHandler.exec(cursor.$._.target);
     } else if (queryHandler instanceof RouteRefContainer) {
-      resultHandler = queryHandler.exec(cursor.endpoint.$._.target);
+      resultHandler = queryHandler.exec(cursor.endpoint!.$._.target);
     } else if ("string" === typeof queryHandler) {
       return Reflect.get(context.values.query, queryHandler);
     }
@@ -45,7 +45,7 @@ export function Query(
 
 // ---
 export function Body(
-  bodyHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler
+  bodyHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
 ): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = function (args) {
     const { context, cursor } = args;
@@ -53,7 +53,7 @@ export function Body(
     if (bodyHandler instanceof ThisRefContainer) {
       resultHandler = bodyHandler.exec(cursor.$._.target);
     } else if (bodyHandler instanceof RouteRefContainer) {
-      resultHandler = bodyHandler.exec(cursor.endpoint.$._.target);
+      resultHandler = bodyHandler.exec(cursor.endpoint!.$._.target);
     } else if ("string" === typeof bodyHandler) {
       return Reflect.get(context.values.body, bodyHandler);
     }
@@ -64,7 +64,7 @@ export function Body(
 
 // ---
 export function Params(
-  paramsHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler
+  paramsHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
 ): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = function (args) {
     const { context, cursor } = args;
@@ -72,7 +72,7 @@ export function Params(
     if (paramsHandler instanceof ThisRefContainer) {
       resultHandler = paramsHandler.exec(cursor.$._.target);
     } else if (paramsHandler instanceof RouteRefContainer) {
-      resultHandler = paramsHandler.exec(cursor.endpoint.$._.target);
+      resultHandler = paramsHandler.exec(cursor.endpoint!.$._.target);
     } else if ("string" === typeof paramsHandler) {
       return Reflect.get(context.values.params, paramsHandler);
     }
@@ -101,7 +101,7 @@ export function Files(fileName?: string): ReturnType<typeof Args> {
 
 // ---
 export function Headers(
-  headerHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler
+  headerHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
 ): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = function (args) {
     const { context, cursor } = args;
@@ -109,7 +109,7 @@ export function Headers(
     if (headerHandler instanceof ThisRefContainer) {
       resultHandler = headerHandler.exec(cursor.$._.target);
     } else if (headerHandler instanceof RouteRefContainer) {
-      resultHandler = headerHandler.exec(cursor.endpoint.$._.target);
+      resultHandler = headerHandler.exec(cursor.endpoint!.$._.target);
     } else if ("string" === typeof headerHandler) {
       return Reflect.get(context.values.headers, headerHandler);
     }
@@ -155,8 +155,8 @@ export function Err(ErrorConstructor: ClassConstructor = Error): ReturnType<type
   const handler = function () {
     return function (message: string, status?: number, data?: any) {
       const error = new ErrorConstructor(message);
-      status = status || error["status"] || Reflect.get(ErrorConstructor, "status");
-      data = data || error["data"];
+      status = status || Reflect.get(error, "status") || Reflect.get(ErrorConstructor, "status");
+      data = data || Reflect.get(error, "data");
       return Object.assign(error, { status, data });
     };
   };
@@ -211,7 +211,7 @@ export function State(constructor = undefined): ReturnType<typeof Args> {
 
 // ---
 export function This(
-  constructor?: ClassConstructor | FwdContainer | RouteRefContainer
+  constructor?: ClassConstructor | FwdContainer | RouteRefContainer,
 ): ReturnType<typeof Args> {
   if (
     constructor &&
@@ -232,7 +232,7 @@ export function This(
       target = constructor.exec();
     } else if (constructor instanceof RouteRefContainer) {
       // если используется RouteRef, то возвращается конструктор для текущего маршрута
-      target = constructor.exec(cursor.endpoint.$._.target);
+      target = constructor.exec(cursor.endpoint!.$._.target);
     } else if (constructor) {
       target = constructor;
     } else {
@@ -241,12 +241,7 @@ export function This(
 
     let instance = context.state.get(target);
     if (!instance) {
-      const $ = AomApi.instance(target);
-      const instanceArgs = await Promise.all($.element.parameters.apply(args));
-
-      instance = Reflect.construct(target, instanceArgs);
-
-      context.state.set(target, instance);
+      instance = await AomApi.instanceWithHooks(target, args);
     }
     return instance;
   };

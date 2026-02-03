@@ -1,7 +1,7 @@
 import { AomSchemas, Schemer } from "@aom-js/schemer";
 import { isClass } from "@aom-js/core";
 
-import { OpenAPIObject, OperationObject, PathsObject } from "openapi3-ts/oas31";
+import { OpenAPIObject, OperationObject, PathsObject, TagObject } from "openapi3-ts/oas31";
 import {
   FwdContainer,
   ThisRefContainer,
@@ -11,7 +11,10 @@ import {
   TagsRules,
   OpenApiPossibleSchema,
   OpenApiSecuritySchema,
+  HTTPMethods,
 } from "../common";
+
+type HttpMethodOperations = Record<HTTPMethods, OperationObject>;
 
 export class OpenApi {
   static readonly refPointerPrefix = "#/components/schemas/";
@@ -50,14 +53,15 @@ export class OpenApi {
     // id операции
     const operationId = `${endpoint.$._.target.name}_${endpoint.$._.property?.toString()}`;
     // создадим заглушку для текущего метода
-    const currentMethod: OperationObject = { operationId };
-
-    // перенесем из непосредственного метода его описание и название
-    currentMethod.summary = endpoint.$.title;
-    currentMethod.description = endpoint.$.description;
-    currentMethod.parameters = [];
-    currentMethod.responses = {};
-    currentMethod.security = [];
+    const currentMethod: OperationObject = {
+      // перенесем из непосредственного метода его описание и название
+      operationId,
+      summary: endpoint.$.title,
+      description: endpoint.$.description,
+      parameters: [],
+      responses: {},
+      security: [],
+    };
 
     let tags: string[] = []; // теги для слияния
 
@@ -76,11 +80,11 @@ export class OpenApi {
           const handler = $.openApi.delayStack.shift();
           // вызовем отложенные действия
           if (handler instanceof FwdContainer) {
-            Reflect.decorate([...handler.exec()], target, property);
+            Reflect.decorate([...handler.exec()], target, property!);
           } else if (handler instanceof ThisRefContainer) {
-            Reflect.decorate([...handler.exec(cursor.$._.target)], target, property);
+            Reflect.decorate([...handler.exec(cursor.$._.target)], target, property!);
           } else if (handler instanceof RouteRefContainer) {
-            Reflect.decorate([...handler.exec(cursor.endpoint.$._.target)], target, property);
+            Reflect.decorate([...handler.exec(cursor.endpoint!.$._.target)], target, property!);
           }
         }
         // применим вероятные отложенные вызовы
@@ -112,7 +116,7 @@ export class OpenApi {
           const schema = this.schemaExtract(value.schema, cursor);
           // console.log("parse parameters", path, value, schema);
           // возможно тут следует включить проверку на то, что данный параметр уже обработан в данном запросе, и его повторно включать не надо
-          currentMethod.parameters.push({ ...value, schema, in: "path", required: true });
+          currentMethod.parameters!.push({ ...value, schema, in: "path", required: true });
         });
       });
 
@@ -121,7 +125,7 @@ export class OpenApi {
         const schema = this.schemaExtract(parameter.schema, cursor);
         // console.log("parse parameters", parameter, schema);
         // возможно тут следует включить проверку на то, что данный параметр уже обработан в данном запросе, и его повторно включать не надо
-        currentMethod.parameters.push({ ...parameter, schema });
+        currentMethod.parameters!.push({ ...parameter, schema });
       });
 
       cursor.$.openApi.responses.forEach((response) => {
@@ -130,7 +134,7 @@ export class OpenApi {
         const { contentType = "application/json", isArray, description } = response;
 
         // установим соответствующий статус ответа последним значением, которое в принципе вернётся
-        currentMethod.responses[response.status] = {
+        currentMethod.responses![response.status] = {
           description,
           content: {
             [contentType]: { schema: isArray ? { type: "array", items: schema } : schema },
@@ -143,7 +147,7 @@ export class OpenApi {
         // сохраним извлечем его из курсора
         const name = this.storeSecurityScheme(cursor);
         // и сохраним для текущего метода
-        currentMethod.security.push({ [name]: [] });
+        currentMethod.security!.push({ [name]: [] });
       }
 
       const { requestBody } = cursor.$.openApi;
@@ -163,15 +167,16 @@ export class OpenApi {
       this.tagsSet.add(currentMethod.tags[0]);
     }
 
+    // проверим существование путей
+    if (!this.paths[path]) this.paths[path] = {} as HttpMethodOperations;
     // в конце добавим путь и метод в общий список
-    if (!this.paths[path]) this.paths[path] = {};
-    this.paths[path][method] = currentMethod;
+    Object.assign(this.paths[path], { [method]: currentMethod });
   }
 
   private storeSecurityScheme(cursor: AomCursor): string {
     const { name } = cursor.$._.target;
     if (!this.securityMap.get(name)) {
-      this.securityMap.set(name, cursor.$.openApi.security);
+      this.securityMap.set(name, cursor.$.openApi.security!);
     }
     return name;
   }
@@ -182,7 +187,7 @@ export class OpenApi {
     if (value instanceof ThisRefContainer) {
       schema = value.exec(cursor.$._.target);
     } else if (value instanceof RouteRefContainer) {
-      schema = value.exec(cursor.endpoint.$._.target);
+      schema = value.exec(cursor.endpoint!.$._.target);
     } else {
       schema = value;
     }
@@ -214,20 +219,20 @@ export class OpenApi {
   // JSON generator of complete documentation
   toJSON() {
     // add tags data
-    const tags = [];
+    const tags: TagObject[] = [];
     this.tagsSet.forEach((tag) => tags.push({ name: tag }));
     // add security schemas
     const securitySchemes = {};
     this.securityMap.forEach((schema, name: string) =>
       Object.assign(securitySchemes, {
         [name]: schema,
-      })
+      }),
     );
     const schemas = {};
     this.componentsMap.forEach((component, name: string) =>
       Object.assign(schemas, {
         [name]: component,
-      })
+      }),
     );
     //
     return JSON.parse(
@@ -239,7 +244,7 @@ export class OpenApi {
         },
         tags,
         paths: this.paths,
-      })
+      }),
     );
   }
 }

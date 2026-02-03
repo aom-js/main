@@ -11,7 +11,7 @@ import { AomApi } from "../../common";
 function defineEndpoint(
   method: HTTPMethods,
   path: string,
-  handler?: HandlerFunction
+  handler?: HandlerFunction,
 ): ReturnType<typeof Endpoint> | ClassDecorator {
   if (!handler) {
     return Endpoint(method, path);
@@ -48,7 +48,7 @@ export function WebSocketPoint(path?: string): ReturnType<typeof AomApi.methodDe
     } else {
       $.element.descriptor = descriptor;
       $.element.isWebsocket = true;
-      $._.root.element.websockets.push({ method: "sockets", prefix: path, $ });
+      $._.root.element.websockets.push({ method: "sockets", prefix: path!, $ });
     }
   });
 }
@@ -61,7 +61,7 @@ export function WebSocketPoint(path?: string): ReturnType<typeof AomApi.methodDe
  */
 export function Endpoint(
   method: HTTPMethods,
-  path: string = "/"
+  path: string = "/",
 ): ReturnType<typeof AomApi.methodDecorator> {
   return AomApi.methodDecorator(($, descriptor) => {
     if ($.element.isMiddleware || $.element.isWebsocket) {
@@ -86,7 +86,7 @@ export function Get(path: string, handler: HandlerFunction): ClassDecorator;
  */
 export function Get(
   path: string = "/",
-  handler?: HandlerFunction
+  handler?: HandlerFunction,
 ): ReturnType<typeof defineEndpoint> {
   const method = "get";
   return defineEndpoint(method, path, handler);
@@ -104,7 +104,7 @@ export function Post(path: string, handler: HandlerFunction): ClassDecorator;
  */
 export function Post(
   path: string = "/",
-  handler?: HandlerFunction
+  handler?: HandlerFunction,
 ): ReturnType<typeof defineEndpoint> {
   const method = "post";
   return defineEndpoint(method, path, handler);
@@ -122,7 +122,7 @@ export function Patch(path: string, handler: HandlerFunction): ClassDecorator;
  */
 export function Patch(
   path: string = "/",
-  handler?: HandlerFunction
+  handler?: HandlerFunction,
 ): ReturnType<typeof defineEndpoint> {
   const method = "patch";
   return defineEndpoint(method, path, handler);
@@ -139,7 +139,7 @@ export function Put(path: string, handler: HandlerFunction): ClassDecorator;
  */
 export function Put(
   path: string = "/",
-  handler?: HandlerFunction
+  handler?: HandlerFunction,
 ): ReturnType<typeof defineEndpoint> {
   const method = "put";
   return defineEndpoint(method, path, handler);
@@ -157,7 +157,7 @@ export function Options(path: string, handler: HandlerFunction): ClassDecorator;
  */
 export function Options(
   path: string = "/",
-  handler?: HandlerFunction
+  handler?: HandlerFunction,
 ): ReturnType<typeof defineEndpoint> {
   const method = "options";
   return defineEndpoint(method, path, handler);
@@ -174,7 +174,7 @@ export function Delete(path: string, handler: HandlerFunction): ClassDecorator;
  */
 export function Delete(
   path: string = "/",
-  handler?: HandlerFunction
+  handler?: HandlerFunction,
 ): ReturnType<typeof defineEndpoint> {
   const method = "delete";
   return defineEndpoint(method, path, handler);
@@ -191,7 +191,7 @@ export function All(path: string, handler: HandlerFunction): ClassDecorator;
  */
 export function All(
   path: string = "/",
-  handler?: HandlerFunction
+  handler?: HandlerFunction,
 ): ReturnType<typeof defineEndpoint> {
   const method = "all";
   return defineEndpoint(method, path, handler);

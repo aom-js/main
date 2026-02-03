@@ -84,7 +84,7 @@ function DefineTopics() {
       return topics;
     };
 
-    const { transfer } = $._.root;
+    const { transfer, rx } = $._.root;
     const { topic, replyTopic } = defineTopics(transfer);
     $.topic = topic;
     $.replyTopic = replyTopic;
@@ -136,7 +136,7 @@ export function Executor(instanceId?: string): ClassDecorator {
           //
           attachIsolation(constructor, property, instanceId);
         } else {
-          console.warn("isolated property `", property, "` has no executor");
+          console.warn(`isolated property "${<string>property}" has no executor`);
         }
       }
     });
@@ -171,10 +171,10 @@ function attachIsolation(constructor: Constructor, propertyKey: Property, instan
     {
       topic: instanceTopic,
       next: rx.execHandler((...args: any[]) =>
-        Reflect.apply(constructor[propertyKey], constructor, args)
+        Reflect.apply(constructor[propertyKey], constructor, args),
       ),
       queue: parentProperty$.queue,
-    }
+    },
 
     // constructor, <string>propertyKey)
   );

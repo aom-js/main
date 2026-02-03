@@ -1,4 +1,4 @@
-import { ClassInstanceMap, AomCore } from "@aom-js/core";
+import { ClassInstanceMap, AomCore, ClassConstructor } from "@aom-js/core";
 import { resolve, join } from "node:path";
 import { from, throwError } from "rxjs";
 import { concatMap, catchError, takeWhile } from "rxjs/operators";
@@ -50,8 +50,8 @@ export declare interface AomEndpoint {
 }
 
 class AomHttpOpenApiTags {
-  $: AomApi;
-  rule: TagsRules;
+  $!: AomApi;
+  rule!: TagsRules;
 }
 
 class AomHttpOpenApi {
@@ -61,15 +61,15 @@ class AomHttpOpenApi {
 
   responses: OpenApiResponse[] = [];
 
-  requestBody: OpenApiRequestBody;
+  requestBody?: OpenApiRequestBody;
 
   parameters: OpenApiParameterObject[] = [];
 
-  security: OpenApiSecuritySchema;
+  security?: OpenApiSecuritySchema;
 
   delayStack: Array<FwdContainer | RouteRefContainer | ThisRefContainer> = [];
 
-  private http: AomApi;
+  private http!: AomApi;
 
   constructor(http: AomApi) {
     this.http = http;
@@ -87,29 +87,33 @@ class AomHttpParameters {
 
   apply(args: ArgumentsHandlerParameters) {
     return this.handlers.map((parameterHandler) =>
-      Reflect.apply(parameterHandler, this.api._.target, [args])
+      Reflect.apply(parameterHandler, this.api._.target, [args]),
     );
   }
 }
 
 class AomApiElement {
-  descriptor?: PropertyDescriptor;
+  descriptor!: PropertyDescriptor;
 
-  isController: boolean;
+  isController?: boolean;
 
-  isMarker: boolean;
+  isMarker?: boolean;
 
-  isNextpoint: boolean;
+  isNextpoint?: boolean;
 
-  isMiddleware: boolean;
+  isMiddleware?: boolean;
 
-  isEndpoint: boolean;
+  isInstance?: boolean;
 
-  isWebsocket: boolean;
+  isEndpoint?: boolean;
+
+  isWebsocket?: boolean;
 
   bridges: AomBridge[] = [];
 
   markers: AomApi[] = [];
+
+  instanceHooks: AomApi[] = [];
 
   endpoints: AomEndpoint[] = [];
 
@@ -123,7 +127,7 @@ class AomApiElement {
 
   post_middlewares: AomApi[] = [];
 
-  nextpoint: AomApi;
+  nextpoint?: AomApi;
 
   private api: AomApi;
 
@@ -150,20 +154,45 @@ export class AomApi extends AomCore {
 
   element = new AomApiElement(this);
 
-  title: string;
+  title?: string;
 
-  description: string;
+  description?: string;
 
   toString() {
     const { name } = this._.target;
     const property = this._.property;
     return [name, property].filter(Boolean).map(String).join(".");
   }
+
+  static async instanceWithHooks(target: ClassConstructor, args: ArgumentsHandlerParameters) {
+    const { context, cursor } = args;
+
+    const $target = AomApi.instance(target);
+    const instanceArgs = await Promise.all($target.element.parameters.apply(args));
+    const instance = Reflect.construct(target, instanceArgs);
+
+    // зафиксируем его в переданном контексте
+    context.state.set(target, instance);
+
+    // используем механику, аналогичную процедуре run, только в качестве источника
+    // курсовов используем список instanceHooks
+    const { prefix, endpoint } = cursor;
+    // восстановим курсоры в том же эндпоинте
+    const cursors = $target.element.instanceHooks.map(($, index) => {
+      const nextCursor = new AomCursor($, cursor.$, prefix, endpoint);
+      nextCursor.index = index;
+      return nextCursor;
+    });
+    // вызовем рекурсивно тот же контекст, передав в него новый перечень курсоров
+    await context.run(cursors);
+
+    return instance;
+  }
 }
 
 export class AomCursor {
   // применяемый ендпоинт
-  endpoint: AomEndpoint;
+  endpoint?: AomEndpoint;
 
   // место применения курсора
   origin: AomApi;
@@ -172,7 +201,7 @@ export class AomCursor {
   prefix: string;
 
   // порядковый номер
-  index: number;
+  index!: number;
 
   // собственный api инстанс курсора
   $: AomApi;
@@ -235,8 +264,8 @@ export class AomRoute {
       // сначала загоним в качестве значений собственные миддлвари текущего курсора
       this.plain(
         cursor.$.element.pre_middlewares.map(
-          (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint)
-        )
+          (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint),
+        ),
       );
 
       // затем поместим сам курсор, который может быть как миддлварей так и
@@ -244,8 +273,8 @@ export class AomRoute {
 
       this.plain(
         cursor.$.element.post_middlewares.map(
-          (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint)
-        )
+          (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint),
+        ),
       );
 
       // если у текущего курсора есть nextpoint, то рекурсивно обработаем его, включив вероятные миддлвари и nextpoint-ы
@@ -289,23 +318,17 @@ class RxContext {
               // и создадим его, если его нет (работает в том числе с учетом декорированных constructor)
               if (!this.state.get($._.target)) {
                 const { target } = $._;
-                const $target = AomApi.instance(target);
-                const instanceArgs = await Promise.all(
-                  $target.element.parameters.apply({ context: this, cursor, route })
-                );
-
-                const instance = Reflect.construct(target, instanceArgs);
-
-                this.state.set(target, instance);
+                // создадим инстанс с учетом вероятных хуков
+                await AomApi.instanceWithHooks(target, { context: this, cursor, route });
               }
               const args = await Promise.all(
-                $.element.parameters.apply({ context: this, cursor, route })
+                $.element.parameters.apply({ context: this, cursor, route }),
               );
 
               const result = await Reflect.apply(
                 $.element.descriptor?.value || new Function(),
                 $._.target,
-                args
+                args,
               );
 
               // Если результат - ошибка, выбрасываем её
@@ -319,7 +342,7 @@ class RxContext {
             }
           }),
           takeWhile((result) => result === undefined, true),
-          catchError((error) => throwError(() => error))
+          catchError((error) => throwError(() => error)),
         )
         .subscribe({
           next: (result) => {

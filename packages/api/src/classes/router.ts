@@ -19,7 +19,7 @@ export class Router {
 
   private build(root: AomApi, cursors: AomCursor[] = [], prefix: string = "/") {
     // на каждой итерации создается свой массив курсором, чтобы последующие действия не создавал перекрытий
-    const preCursors = [].concat(cursors);
+    const preCursors = [...cursors];
 
     // объединим предварительные миддлвари, которые пойдут в другие бриджи
     preCursors.push(...root.element.pre_middlewares.map(($) => new AomCursor($, root, prefix)));
@@ -32,12 +32,12 @@ export class Router {
     const postCursors = root.element.post_middlewares.map(($) => new AomCursor($, root, prefix));
 
     root.element.endpoints.forEach((endpoint) => {
-      const route = new AomRoute(prefix, endpoint, [].concat(preCursors).concat(postCursors));
+      const route = new AomRoute(prefix, endpoint, [...preCursors, ...postCursors]);
       this.routes.push(route);
     });
 
     root.element.websockets.forEach((endpoint) => {
-      const route = new AomRoute(prefix, endpoint, [].concat(preCursors).concat(postCursors));
+      const route = new AomRoute(prefix, endpoint, [...preCursors, ...postCursors]);
       this.sockets.push(route);
     });
   }

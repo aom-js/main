@@ -13,7 +13,7 @@
   "license": "ISC",
   "author": "Grigory B. Kholstinnikov (scarych)",
   "dependencies": {
-    "@aom-js/core": "^0.0.3",
+    "@aom-js/core": "^0.0.4",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "class-validator-jsonschema": "^5.1.0",

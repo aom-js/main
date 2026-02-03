@@ -8,11 +8,11 @@
     "experimentalDecorators": true,
     "target": "es2019",
     // "sourceMap": true,
+    "strict": true,
     "baseUrl": "packages",
     "incremental": false,
-    "esModuleInterop": true,
+    "esModuleInterop": true
     // "inlineSourceMap": true,
-
   },
   "include": ["src"],
   "exclude": ["build", "node_modules", "sample", "**/*.spec.ts", "test/**"]
