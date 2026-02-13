@@ -175,17 +175,16 @@ export class AomApi extends AomCore {
     context.state.set(target, instance);
 
     // используем механику, аналогичную процедуре run, только в качестве источника
-    // курсовов используем список instanceHooks
+    // курсоров используем список instanceHooks
     const { prefix, endpoint } = cursor;
-    // восстановим курсоры в том же эндпоинте
-    const cursors = $target.element.instanceHooks.map(($, index) => {
-      const nextCursor = new AomCursor($, cursor.$, prefix, endpoint);
-      nextCursor.index = index;
-      return nextCursor;
-    });
-    // вызовем рекурсивно тот же контекст, передав в него новый перечень курсоров
-    await context.run(cursors);
 
+    // асинхронно запустим все хуки (порядок должен быть не важен)
+    await Promise.all(
+      $target.element.instanceHooks.map(($) => {
+        const nextCursor = new AomCursor($, cursor.$, prefix, endpoint);
+        return context.run([nextCursor]);
+      }),
+    );
     return instance;
   }
 }
@@ -211,6 +210,7 @@ export class AomCursor {
     this.origin = origin;
     this.prefix = prefix;
     this.endpoint = endpoint;
+    this.index = 0;
   }
 }
 
@@ -316,8 +316,8 @@ class RxContext {
               const { $ } = cursor;
               // на уровне каждого курсора проверим, что для него есть существуюший инстанс в state
               // и создадим его, если его нет (работает в том числе с учетом декорированных constructor)
-              if (!this.state.get($._.target)) {
-                const { target } = $._;
+              const { target } = $._;
+              if (!this.state.get(target)) {
                 // создадим инстанс с учетом вероятных хуков
                 await AomApi.instanceWithHooks(target, { context: this, cursor, route });
               }
@@ -327,7 +327,7 @@ class RxContext {
 
               const result = await Reflect.apply(
                 $.element.descriptor?.value || new Function(),
-                $._.target,
+                target,
                 args,
               );
 
