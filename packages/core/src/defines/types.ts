@@ -1,17 +1,17 @@
 export declare type ClassConstructor<T extends any = {}> = new (...args: any[]) => T;
-export declare type Constructor = ClassConstructor | Function;
+export declare type ClassType = ClassConstructor | Function;
 export declare type Property = string | symbol;
 
-export declare type InstanceTarget = Constructor | object;
+export declare type InstanceTarget = ClassType | object;
 
 /** комбинированый декоратор: для статичного метода или для класса */
 export declare type CombinedDecorator = <T>(
-  target: Constructor,
+  target: ClassType,
   propertyKey?: string | symbol,
-  descriptor?: TypedPropertyDescriptor<T>
+  descriptor?: TypedPropertyDescriptor<T>,
 ) => void;
 
-export enum DecoratorsQueueStore {
+export enum ExecutionPhase {
   INSTANT = "instant",
   FIRST = "first",
   LAST = "last",

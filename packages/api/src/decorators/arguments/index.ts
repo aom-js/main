@@ -1,4 +1,4 @@
-import { ClassConstructor, DecoratorsQueueStore } from "@aom-js/core";
+import { ClassConstructor, ExecutionPhase } from "@aom-js/core";
 import * as constants from "../../constants";
 
 import {
@@ -20,7 +20,7 @@ export function Args(
   if (typeof handler !== "function") throw new Error(constants.PARAMETER_HANDLER_ERROR);
   return AomApi.parameterDecorator(($, parameterIndex) => {
     $.element.parameters.handlers[parameterIndex] = handler;
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 }
 
 // ---

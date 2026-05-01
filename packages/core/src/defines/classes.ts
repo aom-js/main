@@ -1,9 +1,9 @@
-import { ClassConstructor, Constructor } from "./types";
+import { ClassConstructor, ClassType } from "./types";
 
 // Создаем класс-обертку
 export class ClassInstanceMap {
   // Внутренний WeakMap хранит конструкторы и базовые объекты
-  private map = new WeakMap<Constructor, object>();
+  private map = new WeakMap<ClassType, object>();
 
   // Типизированный метод set
   // Он гарантирует, что передаваемое значение (value) является экземпляром класса-ключа (key)

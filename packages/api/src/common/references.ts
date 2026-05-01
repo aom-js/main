@@ -1,4 +1,4 @@
-import { Constructor } from "@aom-js/core";
+import { ClassType } from "@aom-js/core";
 import { ContainerFunction, FwdFunction, RefFunction } from "./types";
 
 class RefContainer {
@@ -7,11 +7,11 @@ class RefContainer {
     this.fn = fn;
   }
 
-  exec(constructor: Constructor) {
+  exec(constructor: ClassType) {
     return Reflect.apply(this.fn, constructor, [constructor]);
   }
 
-  static default: RefFunction = (constructor: Constructor) => constructor;
+  static default: RefFunction = (constructor: ClassType) => constructor;
 }
 
 export class FwdContainer extends RefContainer {

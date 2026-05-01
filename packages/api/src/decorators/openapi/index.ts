@@ -1,4 +1,4 @@
-import { DecoratorsQueueStore } from "@aom-js/core";
+import { ExecutionPhase } from "@aom-js/core";
 
 import {
   AomApi,
@@ -16,7 +16,7 @@ import {
 export * from "./tags";
 
 export function Security(
-  schema: OpenApiSecuritySchema
+  schema: OpenApiSecuritySchema,
 ): ReturnType<typeof AomApi.combinedDecorator> {
   return AomApi.combinedDecorator(($) => {
     $.openApi.security = schema;
@@ -63,7 +63,7 @@ export function Parameters(
 }
 
 export function DelayRefStack(
-  handler: FwdContainer | ThisRefContainer | RouteRefContainer
+  handler: FwdContainer | ThisRefContainer | RouteRefContainer,
 ): MethodDecorator {
   return AomApi.methodDecorator(($) => {
     $.openApi.delayStack.push(handler);

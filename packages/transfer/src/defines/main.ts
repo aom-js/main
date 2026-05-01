@@ -1,5 +1,4 @@
-import { AomCore, Constructor, ClassConstructor } from "@aom-js/core";
-
+import { AomCore, ClassType, ClassConstructor } from "@aom-js/core";
 
 import {
   TransferConfig,
@@ -35,9 +34,9 @@ export class AomIsolator extends AomCore {
 
   isolatedMethods: AomIsolator[] = [];
 
-  topicsMap: WeakMap<Constructor, TransferTopics> = new WeakMap();
+  topicsMap: WeakMap<ClassType, TransferTopics> = new WeakMap();
 
-  instancesMap: WeakMap<Constructor, AomIsolator> = new WeakMap();
+  instancesMap: WeakMap<ClassType, AomIsolator> = new WeakMap();
 
   instanceId?: string;
 

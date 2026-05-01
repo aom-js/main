@@ -1,13 +1,7 @@
 // добавим декоратор для описания класса
 import { JSONSchema } from "class-validator-jsonschema";
 // локальные импорты
-import {
-  Constructor,
-  DecoratorsQueueStore,
-  hasOwnProperty,
-  InstanceTarget,
-  Property,
-} from "@aom-js/core";
+import { ClassType, ExecutionPhase, hasOwnProperty, InstanceTarget, Property } from "@aom-js/core";
 import { Schemer, AomSchemas } from "./module";
 import { ClassDescriptionsProperties } from "./types";
 // import { IsolatedCallbackResponse, IsolatedMessageHeaders } from "./types";
@@ -31,70 +25,8 @@ export function ComponentSchema(params?: ClassDescriptionsProperties): ClassDeco
     // повторив в нём то же, что использует, например @buddh4/mapped-types, и объединив их со своими декораторами
     // и это, кстати, выглядит как дельная мысль
     // унаследовать декораторы
-    const inheritDecorators = (parent: Constructor) => {
-      const $parent = $._.base.instance(parent);
-
-      // console.log("$parent is", $parent._.origins);
-
-      // перенесем собственные вызовы с родителя на конечного потомка
-      $parent._.callstack.transferTo($);
-
-      const transferDescritorWithDecorators = (
-        target: InstanceTarget,
-        property: Property,
-        source: AomSchemas,
-        descriptor: PropertyDescriptor
-      ) => {
-        // // здесь обязательно каррирование, так как иначе будет замена контекста исходного дескриптора изначального родительского класса
-        // const curriedDescriptor =
-        //   descriptor && descriptor.value
-        //     ? (...args: any) => Reflect.apply(descriptor.value, null, args)
-        //     : undefined;
-        // // определим дескриптор с учётом карирования
-        // Reflect.defineProperty(target, property, {
-        //   ...descriptor,
-        //   value: curriedDescriptor,
-        // });
-
-        const $childInstance = $._.base.instance(target, property);
-        // и вот тут должен быть соответствующий перенос всех декораторов за счет переноса релевантных значений в callstack
-        source._.callstack.transferTo($childInstance);
-      };
-
-      // перенесем декорированные данные из статичных свойств и методов
-      $parent._.origins.forEach((origin) => {
-        const $origin = origin.self; // $._.base.instance(origin.descriptor.value);
-        const isClassOrigin = origin.target === $origin._.target;
-        // console.log("origin is", $origin);
-        if (isClassOrigin && !hasOwnProperty($._.target, $origin._.property)) {
-          transferDescritorWithDecorators(
-            $._.target,
-            $origin._.property,
-            $origin,
-            origin.descriptor
-          );
-        } else if (!isClassOrigin && !hasOwnProperty($._.target.prototype, $origin._.property)) {
-          // иначе проверим, что это свойство самого инстанса, и надо создать соответствующие перенос
-          transferDescritorWithDecorators(
-            $._.target.prototype,
-            $origin._.property,
-            $origin,
-            origin.descriptor
-          );
-        } else {
-          errors.push(
-            new Error(`same property exists ${$._.target.name}.${origin.property.toString()}`)
-          );
-        }
-      });
-      // запустим повторно процедуру, если текущий элемент не был компонентной схемой
-      // а родитель для текущего родителя является компонентной схемой
-      // if (
-      //   !$parent.isComponentSchema &&
-      //   $._.base.instance(Object.getPrototypeOf(parent)).isComponentSchema
-      // ) {
-      //   inheritDecorators(Object.getPrototypeOf(parent));
-      // }
+    const inheritDecorators = (parent: ClassType) => {
+      $._.inherit(parent);
     };
     inheritDecorators(Object.getPrototypeOf($._.target));
 
@@ -110,7 +42,7 @@ export function ComponentSchema(params?: ClassDescriptionsProperties): ClassDeco
     if (errors.length) {
       console.error("ComponentSchema inherit errors", errors);
     }
-  }, DecoratorsQueueStore.INSTANT);
+  }, ExecutionPhase.INSTANT);
 }
 
 /*

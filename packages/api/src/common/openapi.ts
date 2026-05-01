@@ -1,11 +1,11 @@
-import { Constructor } from "@aom-js/core";
+import { ClassType } from "@aom-js/core";
 import { ParameterLocation, SchemaObject, SecuritySchemeObject } from "openapi3-ts/oas31";
 
 import { RouteRefContainer, ThisRefContainer } from "./references";
 
 export declare type OpenApiPossibleSchema =
   | OpenApiSchemaObject
-  | Constructor
+  | ClassType
   | ThisRefContainer
   | RouteRefContainer
   | any;

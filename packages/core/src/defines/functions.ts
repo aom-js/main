@@ -1,4 +1,4 @@
-import { Constructor, InstanceTarget, Property } from "./types";
+import { ClassType, InstanceTarget, Property } from "./types";
 
 export function isClass(value: InstanceTarget) {
   return (
@@ -6,6 +6,6 @@ export function isClass(value: InstanceTarget) {
   );
 }
 
-export function hasOwnProperty(target: Constructor, property: Property): boolean {
+export function hasOwnProperty(target: ClassType, property: Property): boolean {
   return Object.prototype.hasOwnProperty.call(target, property);
 }

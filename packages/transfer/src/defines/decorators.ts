@@ -1,4 +1,4 @@
-import { Constructor, DecoratorsQueueStore, Property } from "@aom-js/core";
+import { ClassType, ExecutionPhase, Property } from "@aom-js/core";
 
 // локальные импорты
 import { Transfer, AomIsolator } from "./main";
@@ -32,7 +32,7 @@ export function IsDistributed() {
   return AomIsolator.classDecorator(($) => {
     // тут значением должна быть схема, которая будет распаковываться на других инстансах
     $.transfer.registryMap.set($._.target, $._.target.name);
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 }
 
 /**
@@ -88,7 +88,7 @@ function DefineTopics() {
     const { topic, replyTopic } = defineTopics(transfer);
     $.topic = topic;
     $.replyTopic = replyTopic;
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 }
 
 /**
@@ -115,7 +115,7 @@ function AutoTopic(waitForResponse: boolean, singletone?: boolean): MethodDecora
 
       return rx.request(args, $);
     };
-  }, DecoratorsQueueStore.FIRST);
+  }, ExecutionPhase.FIRST);
 }
 
 /**
@@ -149,7 +149,7 @@ export function Executor(instanceId?: string): ClassDecorator {
  * @param propertyKey Ключ свойства (метода)
  * @param instanceId Идентификатор экземпляра
  */
-function attachIsolation(constructor: Constructor, propertyKey: Property, instanceId?: string) {
+function attachIsolation(constructor: ClassType, propertyKey: Property, instanceId?: string) {
   const parentConstructor = Object.getPrototypeOf(constructor);
   const parent$ = AomIsolator.instance(parentConstructor);
   const { name } = constructor;

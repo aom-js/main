@@ -1,7 +1,7 @@
 import { Allow, IsBoolean, IsDate, IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
 import { Max, MaxDate, MaxLength, Min, MinDate, MinLength, ValidateNested } from "class-validator";
 import { Exclude, Transform, Type } from "class-transformer";
-import { DecoratorsQueueStore } from "@aom-js/core";
+import { ExecutionPhase } from "@aom-js/core";
 import { JSONSchema } from "class-validator-jsonschema";
 //
 import { CommonDescriptionsProperties, ConnectionSchema, SchemaTypes } from "./types";
@@ -57,7 +57,7 @@ const _String = (params: StringDescriptionsProperties): PropertyDecorator => {
 
     // применим соответствующие декораторы
     Reflect.decorate(decorators, originInstance, property);
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 };
 
 declare interface NumberDescriptionsProperties extends CommonDescriptionsProperties {
@@ -84,7 +84,7 @@ const _Number = (params: NumberDescriptionsProperties) => {
           message: params.message,
           groups: params.groups,
           always: params.always,
-        }
+        },
       ),
       params.isOptional ? IsOptional() : undefined,
       params.maxValue ? Max(params.maxValue) : undefined,
@@ -107,7 +107,7 @@ const _Number = (params: NumberDescriptionsProperties) => {
 
     // применим соответствующие декораторы
     Reflect.decorate(decorators, originInstance, property);
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 };
 
 declare interface BooleanDescriptionsProperties extends CommonDescriptionsProperties {
@@ -155,7 +155,7 @@ const _Boolean = (params: BooleanDescriptionsProperties) => {
 
     // применим соответствующие декораторы
     Reflect.decorate(decorators, originInstance, property);
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 };
 
 declare interface AnyDescriptionsProperties extends CommonDescriptionsProperties {
@@ -194,13 +194,14 @@ const _Any = (params: AnyDescriptionsProperties) => {
 
     // применим соответствующие декораторы
     Reflect.decorate(decorators, originInstance, property);
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 };
 
 type EnumLike = Record<string, string | number>;
 
-declare interface EnumDescriptionsProperties<T extends EnumLike>
-  extends CommonDescriptionsProperties {
+declare interface EnumDescriptionsProperties<
+  T extends EnumLike,
+> extends CommonDescriptionsProperties {
   value: T;
   default?: T[keyof T];
 }
@@ -237,7 +238,7 @@ const _Enum = <T extends EnumLike>(params: EnumDescriptionsProperties<T>) => {
 
     // применим соответствующие декораторы
     Reflect.decorate(decorators, originInstance, property);
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 };
 
 declare interface DateDescriptionsProperties extends CommonDescriptionsProperties {
@@ -283,7 +284,7 @@ const _Date = (params: DateDescriptionsProperties) => {
 
     // применим соответствующие декораторы
     Reflect.decorate(decorators, originInstance, property);
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 };
 
 declare interface TypeDescriptionsProperties extends CommonDescriptionsProperties {
@@ -321,7 +322,7 @@ const _Type = (params: TypeDescriptionsProperties) => {
 
     // применим соответствующие декораторы
     Reflect.decorate(decorators, originInstance, property);
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 };
 
 export const PropertySchema = {

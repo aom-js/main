@@ -1,4 +1,4 @@
-import { AomCore, Constructor, Property } from "@aom-js/core";
+import { AomCore, ClassType, Property } from "@aom-js/core";
 import { defaultMetadataStorage } from "class-transformer/cjs/storage";
 import { targetConstructorToSchema } from "class-validator-jsonschema";
 
@@ -34,7 +34,7 @@ export class Schemer {
   }
 
   // функция для рендера данных
-  render(target: Constructor): ReturnType<typeof targetConstructorToSchema> {
+  render(target: ClassType): ReturnType<typeof targetConstructorToSchema> {
     return targetConstructorToSchema(target, {
       classTransformerMetadataStorage: defaultMetadataStorage,
       refPointerPrefix: this.refPointerPrefix,

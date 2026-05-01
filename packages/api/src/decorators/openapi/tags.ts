@@ -1,7 +1,7 @@
-import { Constructor } from "@aom-js/core";
+import { ClassType } from "@aom-js/core";
 import { AomApi, TagsRules } from "../../common";
 
-export function UseTag(constructor: Constructor) {
+export function UseTag(constructor: ClassType) {
   return AomApi.combinedDecorator(($) => {
     $.openApi.tag.$ = AomApi.instance(constructor);
   });

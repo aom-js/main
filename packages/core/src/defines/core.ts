@@ -1,12 +1,12 @@
 import {
   ClassConstructor,
   CombinedDecorator,
-  Constructor,
+  ClassType,
   Property,
-  DecoratorsQueueStore,
+  ExecutionPhase,
   InstanceTarget,
 } from "./types";
-import { isClass } from "./functions";
+import { isClass, hasOwnProperty } from "./functions";
 
 declare type AomHandler<T extends AomCore> = ($: T) => void;
 
@@ -53,13 +53,13 @@ class AomCallstackQueue<T extends AomCore> {
 
   private callstack: AomCallstack<T>;
 
-  private type?: DecoratorsQueueStore;
+  private type?: ExecutionPhase;
 
   private async: boolean;
 
   private indexed: boolean;
 
-  constructor(callstack: AomCallstack<T>, type: DecoratorsQueueStore, indexed?: boolean) {
+  constructor(callstack: AomCallstack<T>, type: ExecutionPhase, indexed?: boolean) {
     this.callstack = callstack;
 
     this.queue = [];
@@ -67,7 +67,7 @@ class AomCallstackQueue<T extends AomCore> {
 
     this.type = type;
     this.indexed = indexed;
-    this.async = [DecoratorsQueueStore.DELAY].includes(type);
+    this.async = [ExecutionPhase.DELAY].includes(type);
   }
 
   add<U extends T>(value: LazyCall<U>, index?: number) {
@@ -79,7 +79,7 @@ class AomCallstackQueue<T extends AomCore> {
     const { type } = this;
     // если это отложенный запуск или запуск в последний момент - то просто добавим в очередь
     // возможно позже добавить сюда DecoratorsQueueStore.DELAY
-    if ([DecoratorsQueueStore.LAST, DecoratorsQueueStore.DELAY].includes(type)) {
+    if ([ExecutionPhase.LAST, ExecutionPhase.DELAY].includes(type)) {
       if (index >= 0) {
         this.queue[index] = value;
       } else if (index < 0) {
@@ -88,7 +88,7 @@ class AomCallstackQueue<T extends AomCore> {
         this.queue.push(value);
       }
       // index >= 0 ? (this.queue[index] = value) : this.queue.push(value);
-    } else if ([DecoratorsQueueStore.FIRST].includes(type)) {
+    } else if ([ExecutionPhase.FIRST].includes(type)) {
       if (index >= 0) {
         this.fired[index] = value;
       } else if (index < 0) {
@@ -99,7 +99,7 @@ class AomCallstackQueue<T extends AomCore> {
       // если стартуем первым - то выполним и добавим в список
       // index >= 0 ? (this.fired[index] = value) : this.fired.push(value);
       return this.run(value);
-    } else if (type === DecoratorsQueueStore.INSTANT) {
+    } else if (type === ExecutionPhase.INSTANT) {
       // если мгновенный запуск, то нигде не сохраняем, а просто выполняем
       return this.run(value);
     }
@@ -161,22 +161,22 @@ class AomCallstack<T extends AomCore> {
 
   _: AomNode<T>;
 
-  stores: { [key in DecoratorsQueueStore]: AomCallstackQueue<T> };
+  stores: { [key in ExecutionPhase]: AomCallstackQueue<T> };
 
-  indexes: { [key in DecoratorsQueueStore]: AomCallstackQueue<T> };
+  indexes: { [key in ExecutionPhase]: AomCallstackQueue<T> };
 
   constructor(_: AomNode<T>) {
     this._ = _;
 
     this.stores = {} as any;
     this.indexes = {} as any;
-    Object.values(DecoratorsQueueStore).forEach((type) => {
+    Object.values(ExecutionPhase).forEach((type) => {
       this.stores[type] = new AomCallstackQueue<T>(this, type);
       this.indexes[type] = new AomCallstackQueue<T>(this, type, true);
     });
   }
 
-  add<U extends T>(value: LazyCall<U>, storeFlag: DecoratorsQueueStore, index?: number) {
+  add<U extends T>(value: LazyCall<U>, storeFlag: ExecutionPhase, index?: number) {
     this.stores[storeFlag].add(value, index);
     // if (index >= 0) {
     //   this.indexes[storeFlag].add(value, index);
@@ -185,14 +185,14 @@ class AomCallstack<T extends AomCore> {
   }
 
   apply() {
-    Object.values(DecoratorsQueueStore).forEach((type) => {
+    Object.values(ExecutionPhase).forEach((type) => {
       this.stores[type].exec();
       this.indexes[type].exec();
     });
   }
 
   transferTo<U extends T>(target: U) {
-    Object.values(DecoratorsQueueStore).forEach((type) => {
+    Object.values(ExecutionPhase).forEach((type) => {
       this.stores[type].transferTo(target);
       this.indexes[type].transferTo(target);
     });
@@ -210,7 +210,7 @@ class AomNode<T extends AomCore> {
 
   currentProperty: T | undefined;
 
-  // корневая структура для
+  // корневая структура для ноды
   root: T;
 
   self: T;
@@ -275,6 +275,62 @@ class AomNode<T extends AomCore> {
 
     // выполним собственные отложенные вызовы
     this.callstack.apply();
+  }
+
+  inherit(parent: ClassType) {
+    const $parent = this.base.instance(parent);
+
+    // перенесем собственные вызовы с родителя на конечного потомка
+    $parent._.callstack.transferTo(this.self);
+
+    const transferDescritorWithDecorators = (
+      target: InstanceTarget,
+      property: Property,
+      source: T,
+      descriptor: PropertyDescriptor,
+    ) => {
+      if (descriptor && descriptor.value) {
+        // здесь обязательно каррирование, так как иначе будет замена контекста исходного дескриптора изначального родительского класса
+        const curriedDescriptor = (...args: any) => Reflect.apply(descriptor.value, null, args);
+        // определим
+        Reflect.defineProperty(target, property, {
+          ...descriptor,
+          value: curriedDescriptor,
+        });
+      }
+      const $childInstance = this.base.instance(target, property as string);
+      // и вот тут должен быть соответствующий перенос всех декораторов за счет переноса релевантных значений в callstack
+      source._.callstack.transferTo($childInstance);
+    };
+
+    // перенесем декорированные данные из статичных свойств и методов
+    $parent._.origins.forEach((origin) => {
+      const $origin = origin.descriptor ? this.base.instance(origin.descriptor.value) : origin.self;
+      const isClassOrigin = origin.target === $origin._.target;
+
+      if (isClassOrigin && !hasOwnProperty(this.target, $origin._.property!)) {
+        transferDescritorWithDecorators(
+          this.target,
+          $origin._.property!,
+          $origin,
+          origin.descriptor,
+        );
+      } else if (!isClassOrigin && !hasOwnProperty(this.target.prototype, $origin._.property!)) {
+        // иначе проверим, что это свойство самого инстанса, и надо создать соответствующие перенос
+        transferDescritorWithDecorators(
+          this.target.prototype,
+          $origin._.property!,
+          $origin,
+          origin.descriptor,
+        );
+      } else {
+        // errors.push(
+        //   new Error(`same property exists ${this.target.name}.${origin.property.toString()}`),
+        // );
+      }
+    });
+
+    return $parent;
   }
 }
 
@@ -345,9 +401,8 @@ export class AomCore {
         if (!instanceKey) {
           const originDescriptor = { target, property, descriptor };
 
-          // создадим интанс
+          // создадим инстанс
           instanceKey = new this(this, constructor, property, originDescriptor);
-          // instanceKey = this.create(constructor, property, originDescriptor);
           // запишем его в общую карту
           map.set(instanceKey, instanceKey);
           // сохраним его в релевантной карте
@@ -419,10 +474,10 @@ export class AomCore {
   static classDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
+    storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
   ): ClassDecorator {
     const self = this; // t теперь типа AOMClass<T>
-    return function (target: Constructor) {
+    return function (target: ClassType) {
       // Получаем AOM-инстанс для этого конструктора
       const targetInstance = self.instance(target);
       return targetInstance._.callstack.add([handler, [targetInstance]], storeFlag);
@@ -434,10 +489,10 @@ export class AomCore {
   static combinedDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomСombinedHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
+    storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
   ): CombinedDecorator {
     const self = this;
-    return function (target: Constructor, property?: Property, descriptor?: PropertyDescriptor) {
+    return function (target: ClassType, property?: Property, descriptor?: PropertyDescriptor) {
       // Получаем AOM-инстанс для этого конструктора
       const targetInstance = self.instance(target, property);
       return targetInstance._.callstack.add([handler, [targetInstance, descriptor]], storeFlag);
@@ -450,10 +505,10 @@ export class AomCore {
   static methodDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomMethodHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
+    storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
   ): MethodDecorator {
     const self = this; // t теперь типа AOMClass<T>
-    return function (target: Constructor, property: Property, descriptor: PropertyDescriptor) {
+    return function (target: ClassType, property: Property, descriptor: PropertyDescriptor) {
       // Получаем AOM-инстанс для конструктора класса
       const targetInstance = self.instance(target, property);
       return targetInstance._.callstack.add([handler, [targetInstance, descriptor]], storeFlag);
@@ -465,10 +520,10 @@ export class AomCore {
   static propertyDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomPropertyHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
+    storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
   ): PropertyDecorator {
     const self = this; // t теперь типа AOMClass<T>
-    return function (target: Constructor, property: Property) {
+    return function (target: ClassType, property: Property) {
       // Получаем AOM-инстанс для конструктора класса
       const targetInstance = self.instance(target, property);
       return targetInstance._.callstack.add([handler, [targetInstance]], storeFlag);
@@ -480,10 +535,10 @@ export class AomCore {
   static parameterDecorator<T extends AomCore>(
     this: AomClass<T>,
     handler: AomParameterHandler<T>,
-    storeFlag: DecoratorsQueueStore = DecoratorsQueueStore.FIRST,
+    storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
   ): ParameterDecorator {
     const self = this; // t теперь типа AOMClass<T>
-    return function (target: Constructor, property: Property, parameterIndex: number) {
+    return function (target: ClassType, property: Property, parameterIndex: number) {
       // Получаем AOM-инстанс для конструктора класса
       const targetInstance = self.instance(target, property);
       //

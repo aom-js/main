@@ -1,4 +1,4 @@
-import { CombinedDecorator, Constructor, DecoratorsQueueStore } from "@aom-js/core";
+import { CombinedDecorator, ClassType, ExecutionPhase } from "@aom-js/core";
 
 import * as constants from "../../constants";
 import { FwdContainer, HandlerFunction, MarkerHandler, MiddlewareHandler } from "../../common";
@@ -13,7 +13,7 @@ export function Before(...middlewares: MiddlewareHandler[]): CombinedDecorator {
         .map((middleware) => AomApi.instance(middleware))
         .filter(($) => $.element.isMiddleware),
     );
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 }
 
 // export const UseBefore = Use;
@@ -26,7 +26,7 @@ export function After(...middlewares: MiddlewareHandler[]): CombinedDecorator {
         .map((middleware) => AomApi.instance(middleware))
         .filter(($) => $.element.isMiddleware),
     );
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 }
 
 // ************************************************ //
@@ -48,7 +48,7 @@ export function Middleware(): MethodDecorator {
 }
 // ************************************************ //
 // ...
-export function Bridge(prefix: string, nextRoute: Constructor): CombinedDecorator {
+export function Bridge(prefix: string, nextRoute: ClassType): CombinedDecorator {
   return AomApi.combinedDecorator(($, descriptor) => {
     const next = AomApi.instance(nextRoute);
     // если это bridge вокруг предварительного middleware
@@ -66,7 +66,7 @@ export function Marker(): MethodDecorator {
   return AomApi.methodDecorator(($, descriptor) => {
     $.element.isMarker = true;
     $.element.descriptor = descriptor;
-  }, DecoratorsQueueStore.FIRST);
+  }, ExecutionPhase.FIRST);
 }
 
 // ************************************************ //
@@ -80,7 +80,7 @@ export function UseMarker(handler: MarkerHandler): MethodDecorator {
     } else {
       throw new Error(constants.USE_MARKER_DEFINE_ERROR);
     }
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 }
 
 // ************************************************ //
@@ -94,7 +94,7 @@ export function Next(handler: HandlerFunction | FwdContainer): MethodDecorator {
     } else {
       throw new Error(constants.USE_NEXT_DEFINE_ERROR);
     }
-  }, DecoratorsQueueStore.LAST);
+  }, ExecutionPhase.LAST);
 }
 
 // ************************************************ //

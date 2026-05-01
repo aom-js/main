@@ -8,6 +8,7 @@ import {
   TransferMessageHeaders,
   TransferMessageSchema,
   TransferNextFunction,
+  TransferCallbackHandler,
 } from "./types";
 
 rxjs.config.onUnhandledError = (err: Error) => console.error("rxjs unhandled error", err);
@@ -70,7 +71,7 @@ export class RxTransfer {
           () =>
             new rxjs.Observable((observer) => {
               // Создаем функцию обратного вызова для наблюдателя
-              const callback = callbackObserver(observer);
+              const callback: TransferCallbackHandler = callbackObserver(observer);
               // Сохраняем коллбэк в карту по уникальному ключу
               this.transfer.callbackMap.set(uniqKey, callback);
               // Публикуем сообщение в топик
