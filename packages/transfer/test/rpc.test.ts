@@ -29,6 +29,11 @@ class MathService {
     return undefined as never;
   }
 
+  @ResponseTopic()
+  static async deny(): Promise<void> {
+    return undefined as never;
+  }
+
   @ResponseTopic(true)
   static async slow(x: number): Promise<number> {
     return undefined as never;
@@ -52,6 +57,10 @@ class MathExecutor extends MathService {
 
   static async zero(): Promise<number> {
     return 0;
+  }
+
+  static async deny(): Promise<void> {
+    throw Object.assign(new Error("denied"), { status: 403, data: { reason: "acl" } });
   }
 
   static async slow(x: number) {
@@ -80,6 +89,14 @@ describe("transfer: RPC поверх шины", () => {
 
   it("ошибка исполнителя доставляется вызывающему как reject", async () => {
     await expect(MathService.boom()).rejects.toThrow("executor failed");
+  });
+
+  it("конверт ошибки переносит status и data через сериализующую шину", async () => {
+    await expect(MathService.deny()).rejects.toMatchObject({
+      message: "denied",
+      status: 403,
+      data: { reason: "acl" },
+    });
   });
 
   it("синглтон дедуплицирует параллельные вызовы с одинаковыми аргументами", async () => {

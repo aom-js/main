@@ -168,10 +168,20 @@ export class RxTransfer {
         })
         .catch((error) => {
           // в случае ошибки отправляем её в топик для ответа
+          // конверт вместо объекта Error: Error не переживает JSON-сериализацию шины
+          const value =
+            error instanceof Object
+              ? {
+                  name: error.name,
+                  message: error.message,
+                  status: Reflect.get(error, "status"),
+                  data: Reflect.get(error, "data"),
+                }
+              : { message: String(error) };
           replyTopic &&
             this.transfer.publisher({
               topic: replyTopic,
-              message: { value: error, headers: { uniqKey, replyTopic, error: true } },
+              message: { value, headers: { uniqKey, replyTopic, error: true } },
             });
         });
     };
@@ -185,14 +195,20 @@ export class RxTransfer {
  */
 function callbackObserver(observer: rxjs.Observer<unknown>) {
   /**
-   * Сериализует ошибку
-   * @param err Объект ошибки
+   * Восстанавливает Error из конверта, пришедшего по шине
+   * @param err Конверт ошибки ({name, message, status, data}) либо произвольное значение
    * @param topic Топик
-   * @returns Сериализованная ошибка
+   * @returns Экземпляр Error
    */
-  const serializeError = (err: Error, topic: string) => {
-    // console.error("do serialize error", topic, err);
-    return err;
+  const serializeError = (err: any, topic: string) => {
+    if (err instanceof Error) return err;
+    const restored = new Error(err?.message ?? String(err));
+    if (err && typeof err === "object") {
+      const { name, status, data } = err;
+      if (name) restored.name = name;
+      Object.assign(restored, { status, data });
+    }
+    return restored;
   };
 
   /**

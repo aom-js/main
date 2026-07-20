@@ -13,8 +13,10 @@ export class MemoryBus {
 
   publisher = ({ topic, message }: BusMessage) => {
     this.published.push({ topic, message });
+    // доставляем через JSON, как реальный брокер: несериализуемые значения теряются намеренно
+    const wire = JSON.parse(JSON.stringify(message));
     setTimeout(() => {
-      this.subs.filter((s) => s.topic === topic).forEach((s) => s.next(message));
+      this.subs.filter((s) => s.topic === topic).forEach((s) => s.next(wire));
     });
   };
 
