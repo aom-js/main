@@ -50,8 +50,12 @@ describe("transfer: реестр распределенных схем", () => {
     }
   }
 
-  it("IsDistributed регистрирует класс в registryMap своего транспорта", () => {
-    expect(nodeA.registryMap.get(DistService)).toBe("DistService");
+  it("IsDistributed регистрирует дескриптор в registryMap своего транспорта", () => {
+    expect(nodeA.registryMap.get("DistService")).toMatchObject({
+      name: "DistService",
+      origin: { instanceName: "node-a", instanceKey: "a1" },
+    });
+    void DistService;
   });
 
   it("collectDistributions опрашивает другие ноды и получает их схемы", async () => {

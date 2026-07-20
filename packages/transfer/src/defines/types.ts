@@ -119,3 +119,30 @@ export declare interface TransferRegisty {
   sender: InstancesData;
   schemas: any;
 }
+
+/**
+ * Описание изолированного метода в дескрипторе сервиса
+ * Схемы аргументов и ответа — JSON Schema либо $ref в components дескриптора
+ */
+export declare interface TransferMethodDescriptor {
+  name: string;
+  topic: string;
+  waitForResponse: boolean;
+  singleton: boolean;
+  queue: boolean;
+  args: any[];
+  returns?: any;
+}
+
+/**
+ * Сериализуемый дескриптор изолированного сервиса — контракт, уезжающий по шине.
+ * Из него восстанавливается вызывающий прокси без импорта исходного класса.
+ */
+export declare interface TransferServiceDescriptor {
+  name: string;
+  origin: InstancesData;
+  /** sha256 от methods+components — для дедупликации и сверки версий */
+  hash: string;
+  methods: TransferMethodDescriptor[];
+  components: Record<string, any>;
+}

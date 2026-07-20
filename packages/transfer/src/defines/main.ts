@@ -8,6 +8,7 @@ import {
   TransferTopics,
   InstancesData,
   TransferRegisty,
+  TransferServiceDescriptor,
   StructureCollectorFunction,
   StructureReceiveSchema,
 } from "./types";
@@ -21,6 +22,12 @@ export class AomIsolator extends AomCore {
   singletone: boolean;
 
   waitForResponse: boolean;
+
+  /** схемы аргументов метода (ComponentSchema-классы), заданные через @TopicSchema */
+  argsSchemas?: ClassConstructor[];
+
+  /** схема возвращаемого значения (ComponentSchema-класс), заданная через @TopicSchema */
+  returnsSchema?: ClassConstructor;
 
   originDescriptorValue: Function;
 
@@ -74,10 +81,13 @@ export class Transfer implements TransferConfig {
   // карта коллбеков для обработки ответов
   callbackMap: Map<string, TransferCallbackHandler>;
 
+  static readonly refPointerPrefix = "#/components/schemas/";
+
   readonly registryRequestTopic = `!Transfer_Registry_Request!`;
   readonly registryResponseTopic = `!Transfer_Registry_Notification!`;
 
-  readonly registryMap: Map<ClassConstructor, any> = new Map();
+  /** дескрипторы распределенных сервисов по имени класса */
+  readonly registryMap: Map<string, TransferServiceDescriptor> = new Map();
 
   /**
    * Конструктор класса Isolator
@@ -148,7 +158,8 @@ export class Transfer implements TransferConfig {
   private requestRegistry(sender: InstancesData) {
     const { instanceName, instanceKey } = this;
     if (!(sender.instanceName === instanceName && sender.instanceKey === instanceKey)) {
-      const schemas = this.registryMap.entries();
+      // массив дескрипторов: сериализуемый формат для реальных шин
+      const schemas = [...this.registryMap.values()];
       const value = { receiver: sender, sender: { instanceName, instanceKey }, schemas };
       this.publisher({ topic: this.registryResponseTopic, message: { value, headers: {} } });
     }

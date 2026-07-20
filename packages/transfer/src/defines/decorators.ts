@@ -1,8 +1,11 @@
-import { ClassType, ExecutionPhase, Property } from "@aom-js/core";
+import crypto from "node:crypto";
+import { ClassConstructor, ClassType, ExecutionPhase, Property } from "@aom-js/core";
+import { Schemer, SchemasCollector } from "@aom-js/schemer";
 
 // локальные импорты
 import { Transfer, AomIsolator } from "./main";
 import { RxTransfer } from "./rx-transfer";
+import { TransferMethodDescriptor, TransferServiceDescriptor } from "./types";
 
 /**
  * Декоратор для изоляции класса
@@ -27,11 +30,63 @@ export function IsQueue() {
   });
 }
 
-// добавим признак того, что этот класс распределенный
+/**
+ * Декоратор схемы изолированного метода: ComponentSchema-классы аргументов и ответа.
+ * Методный (не пер-параметрный) — сознательно, ради совместимости со stage-3 декораторами.
+ */
+export function TopicSchema(schema: {
+  args?: ClassConstructor[];
+  returns?: ClassConstructor;
+}): MethodDecorator {
+  return AomIsolator.methodDecorator(($) => {
+    $.argsSchemas = schema.args || [];
+    $.returnsSchema = schema.returns;
+  });
+}
+
+/**
+ * Помечает класс распределенным: собирает сериализуемый дескриптор сервиса
+ * (методы, топики, схемы через SchemasCollector) и кладет его в реестр транспорта
+ */
 export function IsDistributed() {
   return AomIsolator.classDecorator(($) => {
-    // тут значением должна быть схема, которая будет распаковываться на других инстансах
-    $.transfer.registryMap.set($._.target, $._.target.name);
+    const { transfer } = $;
+    const collector = new SchemasCollector(new Schemer(Transfer.refPointerPrefix));
+
+    const methods = $.isolatedMethods.map((method$) => {
+      const method: TransferMethodDescriptor = {
+        name: String(method$._.property),
+        topic: method$.topic,
+        waitForResponse: !!method$.waitForResponse,
+        singleton: !!method$.singletone,
+        queue: !!method$.queue,
+        args: (method$.argsSchemas || []).map((schema) => collector.extract(schema)),
+      };
+      // returns добавляется только при наличии — дескриптор обязан переживать JSON без потерь
+      if (method$.returnsSchema) {
+        method.returns = collector.extract(method$.returnsSchema);
+      }
+      return method;
+    });
+
+    const components: Record<string, any> = {};
+    collector.components.forEach((schema, name) => {
+      components[name] = schema;
+    });
+
+    const { instanceName, instanceKey } = transfer;
+    const descriptor: TransferServiceDescriptor = {
+      name: $._.target.name,
+      origin: { instanceName, instanceKey },
+      hash: crypto
+        .createHash("sha256")
+        .update(JSON.stringify({ methods, components }))
+        .digest("hex"),
+      methods,
+      components,
+    };
+
+    transfer.registryMap.set(descriptor.name, descriptor);
   }, ExecutionPhase.LAST);
 }
 
