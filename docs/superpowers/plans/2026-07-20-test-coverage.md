@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Тесты пишутся ТОЛЬКО через публичный API пакетов (импорт из корня пакета: `@aom-js/core` и т.д.). Запрещено импортировать внутренние файлы (`src/defines/...`) — кроме явно указанных в задачах мест.
-- `@aom-js/api` переедет в `@aom-js/router`; имя api получит новый пакет с батарейками. Поэтому: тестовые сьюты называть по механикам («router: построение маршрутов»), импорт пакета — одной строкой в начале файла.
+- Переезд `@aom-js/api` → `@aom-js/router` СОСТОЯЛСЯ (коммит «перезд api -> router», ветка development-claude). Имя `@aom-js/api` в будущем получит новый пакет с батарейками — сейчас его НЕ существует, нигде на него не ссылаться. Тестовые сьюты называть по механикам («router: построение маршрутов»), импорт пакета — одной строкой в начале файла.
 - Политика характеризационных тестов: тест зафиксировал НЕ то поведение, что ожидалось → сначала перечитать исходник; если ожидание теста неверно — исправить тест; если найден дефект кода — НЕ чинить код, пометить тест `it.fails(...)` с комментарием `// FINDING: ...` и добавить строку в `docs/superpowers/plans/2026-07-20-test-coverage-findings.md`. Починка дефектов — отдельная работа после этого плана.
 - Каждый тестовый файл самодостаточен: классы объявляются внутри файла/тестов (vitest изолирует модули по файлам — глобальные WeakMap-реестры aom не пересекаются между файлами).
 - Имена тестов и комментарии — на русском (язык кодовой базы).
@@ -58,7 +58,7 @@ export default defineConfig({
     alias: {
       "@aom-js/core": resolve(__dirname, "packages/core/src"),
       "@aom-js/schemer": resolve(__dirname, "packages/schemer/src"),
-      "@aom-js/api": resolve(__dirname, "packages/api/src"),
+      "@aom-js/router": resolve(__dirname, "packages/router/src"),
       "@aom-js/transfer": resolve(__dirname, "packages/transfer/src"),
       "@aom-js/holder": resolve(__dirname, "packages/holder/src"),
     },
@@ -93,7 +93,14 @@ import "reflect-metadata";
 }
 ```
 
-(остальные скрипты — `build:*`, `clean`, `prebuild`, `publish` — не трогать, они вне скоупа этого плана).
+Заодно поправить осиротевшие после переезда api→router ссылки в build-скриптах того же файла:
+
+```json
+"build:router": "yarn workspace @aom-js/router build",
+"build": "yarn build:core && yarn build:schemer && yarn build:router && yarn build:transfer",
+```
+
+(ключ `build:api` удалить; остальные скрипты — `clean`, `prebuild`, `publish` — не трогать, они вне скоупа этого плана).
 
 - [ ] **Step 5: Написать smoke-тест транспиляции**
 
@@ -876,22 +883,22 @@ git commit -m "test(schemer): mapped-types — Pick/Omit/Partial/Intersection"
 
 ---
 
-### Task 7: router (api) — построение маршрутов
+### Task 7: router — построение маршрутов
 
 **Files:**
-- Test: `packages/api/test/router-build.test.ts`
+- Test: `packages/router/test/router-build.test.ts`
 
 **Interfaces:**
-- Consumes: `Controller`, `Get`, `Post`, `Delete`, `Bridge`, `Middleware`, `Nextpoint`, `Router`, `OpenApi` из `@aom-js/api`.
+- Consumes: `Controller`, `Get`, `Post`, `Delete`, `Bridge`, `Middleware`, `Nextpoint`, `Router`, `OpenApi` из `@aom-js/router`.
 - Produces: хелпер `makeDocs()` (пустой OpenApi для конструктора Router) — используется в Task 8, 9.
 
 - [ ] **Step 1: Написать тесты построения**
 
-`packages/api/test/router-build.test.ts`:
+`packages/router/test/router-build.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { Controller, Get, Post, Delete, Bridge, Middleware, Router, OpenApi } from "@aom-js/api";
+import { Controller, Get, Post, Delete, Bridge, Middleware, Router, OpenApi } from "@aom-js/router";
 
 const makeDocs = () => new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
 
@@ -988,37 +995,37 @@ describe("router: построение маршрутов", () => {
 
 - [ ] **Step 2: Запустить**
 
-Run: `yarn test packages/api/test/router-build.test.ts`
+Run: `yarn test packages/router/test/router-build.test.ts`
 Expected: PASS. ВАЖНО: `@Controller()` всегда верхний декоратор класса (он INSTANT и разбирает очередь LAST-декораторов вроде `@Bridge`/`@Before`, накопленную нижними) — если тест с иным порядком падает, это не дефект, это инвариант порядка; зафиксировать его комментарием.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/api/test/router-build.test.ts
+git add packages/router/test/router-build.test.ts
 git commit -m "test(router): построение маршрутов — эндпоинты, бриджи, наследование, гарды ролей"
 ```
 
 ---
 
-### Task 8: router (api) — исполнение запроса
+### Task 8: router — исполнение запроса
 
 **Files:**
-- Test: `packages/api/test/router-exec.test.ts`
+- Test: `packages/router/test/router-exec.test.ts`
 
 **Interfaces:**
-- Consumes: всё из Task 7 плюс `Before`, `Query`, `Body`, `Params`, `Headers`, `Err`, `This`, `State`, `OnInstance`; тип `HttpContextValues` из `@aom-js/api`.
+- Consumes: всё из Task 7 плюс `Before`, `Query`, `Body`, `Params`, `Headers`, `Err`, `This`, `State`, `OnInstance`; тип `HttpContextValues` из `@aom-js/router`.
 - Produces: хелперы `makeContext(partial)` и `call(router, method, path, ctx)` — переиспользуются в Task 13.
 
 - [ ] **Step 1: Написать тесты исполнения**
 
-`packages/api/test/router-exec.test.ts`:
+`packages/router/test/router-exec.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
 import {
   Controller, Get, Middleware, Before, Router, OpenApi,
   Query, Body, Err, This, OnInstance, HttpContextValues,
-} from "@aom-js/api";
+} from "@aom-js/router";
 
 const makeDocs = () => new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
 
@@ -1130,9 +1137,12 @@ describe("router: исполнение запроса", () => {
     expect(result).toEqual({ body: { a: 1 }, q: "x" });
   });
 
-  it("This создает инстанс с аргументами конструктора и хуком OnInstance, кеширует в state запроса", async () => {
+  it("This создает инстанс с аргументами конструктора и хуком OnInstance; новый запрос — новый инстанс", async () => {
     const hookLog: string[] = [];
 
+    // ИНВАРИАНТ: класс-цель @This с декораторами аргументов обязан быть @Controller() —
+    // только он разбирает LAST-очередь параметр-декораторов
+    @Controller()
     class Session {
       who: string;
       constructor(@Query("user") user: string) {
@@ -1148,47 +1158,68 @@ describe("router: исполнение запроса", () => {
     @Controller()
     class App {
       @Get("/me")
-      static async me(@This(Session) a: Session, @This(Session) b: Session) {
-        return { who: a.who, same: a === b };
+      static async me(@This(Session) a: Session) {
+        return { who: a.who };
       }
     }
 
     const router = new Router(App, makeDocs());
     const first = await call(router, "get", "/me", makeContext({ query: { user: "alice" } }));
-    expect(first).toEqual({ who: "alice", same: true }); // один инстанс на запрос
+    expect(first).toEqual({ who: "alice" });
     expect(hookLog).toEqual(["init:alice"]); // хук вызван однократно
 
     const second = await call(router, "get", "/me", makeContext({ query: { user: "bob" } }));
-    expect(second).toEqual({ who: "bob", same: true }); // новый запрос — новый инстанс
+    expect(second).toEqual({ who: "bob" }); // новый запрос — новый инстанс
+    expect(hookLog).toEqual(["init:alice", "init:bob"]);
+  });
+
+  // FINDING (леджер №2): гонка Promise.all в This — два @This одного класса дают два инстанса
+  it.fails("два @This одного класса в одном методе дают один инстанс (дефект: гонка Promise.all)", async () => {
+    @Controller()
+    class Service {
+      constructor(@Query("user") public who: string) {}
+    }
+
+    @Controller()
+    class App {
+      @Get("/pair")
+      static async pair(@This(Service) a: Service, @This(Service) b: Service) {
+        return { same: a === b };
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    const result = await call(router, "get", "/pair", makeContext({ query: { user: "x" } }));
+    expect(result).toEqual({ same: true });
   });
 });
 ```
 
 - [ ] **Step 2: Запустить**
 
-Run: `yarn test packages/api/test/router-exec.test.ts`
+Run: `yarn test packages/router/test/router-exec.test.ts`
 Expected: PASS (при расхождении — политика находок).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/api/test/router-exec.test.ts
+git add packages/router/test/router-exec.test.ts
 git commit -m "test(router): исполнение — протокол undefined, перехват, ошибки, аргументы, This/OnInstance"
 ```
 
 ---
 
-### Task 9: api — генерация OpenAPI
+### Task 9: router — генерация OpenAPI
 
 **Files:**
-- Test: `packages/api/test/openapi.test.ts`
+- Test: `packages/router/test/openapi.test.ts`
 
 **Interfaces:**
-- Consumes: `Controller`, `Get`, `Post`, `Router`, `OpenApi`, `Title`, `Description`, `Responses`, `RequestBody`, `PathParameters`, `Security`, `Params`, `Body` из `@aom-js/api`; `ComponentSchema`, `PropertySchema` из `@aom-js/schemer`.
+- Consumes: `Controller`, `Get`, `Post`, `Router`, `OpenApi`, `Title`, `Description`, `Responses`, `RequestBody`, `PathParameters`, `Security`, `Params`, `Body` из `@aom-js/router`; `ComponentSchema`, `PropertySchema` из `@aom-js/schemer`.
 
 - [ ] **Step 1: Написать тесты генерации**
 
-`packages/api/test/openapi.test.ts`:
+`packages/router/test/openapi.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -1196,7 +1227,7 @@ import {
   Controller, Get, Post, Router, OpenApi,
   Title, Description, Responses, RequestBody, PathParameters, Security,
   Params, Body,
-} from "@aom-js/api";
+} from "@aom-js/router";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
 
 @ComponentSchema()
@@ -1205,7 +1236,7 @@ class ItemDto {
   title!: string;
 }
 
-describe("api: генерация OpenAPI", () => {
+describe("router: генерация OpenAPI", () => {
   const build = () => {
     @Controller()
     class Shop {
@@ -1287,14 +1318,14 @@ describe("api: генерация OpenAPI", () => {
 
 - [ ] **Step 2: Запустить**
 
-Run: `yarn test packages/api/test/openapi.test.ts`
+Run: `yarn test packages/router/test/openapi.test.ts`
 Expected: PASS (при расхождении — политика находок; структуру фактического JSON смотреть через `console.log(JSON.stringify(json, null, 2))` временно).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/api/test/openapi.test.ts
-git commit -m "test(api): генерация OpenAPI — операции, $ref-компоненты, path-параметры, security"
+git add packages/router/test/openapi.test.ts
+git commit -m "test(router): генерация OpenAPI — операции, $ref-компоненты, path-параметры, security"
 ```
 
 ---
@@ -1671,14 +1702,14 @@ git commit -m "test(holder): Hold/Delay/Apply — отложенное прим�
 ### Task 13: интеграционный сквозной тест
 
 **Files:**
-- Test: `packages/api/test/integration.test.ts`
+- Test: `packages/router/test/integration.test.ts`
 
 **Interfaces:**
 - Consumes: всё из Task 4, 8, 9 — контроллер + компонентная схема + валидация тела + OpenAPI из одного набора метаданных.
 
 - [ ] **Step 1: Написать сквозной тест**
 
-`packages/api/test/integration.test.ts`:
+`packages/router/test/integration.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -1687,7 +1718,7 @@ import { validateSync } from "class-validator";
 import {
   Controller, Post, Router, OpenApi,
   Body, Err, RequestBody, Responses, HttpContextValues,
-} from "@aom-js/api";
+} from "@aom-js/router";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
 
 @ComponentSchema({ description: "Заказ" })
@@ -1759,7 +1790,7 @@ Expected: все файлы PASS (кроме помеченных `it.fails`); �
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/api/test/integration.test.ts
+git add packages/router/test/integration.test.ts
 git commit -m "test: интеграционный сквозной тест — контроллер, схема, валидация, OpenAPI"
 ```
 
