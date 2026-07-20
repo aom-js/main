@@ -137,6 +137,51 @@ export class Transfer implements TransferConfig {
     return [topic, instanceId].filter(Boolean).join("_");
   }
 
+  // кэш восстановленных клиентов: повторный restore того же дескриптора не плодит подписки
+  private restoredMap: Map<string, Record<string, (...args: any[]) => any>> = new Map();
+
+  /**
+   * Восстанавливает вызывающий прокси из дескриптора сервиса, полученного по шине.
+   * Методы прокси публикуют сообщения в топики дескриптора и (для waitForResponse)
+   * ожидают ответы в собственный reply-топик этого узла. Исходный класс не нужен.
+   * @param descriptor Дескриптор сервиса (см. IsDistributed / collectDistributions)
+   * @param instanceId Адресация конкретного инстанса-исполнителя (опционально)
+   */
+  restore<T = Record<string, (...args: any[]) => any>>(
+    descriptor: TransferServiceDescriptor,
+    instanceId?: string,
+  ): T {
+    const cacheKey = [descriptor.name, descriptor.hash, instanceId].filter(Boolean).join(":");
+    const cached = this.restoredMap.get(cacheKey);
+    if (cached) return cached as T;
+
+    const rx = new RxTransfer(this);
+    const { instanceName, instanceKey } = this;
+    const client: Record<string, (...args: any[]) => any> = {};
+
+    descriptor.methods.forEach((method) => {
+      // минимальный двойник AomIsolator: RxTransfer.request читает только эти поля
+      const $ = {
+        topic: method.topic,
+        // ответы приходят на reply-топик ЭТОГО узла (потребителя), не узла-владельца
+        replyTopic: `reply_${method.topic}_${instanceKey}_${instanceName}`,
+        singletone: method.singleton,
+        waitForResponse: method.waitForResponse,
+        originDescriptorValue: () => undefined,
+        replySubscribers: {},
+        topicProcessMap: new Map(),
+        _: {
+          target: { name: descriptor.name },
+          root: { instanceTopic: (topic: string) => Transfer.instanceTopic(topic, instanceId) },
+        },
+      };
+      client[method.name] = async (...args: any[]) => rx.request(args, $ as any);
+    });
+
+    this.restoredMap.set(cacheKey, client);
+    return client as T;
+  }
+
   // определить сборщик распределенных схем
   // получает на вход функцию, в которую будут передаваться данные из опрашиваемых узлов
   collectDistributions(colllectCallbackHandler: StructureCollectorFunction) {
