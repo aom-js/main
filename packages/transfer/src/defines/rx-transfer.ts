@@ -156,10 +156,14 @@ export class RxTransfer {
       Promise.all([Reflect.apply(handler, undefined, value)])
         .then(([result]) => {
           // если указан топик для ответа, отправляем результат
+          // falsy-результаты (0, false, "") легальны — подменяется только undefined
           replyTopic &&
             this.transfer.publisher({
               topic: replyTopic,
-              message: { value: result || {}, headers: { uniqKey, replyTopic } },
+              message: {
+                value: result === undefined ? {} : result,
+                headers: { uniqKey, replyTopic },
+              },
             });
         })
         .catch((error) => {

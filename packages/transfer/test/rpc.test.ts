@@ -24,6 +24,11 @@ class MathService {
     return undefined as never;
   }
 
+  @ResponseTopic()
+  static async zero(): Promise<number> {
+    return undefined as never;
+  }
+
   @ResponseTopic(true)
   static async slow(x: number): Promise<number> {
     return undefined as never;
@@ -45,6 +50,10 @@ class MathExecutor extends MathService {
     throw new Error("executor failed");
   }
 
+  static async zero(): Promise<number> {
+    return 0;
+  }
+
   static async slow(x: number) {
     await tick(20);
     return x * 2;
@@ -63,6 +72,10 @@ describe("transfer: RPC поверх шины", () => {
     expect(
       bus.published.some((p) => p.topic === "reply_MathService.sum_k1_test-node"),
     ).toBe(true);
+  });
+
+  it("falsy-результат исполнителя (0) доставляется как есть, а не как {}", async () => {
+    await expect(MathService.zero()).resolves.toBe(0);
   });
 
   it("ошибка исполнителя доставляется вызывающему как reject", async () => {
