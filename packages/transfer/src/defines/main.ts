@@ -224,6 +224,23 @@ export class Transfer implements TransferConfig {
       receiver.instanceKey === instanceKey
     ) {
       const { schemas, sender } = registry;
+
+      // кэшируем принятые дескрипторы: узел становится переизлучателем реестра,
+      // и схемы доступны, даже если их источник погашен
+      if (Array.isArray(schemas)) {
+        schemas.forEach((descriptor: TransferServiceDescriptor) => {
+          const existing = this.registryMap.get(descriptor.name);
+          // собственные дескрипторы не затираются пришедшими копиями
+          const isOwn =
+            existing?.origin.instanceName === instanceName &&
+            existing?.origin.instanceKey === instanceKey;
+          // ponytail: last-write-wins по hash; честное версионирование — при необходимости
+          if (!isOwn && existing?.hash !== descriptor.hash) {
+            this.registryMap.set(descriptor.name, descriptor);
+          }
+        });
+      }
+
       // тут сформируем структуру для её обработки в функции получения данных из реестра
       const structureData: StructureReceiveSchema = { instance: sender, value: schemas };
       // и вызовем сборщик структур, передав релевантную информацию
