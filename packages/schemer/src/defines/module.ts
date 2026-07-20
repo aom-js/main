@@ -21,7 +21,7 @@ export class AomSchemas extends AomCore {
 }
 
 export class Schemer {
-  private refPointerPrefix: string;
+  readonly refPointerPrefix: string;
 
   /**
    * Конструктор класса Schemer

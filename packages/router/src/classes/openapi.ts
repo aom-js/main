@@ -1,4 +1,4 @@
-import { AomSchemas, Schemer } from "@aom-js/schemer";
+import { Schemer, SchemasCollector } from "@aom-js/schemer";
 import { isClass } from "@aom-js/core";
 
 import { OpenAPIObject, OperationObject, PathsObject, TagObject } from "openapi3-ts/oas31";
@@ -27,11 +27,11 @@ export class OpenApi {
 
   private securityMap = new Map<string, OpenApiSecuritySchema>();
 
-  private componentsMap = new Map();
-
   private paths: PathsObject = {};
 
   private schemer = new Schemer(OpenApi.refPointerPrefix);
+
+  private collector = new SchemasCollector(this.schemer);
 
   constructor(initData: OpenAPIObject) {
     // ...
@@ -192,28 +192,8 @@ export class OpenApi {
       schema = value;
     }
 
-    // проверим, что данная схема существует в качестве сохраненного значения в компонентной базе
-    const savedComponentSchema = AomSchemas.checkExists(schema);
-    if (savedComponentSchema && savedComponentSchema.isComponentSchema) {
-      const { name } = savedComponentSchema._.target;
-      if (!this.componentsMap.get(name)) {
-        this.componentsMap.set(name, this.schemer.render(schema));
-        // пройдёмся по всем собственным соединениям, и добавим в схемы соответствующие значения
-        savedComponentSchema.connections.forEach((schemaConnection) => {
-          const schema = Reflect.apply(schemaConnection, null, []);
-          // если схема не является классом, значит эт функция, и для её получения надо её запустить
-          // if (!isClass(schemaConnection)) {
-          //   schemaConnection = Reflect.apply(schemaConnection, null, []);
-          // }
-          // далее рекурсивно применим ту же самую процедуру, чтобы зафиксировать соответствующее значение в карте
-          // результат никак не обрабатываем, подразумеваем, что он будет в схемах, которые отрендерятся стандартным образом
-          this.schemaExtract(schema, cursor);
-        });
-      }
-      return { $ref: `${OpenApi.refPointerPrefix}${name}` };
-    } else {
-      return schema;
-    }
+    // компонентные классы и их каскад связей собирает общий сборщик из schemer
+    return this.collector.extract(schema);
   }
 
   // JSON generator of complete documentation
@@ -229,7 +209,7 @@ export class OpenApi {
       }),
     );
     const schemas = {};
-    this.componentsMap.forEach((component, name: string) =>
+    this.collector.components.forEach((component, name: string) =>
       Object.assign(schemas, {
         [name]: component,
       }),
