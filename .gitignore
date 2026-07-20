@@ -8,4 +8,7 @@ packages/**/tsconfig.build.*.json
 node_modules/
 dist/
 
-**/*.tgz
+**/*.tgznode_modules/
+coverage/
+.supergoal/
+dist/
