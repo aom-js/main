@@ -7,7 +7,6 @@
 1. **Изоляция и выполнение** - Разделение классов на изолируемые (`@Isolation`) и исполняющие (`@Execution`), что позволяет распределить выполнение методов между разными сервисами.
 
 2. **Топики сообщений** - Методы изолируемых классов преобразуются в топики сообщений, которые могут быть:
-
    - Без ожидания ответа (`@CustomTopic`)
    - С ожиданием ответа (`@ResponseTopic`)
 
@@ -217,7 +216,7 @@ export class PusherIsolator {
   @ResponseTopic()
   static async RegisterMessage(
     loginId: string,
-    message: IEmailMessage
+    message: IEmailMessage,
   ): Promise<entities.Mailings> {
     return;
   }
@@ -390,7 +389,7 @@ class Transfer {
 Как бы там ни было, следует предугадать, каким будет конечная визуализация, чтобы это заработало.
 
 Возьмем типичный изолятор, который уже использует своё собственное окружение.
-По сути своих модификаций он сводится примерно к тому же, что я делаю в контексте `@aom-js/api`. То есть в данном случае для каждого аргумента должен быть добавлен свой декоратор с определением типа, а для самого метода должен быть добавлен декоратор с возвращаемым значением.
+По сути своих модификаций он сводится примерно к тому же, что я делаю в контексте `@aom-js/router`. То есть в данном случае для каждого аргумента должен быть добавлен свой декоратор с определением типа, а для самого метода должен быть добавлен декоратор с возвращаемым значением.
 
 ```ts
 import { Isolator, ResponseTopic } from "@aom-js/transfer";
@@ -408,7 +407,7 @@ export class FilesIsolator {
   @ResponseTopic(true)
   @IsolatorResponse({ type: ResponseFile })
   static async MakePreview(
-    @IsolatorParam({ name: "fileId", type: "string" }) fileId: string
+    @IsolatorParam({ name: "fileId", type: "string" }) fileId: string,
   ): Promise<FileType> {
     return;
     //
@@ -417,7 +416,7 @@ export class FilesIsolator {
   @ResponseTopic(true)
   @IsolatorResponse({ type: ResponseFile })
   static async MakePNG(
-    @IsolatorParam({ name: "fileId", type: "string" }) fileId: string
+    @IsolatorParam({ name: "fileId", type: "string" }) fileId: string,
   ): Promise<FileType> {
     return;
     //
@@ -426,7 +425,7 @@ export class FilesIsolator {
   @ResponseTopic(true)
   @IsolatorResponse({ type: ResponseFile })
   static async MakeJPG(
-    @IsolatorParam({ name: "fileId", type: "string" }) fileId: string
+    @IsolatorParam({ name: "fileId", type: "string" }) fileId: string,
   ): Promise<FileType> {
     return;
     //
@@ -437,7 +436,7 @@ export class FilesIsolator {
   static async MakeResize(
     @IsolatorParam({ name: "fileId", type: "string" }) fileId: string,
     @IsolatorParam({ name: "width", type: "number", optional: true }) width?: number,
-    @IsolatorParam({ name: "height", type: "number", optional: true }) height?: number
+    @IsolatorParam({ name: "height", type: "number", optional: true }) height?: number,
   ): Promise<FileType> {
     return;
     //
@@ -448,7 +447,7 @@ export class FilesIsolator {
   static async MakeCrop(
     @IsolatorParam({ name: "fileId", type: "string" }) fileId: string,
     @IsolatorParam({ name: "aspectRatio", type: AspectRatios }) aspectRatio: AspectRatios,
-    @IsolatorParam({ name: "maxWidth", type: "number", optional: true }) maxWidth?: number
+    @IsolatorParam({ name: "maxWidth", type: "number", optional: true }) maxWidth?: number,
   ): Promise<FileType> {
     return;
     //
@@ -457,7 +456,7 @@ export class FilesIsolator {
   @ResponseTopic(true)
   @IsolatorResponse({ type: ResponseFile })
   static async TmpLocation(
-    @IsolatorParam({ name: "fileId", type: "string" }) fileId: string
+    @IsolatorParam({ name: "fileId", type: "string" }) fileId: string,
   ): Promise<string> {
     return;
   }

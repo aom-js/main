@@ -1,6 +1,6 @@
 {
-  "name": "@aom-js/api",
-  "description": "`@aom` meta-framework api code",
+  "name": "@aom-js/router",
+  "description": "`@aom` meta-framework router code",
   "homepage": "https://github.com/aom-js/main#readme",
   "bugs": {
     "url": "https://github.com/aom-js/main/issues"
@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/aom-js/main.git",
-    "directory": "packages/api"
+    "directory": "packages/router"
   },
   "license": "ISC",
   "author": "Grigory B. Kholstinnikov (scarych)",
