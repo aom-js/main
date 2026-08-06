@@ -1,4 +1,4 @@
-import { ClassType, ExecutionPhase, hasOwnProperty, InstanceTarget, Property } from "@aom-js/core";
+import { ClassType, ExecutionPhase } from "@aom-js/core";
 import { AomApi } from "../../common";
 
 export function Controller() {

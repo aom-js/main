@@ -6,14 +6,17 @@
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "target": "es2019",
-    // "sourceMap": true,
+    "target": "esnext",
+    "lib": ["ESNext"],
+    "rootDir": "./src",
     "strict": true,
-    "baseUrl": "packages",
+    // "sourceMap": true,
+    // "baseUrl": "packages",
     "incremental": false,
     "esModuleInterop": true
     // "inlineSourceMap": true,
   },
+  "paths": { "*": ["../packages/*"] },
   "include": ["src"],
   "exclude": ["build", "node_modules", "sample", "**/*.spec.ts", "test/**"]
 }

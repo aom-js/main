@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "node",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "target": "esnext",
+    "rootDir": "./src",
+    "lib": ["ESNext"],
+    // "sourceMap": true,
+    // "baseUrl": "packages",
+    "incremental": false,
+    "esModuleInterop": true
+    // "inlineSourceMap": true,
+  },
+  "paths": { "*": ["../packages/*"] },
+  "include": ["src"],
+  "exclude": ["build", "node_modules", "sample", "**/*.spec.ts", "test/**"]
+}

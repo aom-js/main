@@ -25,6 +25,7 @@ export declare interface BaseDescriptionsProperties {
 
 export declare interface ClassDescriptionsProperties extends BaseDescriptionsProperties {
   decorators?: ClassDecorator[];
+  name?: string
 }
 
 export declare interface CommonDescriptionsProperties extends BaseDescriptionsProperties {

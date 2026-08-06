@@ -2,12 +2,12 @@ export declare type ClassConstructor<T extends any = {}> = new (...args: any[]) 
 export declare type ClassType = ClassConstructor | Function;
 export declare type Property = string | symbol;
 
-export declare type InstanceTarget = ClassType | object;
+export declare type InstanceTarget = ClassType | InstanceType<ClassConstructor>;
 
 /** комбинированый декоратор: для статичного метода или для класса */
 export declare type CombinedDecorator = <T>(
   target: ClassType,
-  propertyKey?: string | symbol,
+  propertyKey?: Property,
   descriptor?: TypedPropertyDescriptor<T>,
 ) => void;
 

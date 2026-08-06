@@ -17,18 +17,19 @@
     "packages/*"
   ],
   "scripts": {
-    "build:core": "yarn workspace @aom-js/core build",
-    "build:schemer": "yarn workspace @aom-js/schemer build",
-    "build:router": "yarn workspace @aom-js/router build",
-    "build:transfer": "yarn workspace @aom-js/transfer build",
-    "build": "yarn build:core && yarn build:schemer && yarn build:router && yarn build:transfer",
+    "build:core": "bun --filter @aom-js/core build",
+    "build:schemer": "bun --filter @aom-js/schemer build",
+    "build:router": "bun --filter @aom-js/router build",
+    "build:transfer": "bun --filter @aom-js/transfer build",
+    "build:api": "bun --filter @aom-js/api build",
+    "build": "bun build:core && bun build:schemer && bun build:router && bun build:transfer && bun build:api",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "yarn workspaces run lint",
-    "publish": "yarn build && yarn workspaces run publish",
-    "clean": "yarn workspaces run clean && node scripts/clean.js",
-    "prebuild": "node scripts/prebuild.js && yarn workspaces run prebuild"
+    "lint": "bun --filter @aom-js/* run lint",
+    "publish": "bun build && bun --filter @aom-js/* publish",
+    "clean": "bun --filter '@aom-js/*' clean && node scripts/clean.js",
+    "prebuild": "node scripts/prebuild.js"
   },
   "devDependencies": {
     "@swc/core": "^1.15.46",

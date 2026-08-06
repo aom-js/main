@@ -41,7 +41,6 @@ export function PathParameters(
   ...schemas: OpenApiPathParameters[]
 ): ReturnType<typeof AomApi.methodDecorator> {
   return AomApi.methodDecorator(($) => {
-    // console.log ('run path parameters decorator', $._.target.name, $._.property?.toString());
     $.openApi.path.push(...schemas);
   });
 }
@@ -51,6 +50,14 @@ export function QueryParameters(
 ): ReturnType<typeof AomApi.methodDecorator> {
   return AomApi.methodDecorator(($) => {
     $.openApi.parameters.push(...schemas.map((schema) => ({ ...schema, in: <any>"query" })));
+  });
+}
+
+export function CookieParameters(
+  ...schemas: OpenApiPathParameterObject[]
+): ReturnType<typeof AomApi.methodDecorator> {
+  return AomApi.methodDecorator(($) => {
+    $.openApi.parameters.push(...schemas.map((schema) => ({ ...schema, in: <any>"cookie" })));
   });
 }
 

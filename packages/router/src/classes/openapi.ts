@@ -1,7 +1,6 @@
 import { Schemer, SchemasCollector } from "@aom-js/schemer";
-import { isClass } from "@aom-js/core";
 
-import { OpenAPIObject, OperationObject, PathsObject, TagObject } from "openapi3-ts/oas31";
+import type { OpenAPIObject, OperationObject, PathsObject, TagObject } from "openapi3-ts/oas31";
 import {
   FwdContainer,
   ThisRefContainer,
@@ -15,6 +14,8 @@ import {
 } from "../common";
 
 type HttpMethodOperations = Record<HTTPMethods, OperationObject>;
+
+export type { OpenAPIObject };
 
 export class OpenApi {
   static readonly refPointerPrefix = "#/components/schemas/";
@@ -51,6 +52,7 @@ export class OpenApi {
     // );
     // console.log("================");
     // id операции
+
     const operationId = `${endpoint.$._.target.name}_${endpoint.$._.property?.toString()}`;
     // создадим заглушку для текущего метода
     const currentMethod: OperationObject = {
@@ -197,7 +199,7 @@ export class OpenApi {
   }
 
   // JSON generator of complete documentation
-  toJSON() {
+  toJSON(): OpenAPIObject {
     // add tags data
     const tags: TagObject[] = [];
     this.tagsSet.forEach((tag) => tags.push({ name: tag }));

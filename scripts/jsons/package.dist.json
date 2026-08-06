@@ -23,6 +23,6 @@
     "clean": "rm -rf dist/",
     "prebuild": "rm -rf dist/",
     "build": "tsc --project tsconfig.build.json && tsc --project tsconfig.build.mjs.json  && tsc --project tsconfig.build.types.json ",
-    "prepare": "npm run build"
+    "prepare": ""
   }
 }

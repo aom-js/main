@@ -1,0 +1,31 @@
+{
+  "name": "@aom-js/api",
+  "description": "`@aom` meta-framework api code",
+  "homepage": "https://github.com/aom-js/main#readme",
+  "bugs": {
+    "url": "https://github.com/aom-js/main/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aom-js/main.git",
+    "directory": "packages/api"
+  },
+  "license": "ISC",
+  "author": "Grigory B. Kholstinnikov (scarych)",
+  "dependencies": {
+    "reflect-metadata": "^0.2.2",
+    "type-fest": "^5.8.0",
+    "ws": "^8.21.2",
+    "es-toolkit": "^1.50.0",
+    "@aom-js/core": "workspace:*",
+    "@aom-js/schemer": "workspace:*",
+    "@aom-js/router": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "@types/node": "^26.1.2",
+    "tslib": "^2.8.1",
+    "typescript": "^7.0.2"
+  },
+  "main": "./src/index.ts"
+}

@@ -1,7 +1,7 @@
 // добавим декоратор для описания класса
+import { ClassType, ExecutionPhase } from "@aom-js/core";
 import { JSONSchema } from "class-validator-jsonschema";
 // локальные импорты
-import { ClassType, ExecutionPhase, hasOwnProperty, InstanceTarget, Property } from "@aom-js/core";
 import { Schemer, AomSchemas } from "./module";
 import { ClassDescriptionsProperties } from "./types";
 // import { IsolatedCallbackResponse, IsolatedMessageHeaders } from "./types";
@@ -13,7 +13,7 @@ import { ClassDescriptionsProperties } from "./types";
  */
 export function ComponentSchema(params?: ClassDescriptionsProperties): ClassDecorator {
   //
-  return AomSchemas.classDecorator(($) => {
+  return AomSchemas.classDecorator(($: AomSchemas) => {
     // $.schemer = schemer;
     $.isComponentSchema = true;
     // console.log ('make inherits for', $);

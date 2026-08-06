@@ -8,9 +8,9 @@ export declare interface HttpContextValues {
   res: any;
   body: any;
   files: any;
-  query: any;
-  params: any;
-  cookies: any;
-  headers: any;
-  session: any;
+  query: Record<string, string | string[]>;
+  params: Record<string, string>;
+  cookies: Record<string, string>;
+  headers: Record<string, string | string[]>;
+  session: Record<string, any>;
 }

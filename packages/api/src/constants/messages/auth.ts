@@ -1,0 +1,6 @@
+import { PREFIX } from "./prefix";
+
+export const AUTH_REQUIRED = PREFIX("AUTH_REQUIRED");
+export const AUTH_NO_TOKEN = PREFIX('AUTH_NO_TOKEN');
+export const AUTH_WRONG_TOKEN_TYPE = PREFIX('AUTH_WRONG_TOKEN_TYPE');
+export const AUTH_NO_COOKIE = PREFIX('AUTH_NO_COOKIE');

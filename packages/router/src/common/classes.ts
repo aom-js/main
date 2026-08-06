@@ -30,6 +30,8 @@ export declare type ArgumentsHandlerParameters = {
 
 export declare type ArgumentsDecoratorHandler = (args: ArgumentsHandlerParameters) => any;
 
+export declare type MarkerType = Record<string, any>;
+
 export declare type MarkerHandler = (route: AomRoute, cursor: AomCursor) => void | unknown;
 
 export declare interface AomBridge {
@@ -221,7 +223,7 @@ export class AomRoute {
 
   method: HTTPMethods;
 
-  markers: Record<string, any> = {};
+  markers: MarkerType = {};
 
   cursors: AomCursor[] = [];
 

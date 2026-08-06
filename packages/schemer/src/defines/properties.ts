@@ -10,10 +10,13 @@ import { IsNullable } from "./helpers";
 
 // дескрипторные декораторы, позволяющие описывать структуру
 
+// проверим что на свойство еще не добавлены декораторы
 function checkExistsSchemaParams($: AomSchemas) {
   if ($.schemaParams) {
     throw new Error(`${$._.target.name}.${String($._.property)} already has defined schema params`);
   }
+  // если ошибок не было, то внесём его в набор
+  $._.root.properties.add($._.property);
 }
 
 declare interface StringDescriptionsProperties extends CommonDescriptionsProperties {

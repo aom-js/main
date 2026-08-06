@@ -82,6 +82,25 @@ export function Params(
 }
 
 // ---
+export function Cookies(
+  paramsHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
+): ReturnType<typeof Args> {
+  const handler: ArgumentsDecoratorHandler = function (args) {
+    const { context, cursor } = args;
+    let resultHandler = paramsHandler;
+    if (paramsHandler instanceof ThisRefContainer) {
+      resultHandler = paramsHandler.exec(cursor.$._.target);
+    } else if (paramsHandler instanceof RouteRefContainer) {
+      resultHandler = paramsHandler.exec(cursor.endpoint!.$._.target);
+    } else if ("string" === typeof paramsHandler) {
+      return Reflect.get(context.values.cookies, paramsHandler);
+    }
+    return Reflect.apply(<Function>resultHandler, undefined, [context.values.cookies]);
+  };
+  return Args(handler);
+}
+
+// ---
 export function Session(sessionName?: string): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = function (args) {
     const { context } = args;
