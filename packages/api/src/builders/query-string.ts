@@ -1,8 +1,7 @@
-import { Class } from "type-fest";
-
 import { type RefFunction, Controller, DelayRefStack } from "@aom-js/router";
 import { Query, ThisRef, This, Middleware, QueryParameters, Responses } from "@aom-js/router";
 //
+import { type ClassConstructor } from "../types";
 import { WrongDataResponse } from "../responses";
 import { SafeData } from "../decorators";
 import { messages } from "../constants";
@@ -19,16 +18,12 @@ const SafeOriginParameters = ThisRef((<T extends typeof QueryStringBuilderConstr
 
 @Controller()
 class QueryStringBuilderConstructor<
-  T extends Class<any, any>,
+  T extends ClassConstructor,
   R = InstanceType<T>,
 > extends QueryStringJSONSchema {
-  static readonly schema: Class<any, any>;
+  static readonly schema: ClassConstructor;
 
   query!: R;
-
-  async queryBuild(query: R) {
-    return query as any;
-  }
 
   @Middleware()
   @Responses(WrongDataResponse.JSONSchema())
@@ -49,7 +44,7 @@ class QueryStringBuilderConstructor<
   }
 }
 
-export function QueryStringBuilder<T extends Class<any, any>>(schema: T) {
+export function QueryStringBuilder<T extends ClassConstructor>(schema: T): typeof QueryStringBuilderConstructor<T> {
   return class extends QueryStringBuilderConstructor<T> {
     static readonly schema = schema;
   };

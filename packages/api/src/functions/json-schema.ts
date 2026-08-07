@@ -1,14 +1,17 @@
-import { Class } from "type-fest";
 import { type OpenApiParameterObject, type OpenApiResponse, OpenApi } from "@aom-js/router";
 import { Schemer } from "@aom-js/schemer";
+//
+import { type ClassConstructor } from "../types";
 
+
+const schemer = new Schemer(OpenApi.refPointerPrefix);
 export type pathVariants = "path" | "query" | "header" | "cookie";
 
-export function plainJsonSchema<T extends Class<any, any>>(
+export function plainJsonSchema<T extends ClassConstructor>(
   source: T,
   path: pathVariants,
 ): OpenApiParameterObject[] {
-  const jsonSchema = new Schemer(OpenApi.refPointerPrefix).render(source);
+  const jsonSchema = schemer.render(source);
 
   const result: OpenApiParameterObject[] = [];
 
@@ -24,11 +27,10 @@ export function plainJsonSchema<T extends Class<any, any>>(
       required,
     });
   });
-
   return result;
 }
 
-export function responseJsonSchema<T extends Class<any, any>>(
+export function responseJsonSchema<T extends ClassConstructor>(
   schema: T,
   description?: string | string[],
   status?: number,

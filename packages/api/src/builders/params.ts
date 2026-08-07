@@ -1,28 +1,27 @@
-import { Class } from "type-fest";
-
+//
 import { AomSchemas } from "@aom-js/schemer";
 import { Controller, DelayRefStack } from "@aom-js/router";
 import { Params, ThisRef, This, Middleware, PathParameters, Responses } from "@aom-js/router";
 import type { RefFunction, OpenApiParameterObject, OpenApiPathParameters } from "@aom-js/router";
 //
+import { type ClassConstructor } from "../types";
 import { WrongDataResponse } from "../responses";
 import { SafeData } from "../decorators";
 import { messages } from "../constants";
 
 //
-import { QueryStringJSONSchema } from "../common";
 import { plainJsonSchema } from "../functions";
 
-const SafeOrigin = ThisRef((<T extends typeof ParamsController>({ schema }: T) =>
+const SafeOrigin = ThisRef((<T extends typeof ParamsBuilderConstructor>({ schema }: T) =>
   SafeData(schema)) as RefFunction);
 
-const SafeOriginParameters = ThisRef((<T extends typeof ParamsController>(constructor: T) => [
+const SafeOriginParameters = ThisRef((<T extends typeof ParamsBuilderConstructor>(constructor: T) => [
   PathParameters(constructor.JSONSchema()),
 ]) as RefFunction);
 
 @Controller()
-class ParamsController<T extends Class<any, any>, R = InstanceType<T>> {
-  static readonly schema: Class<any, any>;
+class ParamsBuilderConstructor<T extends ClassConstructor<any>, R = InstanceType<T>> {
+  static readonly schema: ClassConstructor<any>;
 
   static readonly attr: string;
 
@@ -54,14 +53,14 @@ class ParamsController<T extends Class<any, any>, R = InstanceType<T>> {
   @Responses(WrongDataResponse.JSONSchema())
   static async Params(
     @Params(SafeOrigin) params: any,
-    @This() self: ParamsController<Class<any, any>>,
+    @This() self: ParamsBuilderConstructor<ClassConstructor<any>>,
   ) {
     self.params = params;
     self.value = params[this.attr];
   }
 }
 
-export function ParamsBuilder<T extends Class<any, any>>(schema: T) {
+export function ParamsBuilder<T extends ClassConstructor<any>>(schema: T): typeof ParamsBuilderConstructor {
   const aomSchemasClass = AomSchemas.checkExists(schema);
   //
   if (!aomSchemasClass || !aomSchemasClass.isComponentSchema) {
@@ -74,7 +73,7 @@ export function ParamsBuilder<T extends Class<any, any>>(schema: T) {
   // достаём до объявления класса: в теле класса сужение aomSchemasClass не сохраняется
   const attrName = aomSchemasClass.properties.values().next().value as string;
   //
-  return class extends ParamsController<T> {
+  return class extends ParamsBuilderConstructor<T> {
     static readonly schema = schema;
 
     static readonly jsonSchema = plainJsonSchema(schema, "path")[0];

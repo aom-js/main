@@ -1,9 +1,11 @@
 import { pathVariants, plainJsonSchema } from "../functions";
+import { ClassConstructor } from "../types";
 
 class PlainJSONSchema {
+  static readonly schema: ClassConstructor;
   static readonly _path: pathVariants;
   static JSONSchema(): ReturnType<typeof plainJsonSchema> {
-    return plainJsonSchema(this, this._path);
+    return plainJsonSchema(this.schema, this._path);
   }
 }
 

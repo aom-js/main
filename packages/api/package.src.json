@@ -14,7 +14,6 @@
   "author": "Grigory B. Kholstinnikov (scarych)",
   "dependencies": {
     "reflect-metadata": "^0.2.2",
-    "type-fest": "^5.8.0",
     "ws": "^8.21.2",
     "es-toolkit": "^1.50.0",
     "@aom-js/core": "workspace:*",

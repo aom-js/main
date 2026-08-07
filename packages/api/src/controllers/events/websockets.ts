@@ -2,8 +2,8 @@ import _ from "es-toolkit/compat";
 import WebSocket, { WebSocketServer } from "ws";
 import { Args, Controller, Ctx, AomRoute, Middleware } from "@aom-js/router";
 import { Params, This, Before, Body, After, Route } from "@aom-js/router";
-import { type ClassConstructor } from "@aom-js/core";
 //
+import { type ClassConstructor } from "../../types";
 import { type HttpRequest, type HttpSocket, type SocketCtx } from "../../types";
 import { messages } from "../../constants";
 

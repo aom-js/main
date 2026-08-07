@@ -1,0 +1,1 @@
+export { type ClassConstructor } from '@aom-js/core';

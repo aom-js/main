@@ -1,9 +1,9 @@
-import { Class } from "type-fest";
 //
 import { type RefFunction } from "@aom-js/router";
 import { ThisRef, This, Middleware, Responses, Before } from "@aom-js/router";
 import { Controller, DelayRefStack, Headers, Parameters } from "@aom-js/router";
 //
+import { type ClassConstructor } from "../types";
 import { WrongDataResponse } from "../responses";
 import { SafeData } from "../decorators";
 import { HeaderJSONSchema } from "../common";
@@ -17,10 +17,10 @@ const SafeOriginParameters = ThisRef((<T extends typeof HeadersBuilderConstructo
 
 @Controller()
 class HeadersBuilderConstructor<
-  T extends Class<any, any>,
+  T extends ClassConstructor,
   R = InstanceType<T>,
 > extends HeaderJSONSchema {
-  static readonly schema: Class<any, any>;
+  static readonly schema: ClassConstructor;
 
   headers!: R;
 
@@ -41,7 +41,7 @@ class HeadersBuilderConstructor<
   }
 }
 
-export function HeadersBuilder<T extends Class<any, any>>(schema: T) {
+export function HeadersBuilder<T extends ClassConstructor>(schema: T): typeof HeadersBuilderConstructor<T> {
   return class extends HeadersBuilderConstructor<T> {
     static readonly schema = schema;
   };

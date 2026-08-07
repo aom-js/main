@@ -28,18 +28,33 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "bun --filter @aom-js/* run lint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "publish": "bun build && bun --filter @aom-js/* publish",
     "clean": "bun --filter '@aom-js/*' clean && node scripts/clean.js",
     "prebuild": "node scripts/prebuild.js"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@swc/core": "^1.15.46",
     "@vitest/coverage-v8": "^4.1.10",
-    "unplugin-swc": "^1.5.9",
-    "vitest": "^4.1.10",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
-    "reflect-metadata": "^0.2.2"
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.9.0",
+    "prettier": "^3.9.6",
+    "reflect-metadata": "^0.2.2",
+    "typescript": "^6",
+    "typescript-eslint": "^8.66.0",
+    "unplugin-swc": "^1.5.9",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "typescript-eslint": {
+      "typescript": "$typescript"
+    }
   }
 }

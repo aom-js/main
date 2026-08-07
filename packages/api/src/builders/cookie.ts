@@ -1,8 +1,7 @@
-import { Class } from "type-fest";
-
 import { type RefFunction, Controller, CookieParameters, DelayRefStack } from "@aom-js/router";
 import { ThisRef, Cookies, This, Middleware, Responses } from "@aom-js/router";
 //
+import { type ClassConstructor } from "../types";
 import { WrongDataResponse } from "../responses";
 import { SafeData } from "../decorators";
 import { messages } from "../constants";
@@ -19,10 +18,10 @@ const SafeOriginParameters = ThisRef((<T extends typeof CookieBuilderConstructor
 
 @Controller()
 class CookieBuilderConstructor<
-  T extends Class<any, any>,
+  T extends ClassConstructor,
   R = InstanceType<T>,
 > extends CookieJSONSchema {
-  static readonly schema: Class<any, any>;
+  static readonly schema: ClassConstructor;
 
   cookies!: R;
 
@@ -45,7 +44,7 @@ class CookieBuilderConstructor<
   }
 }
 
-export function CookieBuilder<T extends Class<any, any>>(schema: T) {
+export function CookieBuilder<T extends ClassConstructor>(schema: T): typeof CookieBuilderConstructor<T> {
   return class extends CookieBuilderConstructor<T> {
     static readonly schema = schema;
   };

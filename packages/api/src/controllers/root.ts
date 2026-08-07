@@ -1,7 +1,7 @@
 import fs from "node:fs";
-import path from 'node:path';
+import path from "node:path";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
-import { MarkerType, OpenAPIObject, RefFunction } from "@aom-js/router";
+import { MarkerType, OpenAPIObject, RefFunction, Route } from "@aom-js/router";
 import { Responses, This, Before, AomRoute, Nextpoint, ThisRef } from "@aom-js/router";
 import { DelayRefStack, Title, Controller, Get, OpenApi } from "@aom-js/router";
 //
@@ -59,26 +59,32 @@ export class RootController {
 
   readonly docs: OpenApi;
 
-  readonly routes!: AomRoute[];
-
   // url!: string;
 
   // static current_build: string;
 
   // static server_ip: string = process.env.SERVER_IP;
 
-  markersToRoute(routeElement: InstanceType<typeof this.RouteElement>, markers: MarkerType) {
+  markersToRoute(_routeElement: InstanceType<typeof this.RouteElement>, _markers: MarkerType) {
     // move route.markers to routeElemet properties
-    // throw error if not defined
-    throw new Error(messages.CONTROLLERS_ROOT_MARKERS_TO_ROUTE_UNINITIALIZED)
+    // throw error if not overloaded
+    throw new Error(
+      "`markersToRoute` for every `RootController` child must be overloaded with defined markers",
+    );
   }
+
+  constructor(..._args: any) {}
 
   @Get()
   @Nextpoint()
   @Title(messages.CONTROLLERS_ROOT_ROUTES_LIST)
   @DelayRefStack(SafeOriginResponse)
-  static Index<RE extends RouteElement, RS extends RoutesStructure<RE>>(@This() self: RootController): RS {
-    const { routes, ident } = self;
+  static Index<RE extends RouteElement, RS extends RoutesStructure<RE>>(
+    @This() self: RootController,
+    @Route() route: AomRoute,
+  ): RS {
+    const { routes } = route.router;
+    const { ident } = self;
     const result = new this.RoutesStructure(ident);
     routes.forEach((route) => {
       const { method, path } = route;

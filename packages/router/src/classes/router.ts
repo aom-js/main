@@ -32,12 +32,12 @@ export class Router {
     const postCursors = root.element.post_middlewares.map(($) => new AomCursor($, root, prefix));
 
     root.element.endpoints.forEach((endpoint) => {
-      const route = new AomRoute(prefix, endpoint, [...preCursors, ...postCursors]);
+      const route = new AomRoute(this, prefix, endpoint, [...preCursors, ...postCursors]);
       this.routes.push(route);
     });
 
     root.element.websockets.forEach((endpoint) => {
-      const route = new AomRoute(prefix, endpoint, [...preCursors, ...postCursors]);
+      const route = new AomRoute(this, prefix, endpoint, [...preCursors, ...postCursors]);
       this.sockets.push(route);
     });
   }

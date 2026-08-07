@@ -15,6 +15,7 @@ import {
 
 import { HttpContextValues } from "../types";
 import { FwdContainer, RouteRefContainer, ThisRefContainer } from "./references";
+import { Router } from "../classes";
 
 export enum TagsRules {
   IGNORE = "ignore",
@@ -217,6 +218,8 @@ export class AomCursor {
 }
 
 export class AomRoute {
+  router: Router;
+
   endpoint: AomEndpoint;
 
   path: string;
@@ -227,8 +230,10 @@ export class AomRoute {
 
   cursors: AomCursor[] = [];
 
-  constructor(prefix: string, endpoint: AomEndpoint, cursors: AomCursor[]) {
+  constructor(router: Router, prefix: string, endpoint: AomEndpoint, cursors: AomCursor[]) {
     //
+    this.router = router;
+
     this.path = resolve(join(prefix, endpoint.prefix));
 
     this.method = endpoint.method;

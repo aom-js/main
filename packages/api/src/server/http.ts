@@ -1,5 +1,5 @@
 import http from "node:http";
-import path from 'node:path';
+import path from "node:path";
 import { parse } from "node:url";
 import Stream from "node:stream";
 import { Router, AomRoute, type HTTPMethods } from "@aom-js/router";
@@ -10,37 +10,7 @@ import { messages, locales } from "../constants";
 import { type AomServerSettings } from "./types";
 import { I18nizer } from "./i18nizer";
 
-
 declare type StringStructures = Record<string, string | string[]>;
-// node отдаёт заголовки (IncomingHttpHeaders) и query (ParsedUrlQuery) со значениями
-// `string | string[] | undefined`, а контракт роутера — только заполненные значения.
-// Пустые ключи отбрасываем здесь, а не размазываем проверки по хендлерам.
-function definedValues(
-  source: Record<string, string | string[] | undefined>,
-): StringStructures {
-  const result: StringStructures = {};
-  for (const [key, value] of Object.entries(source)) {
-    if (value !== undefined) result[key] = value;
-  }
-  return result;
-}
-
-function structurizeValues(
-  source: Record<string, string | string[] | undefined>,
-): StringStructures {
-  const result: StringStructures = {};
-  for (const [key, value] of source) {
-    if (key in result) {
-      const current = query[key];
-      result[key] = Array.isArray(current)
-        ? [...current, value]
-        : [current!, value];
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
 
 //
 class RouteMatcher {
@@ -132,19 +102,23 @@ export class Server {
 
   readonly server: http.Server;
 
-  constructor(settings: AomServerSettings, root: Router, private i18nizer?: I18nizer) {
+  constructor(
+    settings: AomServerSettings,
+    router: Router,
+    private i18nizer?: I18nizer,
+  ) {
     this.routeMatcher = new RouteMatcher();
 
     if (i18nizer) {
       i18nizer.addLocalesStruct(locales);
     }
 
-    root.routes.forEach((route: AomRoute) => {
+    router.routes.forEach((route: AomRoute) => {
       this.routeMatcher.addRoute(route);
       Server.routesAmount++;
     });
 
-    root.sockets.forEach((route: AomRoute) => {
+    router.sockets.forEach((route: AomRoute) => {
       this.routeMatcher.addRoute(route);
     });
 
@@ -160,18 +134,16 @@ export class Server {
         return;
       }
 
-      const url = new URL(path.join(settings.url, req.url || '/'));
+      const url = new URL(path.join(settings.url, req.url || "/"));
       const match = this.routeMatcher.match(<HTTPMethods>req.method, url.pathname || "/");
 
-      const query = structurizeValues(url.searchParams);
-      const headers = definedValues(req.headers);
-
-
+      const query = this.structurizeSearchParams(url.searchParams);
+      const headers = this.definedHeadersValues(req.headers);
 
       // найдём текущую локаль
       let locale: string | undefined;
       if (this.i18nizer) {
-        locale = this.i18nizer.defineLocale(headers, query)
+        locale = this.i18nizer.defineLocale(headers, query);
       }
 
       const localize = (text: string): string => {
@@ -180,7 +152,7 @@ export class Server {
         } else {
           return text;
         }
-      }
+      };
 
       if (!match) {
         res.writeHead(404);
@@ -225,11 +197,11 @@ export class Server {
     });
 
     this.server.on("upgrade", async (req: http.IncomingMessage, socket, head) => {
-      const url = new URL(req.url || "/", true);
+      const url = new URL(path.join(settings.url, req.url || "/"));
       const match = this.routeMatcher.match("sockets", url.pathname || "/");
 
-      const query = structurizeValues(url.searchParams);
-      const headers = definedValues(req.headers);
+      const query = this.structurizeSearchParams(url.searchParams);
+      const headers = this.definedHeadersValues(req.headers);
 
       if (!match) {
         socket.destroy();
@@ -259,6 +231,31 @@ export class Server {
     this.server.listen(settings.port);
   }
 
+  // node отдаёт заголовки (IncomingHttpHeaders) и query (ParsedUrlQuery) со значениями
+  // `string | string[] | undefined`, а контракт роутера — только заполненные значения.
+  // Пустые ключи отбрасываем здесь, а не размазываем проверки по хендлерам.
+  private definedHeadersValues(
+    source: Record<string, string | string[] | undefined>,
+  ): StringStructures {
+    const result: StringStructures = {};
+    for (const [key, value] of Object.entries(source)) {
+      if (value !== undefined) result[key] = value;
+    }
+    return result;
+  }
+
+  private structurizeSearchParams(source: URLSearchParams): StringStructures {
+    const result: StringStructures = {};
+    for (const [key, value] of source) {
+      if (key in result) {
+        const current = result[key];
+        result[key] = Array.isArray(current) ? [...current, value] : [current!, value];
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
 
   private async parseBody(req: http.IncomingMessage): Promise<any> {
     return new Promise((resolve, reject) => {

@@ -1,21 +1,21 @@
-import { Class } from "type-fest";
 import { Body, OpenApi, Query } from "@aom-js/router";
 import { Schemer } from "@aom-js/schemer";
 //
+import { type ClassConstructor } from "../types";
 import { messages } from "../constants";
 import { WrongDataResponse } from "../responses";
 
 const schemer = new Schemer(OpenApi.refPointerPrefix);
 
-export function SafeBody<T extends Class<any>>(constructor: T): ParameterDecorator {
+export function SafeBody<T extends ClassConstructor>(constructor: T): ParameterDecorator {
   return Body(SafeData(constructor));
 }
 
-export function SafeQuery<T extends Class<any>>(constructor: T): ParameterDecorator {
+export function SafeQuery<T extends ClassConstructor>(constructor: T): ParameterDecorator {
   return Query(SafeData(constructor));
 }
 
-export function SafeData<T extends Class<any>>(constructor: T): Function {
+export function SafeData<T extends ClassConstructor>(constructor: T): Function {
   const handler = async (data: object) => {
     const { values, errors } = schemer.validate(constructor, data);
 
