@@ -1,22 +1,8 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "target": "esnext",
-    "rootDir": "./src",
-    "lib": ["ESNext"],
-    // "sourceMap": true,
-    // "baseUrl": "packages",
-    "useDefineForClassFields": true,
-    "incremental": false,
-    "esModuleInterop": true
-    // "inlineSourceMap": true,
+    "rootDir": "./src"
   },
-  "paths": { "*": ["../packages/*"] },
   "include": ["src"],
   "exclude": ["build", "node_modules", "sample", "**/*.spec.ts", "test/**"]
 }

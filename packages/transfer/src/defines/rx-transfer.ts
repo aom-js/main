@@ -123,6 +123,8 @@ export class RxTransfer {
       const { value, headers } = data;
       // Извлекаем уникальный ключ и флаг ошибки из заголовков
       const { uniqKey, error } = headers;
+      // без uniqKey сообщение адресовать некому
+      if (!uniqKey) return;
       // Получаем функцию обратного вызова по уникальному ключу
       const callback = this.transfer.callbackMap.get(uniqKey);
 

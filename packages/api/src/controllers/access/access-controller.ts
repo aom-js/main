@@ -30,7 +30,7 @@ export class AccessController {
 
   accessMap!: AomAccessMapStructure; // карта доступов
 
-  activeAccessTypes: ActiveAccessTypes = {} as ActiveAccessTypes;
+  activeAccessTypes: ActiveAccessTypes = {};
 
   enabled!: boolean;
 

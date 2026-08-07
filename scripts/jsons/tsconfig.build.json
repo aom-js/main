@@ -5,15 +5,15 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist/cjs",
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    // Единственная комбинация, дающая CommonJS под TS7: node10 удалён, а node16/nodenext
+    // требуют module=node16. Пара commonjs + bundler (bundler наследуется из базы)
+    // невалидна для TS5, но этот файл читает только воркспейсный tsc, не IDE.
+    "module": "commonjs",
     "allowJs": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "target": "ES2020",
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  // "paths": { "*": ["../packages/*"] },
   "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.mjs"]
 }

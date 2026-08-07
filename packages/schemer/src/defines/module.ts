@@ -1,5 +1,5 @@
 import { AomCore, ClassType, Property } from "@aom-js/core";
-import { defaultMetadataStorage } from "class-transformer/cjs/storage";
+import { defaultMetadataStorage } from "class-transformer/cjs/storage.js";
 import { targetConstructorToSchema } from "class-validator-jsonschema";
 import { type ClassConstructor, plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";

@@ -1,0 +1,30 @@
+{
+  // Общая база для всех пакетов монорепы.
+  // Пути (rootDir/outDir/include/exclude) сюда класть нельзя: относительные пути
+  // в compilerOptions резолвятся от того файла, где объявлены, — они остаются в пакетах.
+  "compilerOptions": {
+    "module": "esnext",
+    // Относительные импорты в src намеренно без расширений — их дописывает
+    // scripts/post-build.js по факту собранного dist. Отсюда bundler, а не nodenext:
+    // nodenext потребовал бы расширения прямо в исходниках.
+    // Пара esnext + bundler валидна и в TS 5, и в TS 7 (commonjs + bundler — только в TS 7).
+    "moduleResolution": "bundler",
+    // совпадает с тем, что реально эмитят сборочные конфиги
+    "target": "ES2020",
+    "lib": ["ESNext"],
+    // TS7 больше не подключает @types автоматически — нужен явный список
+    "types": ["node"],
+
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "removeComments": true,
+    "incremental": false,
+
+    // в TS7 strict включён по умолчанию, фиксируем явно
+    "strict": true,
+    // отключено намеренно: поля AOM-узлов заполняют декораторы, а не конструктор
+    "strictPropertyInitialization": false
+  }
+}

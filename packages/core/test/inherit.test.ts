@@ -43,7 +43,28 @@ describe("core: наследование декораторов", () => {
     expect(log.filter((l) => l === "m@Parent.run")).toHaveLength(1);
   });
 
-  it("собственное переопределение потомка не затирается переносом", () => {
+  // Статики защищены проверкой физического владения (Object.hasOwn на конструкторе):
+  // собственный статик потомка не затирается родительским независимо от того,
+  // задекорирован он или нет. Оба случая закреплены ниже.
+  it("собственное ЗАдекорированное переопределение потомка не затирается переносом", () => {
+    const { MarkMethod } = makeLog();
+    class Parent {
+      @MarkMethod("m")
+      static run() {
+        return "parent";
+      }
+    }
+    class Child extends Parent {
+      @MarkMethod("m")
+      static run() {
+        return "child";
+      }
+    }
+    Meta.instance(Child)._.inherit(Parent);
+    expect(Child.run()).toBe("child");
+  });
+
+  it("собственное НЕдекорированное переопределение потомка тоже не затирается", () => {
     const { MarkMethod } = makeLog();
     class Parent {
       @MarkMethod("m")
@@ -71,6 +92,23 @@ describe("core: наследование декораторов", () => {
     expect(log).toEqual([]); // у родителя apply не вызывался, у потомка тоже
     Meta.instance(Child)._.apply();
     expect(log).toEqual(["late@Child"]);
+  });
+
+  it("собственный прототипный метод потомка не затирается переносом", () => {
+    const { MarkMethod } = makeLog();
+    class Parent {
+      @MarkMethod("m")
+      run() {
+        return "parent";
+      }
+    }
+    class Child extends Parent {
+      run() {
+        return "child";
+      }
+    }
+    Meta.instance(Child)._.inherit(Parent);
+    expect(new Child().run()).toBe("child");
   });
 
   it("перенос декораторов свойств инстанса: у потомка появляется собственный мета-инстанс свойства", () => {

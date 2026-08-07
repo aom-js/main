@@ -11,7 +11,8 @@ export class AomAccessCore extends AomCore {
   accessTypes: AccessTypes[] | string[] = [];
 }
 
-export type ActiveAccessTypes = { [key in AccessTypes]: boolean };
+// таблица заполняется по мере разбора ролей, ключи приходят строками — Partial, а не полный Record
+export type ActiveAccessTypes = Partial<Record<AccessTypes | string, boolean>>;
 
 export type IAomAccessPoint = { prefix?: string; method?: string; path?: string };
 

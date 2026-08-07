@@ -71,11 +71,13 @@ export function ParamsBuilder<T extends Class<any, any>>(schema: T) {
   if (aomSchemasClass.properties.size !== 1) {
     throw new Error(`${messages.COMPONENT_SCHEMA_ONLY_PROPERTY_REQUIRED}: ${schema.name}`);
   }
+  // достаём до объявления класса: в теле класса сужение aomSchemasClass не сохраняется
+  const attrName = aomSchemasClass.properties.values().next().value as string;
   //
   return class extends ParamsController<T> {
     static readonly schema = schema;
 
     static readonly jsonSchema = plainJsonSchema(schema, "path")[0];
-    static readonly attr = aomSchemasClass.properties.values().next().value as string;
+    static readonly attr = attrName;
   };
 }

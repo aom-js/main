@@ -40,7 +40,8 @@ type LazyCall<T extends AomCore> = [LazyCallHandler<T>, args: [T, ...any]];
 type OriginDescriptor = {
   target: InstanceTarget;
   property: Property;
-  descriptor: PropertyDescriptor;
+  // дескриптора может не быть: у полей класса на момент декорирования его ещё нет
+  descriptor?: PropertyDescriptor;
 };
 
 type NodeOriginDescriptor<T extends AomCore> = { _: AomNode<T>; self: T } & OriginDescriptor;
@@ -53,13 +54,13 @@ class AomCallstackQueue<T extends AomCore> {
 
   private callstack: AomCallstack<T>;
 
-  private type?: ExecutionPhase;
+  private type: ExecutionPhase;
 
   private async: boolean;
 
   private indexed: boolean;
 
-  constructor(callstack: AomCallstack<T>, type: ExecutionPhase, indexed?: boolean) {
+  constructor(callstack: AomCallstack<T>, type: ExecutionPhase, indexed = false) {
     this.callstack = callstack;
 
     this.queue = [];
@@ -70,34 +71,26 @@ class AomCallstackQueue<T extends AomCore> {
     this.async = [ExecutionPhase.DELAY].includes(type);
   }
 
-  add<U extends T>(value: LazyCall<U>, index?: number) {
-    // add(value: LazyCall<any>, index?: number) {
-    //
-    if (index < 0) {
-      // console.log("transfer with unshift");
+  // index не задан — в конец; >= 0 — в конкретную позицию; < 0 — в начало
+  private place(store: Array<LazyCall<any>>, value: LazyCall<any>, index?: number) {
+    if (index === undefined) {
+      store.push(value);
+    } else if (index >= 0) {
+      store[index] = value;
+    } else {
+      store.unshift(value);
     }
+  }
+
+  add<U extends T>(value: LazyCall<U>, index?: number) {
     const { type } = this;
     // если это отложенный запуск или запуск в последний момент - то просто добавим в очередь
     // возможно позже добавить сюда DecoratorsQueueStore.DELAY
     if ([ExecutionPhase.LAST, ExecutionPhase.DELAY].includes(type)) {
-      if (index >= 0) {
-        this.queue[index] = value;
-      } else if (index < 0) {
-        this.queue.unshift(value);
-      } else {
-        this.queue.push(value);
-      }
-      // index >= 0 ? (this.queue[index] = value) : this.queue.push(value);
+      this.place(this.queue, value, index);
     } else if ([ExecutionPhase.FIRST].includes(type)) {
-      if (index >= 0) {
-        this.fired[index] = value;
-      } else if (index < 0) {
-        this.fired.unshift(value);
-      } else {
-        this.fired.push(value);
-      }
       // если стартуем первым - то выполним и добавим в список
-      // index >= 0 ? (this.fired[index] = value) : this.fired.push(value);
+      this.place(this.fired, value, index);
       return this.run(value);
     } else if (type === ExecutionPhase.INSTANT) {
       // если мгновенный запуск, то нигде не сохраняем, а просто выполняем
@@ -107,8 +100,8 @@ class AomCallstackQueue<T extends AomCore> {
 
   exec() {
     // разберем очередь и перенесём всё в выполненные
-    while (this.queue.length) {
-      const value = this.queue.shift();
+    let value: LazyCall<any> | undefined;
+    while ((value = this.queue.shift())) {
       this.run(value);
       this.fired.push(value);
     }
@@ -247,9 +240,11 @@ class AomNode<T extends AomCore> {
     // если указано конкретное свойство, то зафиксируем с ним связь в инстансе от исходного конструктора
     if (property) {
       this.root = this.base.instance(target);
-      this.originInstance = origin.target;
-      if (origin && !origin.descriptor?.enumerable) {
-        this.root._.origins.push({ _: this, self, ...origin });
+      if (origin) {
+        this.originInstance = origin.target;
+        if (!origin.descriptor?.enumerable) {
+          this.root._.origins.push({ _: this, self, ...origin });
+        }
       }
     } else {
       this.root = this.self;
@@ -287,7 +282,7 @@ class AomNode<T extends AomCore> {
       target: InstanceTarget,
       property: Property,
       source: T,
-      descriptor: PropertyDescriptor,
+      descriptor?: PropertyDescriptor,
     ) => {
       if (descriptor && descriptor.value) {
         // здесь обязательно каррирование, так как иначе будет замена контекста исходного дескриптора изначального родительского класса
@@ -309,21 +304,26 @@ class AomNode<T extends AomCore> {
       const $origin = origin.descriptor ? this.base.instance(origin.descriptor.value) : origin.self;
       const isClassOrigin = origin.target === $origin._.target;
 
-      if (isClassOrigin && !this.root._.statics.get($origin._.property!)) {
-        transferDescritorWithDecorators(
-          this.target,
-          $origin._.property!,
-          $origin,
-          origin.descriptor,
-        );
-      } else if (!isClassOrigin && !this.root._.properties.get($origin._.property!)) {
+      const property = $origin._.property!;
+
+      // Перенос блокируется, если потомок уже владеет свойством. Проверок две, и обе нужны:
+      // Object.hasOwn закрывает статики и прототипные методы, реестр AOM — поля класса
+      // (их на прототипе/конструкторе нет, физическая проверка их не видит).
+      // Обратное тоже верно: методы в реестр не попадают — instanceKey() берёт для них
+      // ключом descriptor.value и карты statics/properties не трогает.
+      if (
+        isClassOrigin &&
+        !Object.hasOwn(this.target, property) &&
+        !this.root._.statics.get(property)
+      ) {
+        transferDescritorWithDecorators(this.target, property, $origin, origin.descriptor);
+      } else if (
+        !isClassOrigin &&
+        !Object.hasOwn(this.target.prototype, property) &&
+        !this.root._.properties.get(property)
+      ) {
         // иначе проверим, что это свойство самого инстанса, и надо создать соответствующие переносы
-        transferDescritorWithDecorators(
-          this.target.prototype,
-          $origin._.property!,
-          $origin,
-          origin.descriptor,
-        );
+        transferDescritorWithDecorators(this.target.prototype, property, $origin, origin.descriptor);
       } else {
         // console.log(`same property exists ${this.target.name}.${origin.property.toString()}`);
         // errors.push(
@@ -366,10 +366,10 @@ export class AomCore {
     return map;
   }
 
-  private static instanceKey<T extends AomCore, E extends InstanceTarget, K = keyof E>(
+  private static instanceKey<T extends AomCore, E extends InstanceTarget>(
     this: AomClass<T>,
     target: E,
-    property?: K & Property,
+    property?: Property,
   ): T | E {
     // извлечем конструктор, который будет корневым
     const constructor = (
@@ -399,8 +399,10 @@ export class AomCore {
           // иначе контекст собственных свойств
           propertiesMap = constructorInstance._.properties;
         }
-        instanceKey = propertiesMap.get(property);
-        if (!instanceKey) {
+        const existing = propertiesMap.get(property);
+        if (existing) {
+          instanceKey = existing;
+        } else {
           const originDescriptor = { target, property, descriptor };
 
           // создадим инстанс
@@ -418,10 +420,10 @@ export class AomCore {
     return instanceKey;
   }
 
-  static checkExists<T extends AomCore, E extends InstanceTarget, K = keyof E>(
+  static checkExists<T extends AomCore, E extends InstanceTarget>(
     this: AomClass<T>,
     target: E,
-    property?: K & Property,
+    property?: Property,
   ): T | undefined {
     const map = this.instancesMap();
 
@@ -430,10 +432,10 @@ export class AomCore {
     return map.get(instanceKey);
   }
 
-  static instance<T extends AomCore, E extends InstanceTarget, K = keyof E>(
+  static instance<T extends AomCore, E extends InstanceTarget>(
     this: AomClass<T>,
     target: E,
-    property?: K & Property,
+    property?: Property,
   ): T {
     // Используем Symbol для уникального ключа карты на каждом классе-наследнике
     // Ищем существующий инстанс для target в карте этого класса
@@ -451,8 +453,11 @@ export class AomCore {
 
     // console.log("defined instance key", { target, property, instanceKey, instance });
 
-    const descriptor = Reflect.getOwnPropertyDescriptor(target, property);
-    const originDescriptor = { target, property, descriptor };
+    // originDescriptor осмыслен только для конкретного свойства — на уровне класса его нет
+    const originDescriptor: OriginDescriptor | undefined =
+      property === undefined
+        ? undefined
+        : { target, property, descriptor: Reflect.getOwnPropertyDescriptor(target, property) };
 
     // Если инстанса нет
     if (!instance) {
@@ -540,7 +545,12 @@ export class AomCore {
     storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
   ): ParameterDecorator {
     const self = this; // t теперь типа AOMClass<T>
-    return function (target: InstanceTarget, property: Property, parameterIndex: number) {
+    // property === undefined у параметров конструктора — тогда это контекст самого класса
+    return function (
+      target: InstanceTarget,
+      property: Property | undefined,
+      parameterIndex: number,
+    ) {
       // Получаем AOM-инстанс для конструктора класса
       const targetInstance = self.instance(target, property);
       //

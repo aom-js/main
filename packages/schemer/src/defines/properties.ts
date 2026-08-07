@@ -6,7 +6,7 @@ import { JSONSchema } from "class-validator-jsonschema";
 //
 import { CommonDescriptionsProperties, ConnectionSchema, SchemaTypes } from "./types";
 import { AomSchemas } from "./module";
-import { IsNullable } from "./helpers";
+import { decorateProperty, IsNullable } from "./helpers";
 
 // дескрипторные декораторы, позволяющие описывать структуру
 
@@ -16,7 +16,8 @@ function checkExistsSchemaParams($: AomSchemas) {
     throw new Error(`${$._.target.name}.${String($._.property)} already has defined schema params`);
   }
   // если ошибок не было, то внесём его в набор
-  $._.root.properties.add($._.property);
+  // property здесь всегда задано: вызов идёт только из AomSchemas.propertyDecorator
+  $._.root.properties.add($._.property!);
 }
 
 declare interface StringDescriptionsProperties extends CommonDescriptionsProperties {
@@ -56,10 +57,10 @@ const _String = (params: StringDescriptionsProperties): PropertyDecorator => {
         readOnly: params.readOnly,
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
-    ].filter(Boolean);
+    ];
 
     // применим соответствующие декораторы
-    Reflect.decorate(decorators, originInstance, property);
+    decorateProperty(decorators, originInstance, property);
   }, ExecutionPhase.LAST);
 };
 
@@ -106,10 +107,10 @@ const _Number = (params: NumberDescriptionsProperties) => {
         return Number(value);
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
-    ].filter(Boolean);
+    ];
 
     // применим соответствующие декораторы
-    Reflect.decorate(decorators, originInstance, property);
+    decorateProperty(decorators, originInstance, property);
   }, ExecutionPhase.LAST);
 };
 
@@ -154,10 +155,10 @@ const _Boolean = (params: BooleanDescriptionsProperties) => {
         return typeof value === "boolean" ? value : Boolean(+value);
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
-    ].filter(Boolean);
+    ];
 
     // применим соответствующие декораторы
-    Reflect.decorate(decorators, originInstance, property);
+    decorateProperty(decorators, originInstance, property);
   }, ExecutionPhase.LAST);
 };
 
@@ -193,10 +194,10 @@ const _Any = (params: AnyDescriptionsProperties) => {
         readOnly: params.readOnly,
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
-    ].filter(Boolean);
+    ];
 
     // применим соответствующие декораторы
-    Reflect.decorate(decorators, originInstance, property);
+    decorateProperty(decorators, originInstance, property);
   }, ExecutionPhase.LAST);
 };
 
@@ -237,10 +238,10 @@ const _Enum = <T extends EnumLike>(params: EnumDescriptionsProperties<T>) => {
         examples: params.examples,
       }),
       ...(params.decorators || []), // добавим дополнительные декораторы
-    ].filter(Boolean);
+    ];
 
     // применим соответствующие декораторы
-    Reflect.decorate(decorators, originInstance, property);
+    decorateProperty(decorators, originInstance, property);
   }, ExecutionPhase.LAST);
 };
 
@@ -283,10 +284,10 @@ const _Date = (params: DateDescriptionsProperties) => {
         if (params.nullable && value === null) return null;
         return new Date(value);
       }),
-    ].filter(Boolean);
+    ];
 
     // применим соответствующие декораторы
-    Reflect.decorate(decorators, originInstance, property);
+    decorateProperty(decorators, originInstance, property);
   }, ExecutionPhase.LAST);
 };
 
@@ -303,7 +304,7 @@ const _Type = (params: TypeDescriptionsProperties) => {
     // создадим связь на указанном свойстве согласно значению в типе
     const { originInstance, property } = $._;
 
-    $._.root.connections.set(property, params.value);
+    $._.root.connections.set(property!, params.value);
 
     const decorators = [
       Type(params.value),
@@ -321,10 +322,10 @@ const _Type = (params: TypeDescriptionsProperties) => {
         deprecated: params.deprecated,
         nullable: params.nullable,
       }),
-    ].filter(Boolean);
+    ];
 
     // применим соответствующие декораторы
-    Reflect.decorate(decorators, originInstance, property);
+    decorateProperty(decorators, originInstance, property);
   }, ExecutionPhase.LAST);
 };
 

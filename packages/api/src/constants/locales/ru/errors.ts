@@ -20,5 +20,6 @@ const locales = {
   [errors.API_COMMON_ERROR]: "Общая ошибка",
 };
 
-checkLocales(import.meta.filename, errors, locales);
+// метка только для диагностического вывода; import.meta закрыл бы cjs-сборку
+checkLocales("locales/ru/errors", errors, locales);
 export default locales;

@@ -10,6 +10,38 @@ import { messages, locales } from "../constants";
 import { type AomServerSettings } from "./types";
 import { I18nizer } from "./i18nizer";
 
+
+declare type StringStructures = Record<string, string | string[]>;
+// node отдаёт заголовки (IncomingHttpHeaders) и query (ParsedUrlQuery) со значениями
+// `string | string[] | undefined`, а контракт роутера — только заполненные значения.
+// Пустые ключи отбрасываем здесь, а не размазываем проверки по хендлерам.
+function definedValues(
+  source: Record<string, string | string[] | undefined>,
+): StringStructures {
+  const result: StringStructures = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (value !== undefined) result[key] = value;
+  }
+  return result;
+}
+
+function structurizeValues(
+  source: Record<string, string | string[] | undefined>,
+): StringStructures {
+  const result: StringStructures = {};
+  for (const [key, value] of source) {
+    if (key in result) {
+      const current = query[key];
+      result[key] = Array.isArray(current)
+        ? [...current, value]
+        : [current!, value];
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 //
 class RouteMatcher {
   private routes: Map<string, AomRoute[]> = new Map();
@@ -104,7 +136,7 @@ export class Server {
     this.routeMatcher = new RouteMatcher();
 
     if (i18nizer) {
-      this.i18nizer.addLocalesStruct(locales);
+      i18nizer.addLocalesStruct(locales);
     }
 
     root.routes.forEach((route: AomRoute) => {
@@ -131,23 +163,15 @@ export class Server {
       const url = new URL(path.join(settings.url, req.url || '/'));
       const match = this.routeMatcher.match(<HTTPMethods>req.method, url.pathname || "/");
 
-      const query = Object.create(null) as Record<string, string | string[] | null>;
+      const query = structurizeValues(url.searchParams);
+      const headers = definedValues(req.headers);
 
-      for (const [key, value] of url.searchParams) {
-        if (key in query) {
-          const current = query[key];
-          query[key] = Array.isArray(current)
-            ? [...current, value]
-            : [current!, value];
-        } else {
-          query[key] = value;
-        }
-      }
+
 
       // найдём текущую локаль
-      let locale: string;
+      let locale: string | undefined;
       if (this.i18nizer) {
-        locale = this.i18nizer.defineLocale(req.headers, query)
+        locale = this.i18nizer.defineLocale(headers, query)
       }
 
       const localize = (text: string): string => {
@@ -170,9 +194,9 @@ export class Server {
           res,
           ctx: { req, res },
           body: await this.parseBody(req),
-          query: query,
+          headers,
+          query,
           params: match.params,
-          headers: req.headers,
           cookies: this.parseCookies(req),
           session: {},
           files: {},
@@ -201,8 +225,11 @@ export class Server {
     });
 
     this.server.on("upgrade", async (req: http.IncomingMessage, socket, head) => {
-      const url = parse(req.url || "/", true);
+      const url = new URL(req.url || "/", true);
       const match = this.routeMatcher.match("sockets", url.pathname || "/");
+
+      const query = structurizeValues(url.searchParams);
+      const headers = definedValues(req.headers);
 
       if (!match) {
         socket.destroy();
@@ -215,9 +242,9 @@ export class Server {
           res: socket,
           ctx: { req, res: socket },
           body: head,
-          query: url.query,
+          query,
+          headers,
           params: match.params,
-          headers: req.headers,
           cookies: this.parseCookies(req),
           session: {},
           files: {},

@@ -35,7 +35,7 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
   abstract class IntersectionClassType {}
   type intersectionValue = [
     InstanceTarget,
-    PropertyDescriptor,
+    PropertyDescriptor | undefined,
     SchemaTypes,
     CommonDescriptionsProperties
   ];

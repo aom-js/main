@@ -21,8 +21,10 @@
     "build:schemer": "bun --filter @aom-js/schemer build",
     "build:router": "bun --filter @aom-js/router build",
     "build:transfer": "bun --filter @aom-js/transfer build",
+    "build:holder": "bun --filter @aom-js/holder build",
     "build:api": "bun --filter @aom-js/api build",
-    "build": "bun build:core && bun build:schemer && bun build:router && bun build:transfer && bun build:api",
+    "build": "bun build:core && bun build:schemer && bun build:router && bun build:transfer && bun build:holder && bun build:api && bun smoke",
+    "smoke": "node scripts/smoke.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -35,6 +37,9 @@
     "@swc/core": "^1.15.46",
     "@vitest/coverage-v8": "^4.1.10",
     "unplugin-swc": "^1.5.9",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "reflect-metadata": "^0.2.2"
   }
 }

@@ -113,12 +113,12 @@ function DefineTopics() {
   return AomIsolator.methodDecorator(($, _descriptor) => {
     const { topicsMap, instancesMap } = $._.root;
     const constructor = $._.target;
-    const propertyKey = $._.property;
+    const propertyKey = $._.property!; // methodDecorator — property всегда задано
 
     // Добавляем метод в список изолированных
     $._.root.isolatedMethods.push($);
 
-    const handler = constructor[propertyKey];
+    const handler = Reflect.get(constructor, propertyKey);
 
     const defineTopics = (transfer: Transfer) => {
       // Получаем сконфигурированный изолятор и карту топиков
@@ -130,8 +130,8 @@ function DefineTopics() {
         const replyTopic = `reply_${topic}_${transfer.instanceKey}_${transfer.instanceName}`;
         topics = { topic, replyTopic };
         // сохраним значения в соответствующих картах
-        topicsMap.set(constructor[propertyKey], topics);
-        instancesMap.set(constructor[propertyKey], $);
+        topicsMap.set(handler, topics);
+        instancesMap.set(handler, $);
         // // Инициализируем подписку на ответы
         // initReplySubscription(topics, transfer);
       }
@@ -152,10 +152,10 @@ function DefineTopics() {
  * @param singletone Флаг синглтона
  * @returns Декоратор метода
  */
-function AutoTopic(waitForResponse: boolean, singletone?: boolean): MethodDecorator {
+function AutoTopic(waitForResponse: boolean, singletone = false): MethodDecorator {
   return AomIsolator.methodDecorator(($, descriptor) => {
     const constructor = $._.target;
-    const propertyKey = $._.property;
+    const propertyKey = $._.property!; // methodDecorator — property всегда задано
 
     $.singletone = singletone;
     $.waitForResponse = waitForResponse;
@@ -214,8 +214,8 @@ function attachIsolation(constructor: ClassType, propertyKey: Property, instance
 
   const parentProperty$ = instancesMap.get(parentConstructor[propertyKey]);
 
-  // Проверяем наличие топика
-  if (!isolatedTopics) {
+  // Проверяем наличие топика и связанного с ним инстанса — регистрируются они вместе
+  if (!isolatedTopics || !parentProperty$) {
     throw new Error(`attached handler is not isolated topic ${name}.${String(propertyKey)}`);
   }
   const { topic } = isolatedTopics;
@@ -226,7 +226,7 @@ function attachIsolation(constructor: ClassType, propertyKey: Property, instance
     {
       topic: instanceTopic,
       next: rx.execHandler((...args: any[]) =>
-        Reflect.apply(constructor[propertyKey], constructor, args),
+        Reflect.apply(Reflect.get(constructor, propertyKey), constructor, args),
       ),
       queue: parentProperty$.queue,
     },

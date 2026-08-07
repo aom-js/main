@@ -1,4 +1,5 @@
 .DS_Store
+.repowise
 
 packages/**/package.json
 packages/**/tsconfig.build.json

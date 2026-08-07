@@ -12,9 +12,11 @@ website/
 CNAME
 _config.yml
 
+.repowise
 .gitignore
 .npmignore
 yarn.lock
+bun.lock
 
 tsconfig.json
 tsconfig.*.json
