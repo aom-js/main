@@ -4,6 +4,7 @@ import {
   ClassType,
   Property,
   ExecutionPhase,
+  InheritPlacement,
   InstanceTarget,
 } from "./types";
 import { isClass } from "./functions";
@@ -35,7 +36,11 @@ type LazyCallHandler<T extends AomCore> =
   | AomPropertyHandler<T>
   | AomParameterHandler<T>;
 
-type LazyCall<T extends AomCore> = [LazyCallHandler<T>, args: [T, ...any]];
+type LazyCall<T extends AomCore> = [
+  LazyCallHandler<T>,
+  args: [T, ...any],
+  inherit?: InheritPlacement,
+];
 
 type OriginDescriptor = {
   target: InstanceTarget;
@@ -60,6 +65,9 @@ class AomCallstackQueue<T extends AomCore> {
 
   private indexed: boolean;
 
+  // отложенная фаза: вызовы копятся в очереди до exec(), а не выполняются в момент добавления
+  private deferred: boolean;
+
   constructor(callstack: AomCallstack<T>, type: ExecutionPhase, indexed = false) {
     this.callstack = callstack;
 
@@ -69,6 +77,7 @@ class AomCallstackQueue<T extends AomCore> {
     this.type = type;
     this.indexed = indexed;
     this.async = [ExecutionPhase.DELAY].includes(type);
+    this.deferred = [ExecutionPhase.LAST, ExecutionPhase.DELAY].includes(type);
   }
 
   // index не задан — в конец; >= 0 — в конкретную позицию; < 0 — в начало
@@ -82,11 +91,16 @@ class AomCallstackQueue<T extends AomCore> {
     }
   }
 
+  // вставить блок вызовов в начало очереди с сохранением их взаимного порядка
+  prependBatch(values: Array<LazyCall<any>>) {
+    this.queue.unshift(...values);
+  }
+
   add<U extends T>(value: LazyCall<U>, index?: number) {
     const { type } = this;
     // если это отложенный запуск или запуск в последний момент - то просто добавим в очередь
     // возможно позже добавить сюда DecoratorsQueueStore.DELAY
-    if ([ExecutionPhase.LAST, ExecutionPhase.DELAY].includes(type)) {
+    if (this.deferred) {
       this.place(this.queue, value, index);
     } else if ([ExecutionPhase.FIRST].includes(type)) {
       // если стартуем первым - то выполним и добавим в список
@@ -124,11 +138,11 @@ class AomCallstackQueue<T extends AomCore> {
     // вызовем с заменой контекста
     const replaceContext = (value: LazyCall<T>, index?: number) => {
       // const replaceContext = (value: LazyCall<any>, index?: number) => {
-      const [handler, args] = value;
+      const [handler, args, inherit] = value;
       // Создаём новый массив аргументов с заменой контекста
       const newArgs = [target, ...args.slice(1)] as [U, ...any];
       // args[0] = target;
-      return target._.callstack.add([handler, newArgs], type, index);
+      return target._.callstack.add([handler, newArgs, inherit], type, index);
     };
     // если это индексированный контекст, то проверим, чтобы в целевой структуре был строго пустой список (индексированные декораторы не переносятся, если они уже есть)
     if (indexed) {
@@ -143,8 +157,22 @@ class AomCallstackQueue<T extends AomCore> {
     } else {
       // перенесем данные из очередей и выполненных с заменой контекста и сохранением типа хранилища при переносе
       // сначала переносятся уже выполненные, а затем ожидающие
-      this.fired.forEach((value) => replaceContext(value));
-      this.queue.forEach((value) => replaceContext(value));
+      const prepend: Array<LazyCall<any>> = [];
+      [...this.fired, ...this.queue].forEach((value) => {
+        const [handler, args, inherit] = value;
+        if (inherit === InheritPlacement.SKIP) return;
+        // PREPEND осмыслен только для отложенных фаз: FIRST/INSTANT выполняются
+        // прямо в момент переноса, и их порядок задаётся самим переносом
+        if (inherit === InheritPlacement.PREPEND && this.deferred) {
+          prepend.push([handler, [target, ...args.slice(1)] as [U, ...any], inherit]);
+        } else {
+          replaceContext(value);
+        }
+      });
+      // единым блоком в начало очереди потомка: поштучный unshift развернул бы порядок
+      if (prepend.length) {
+        target._.callstack.stores[type].prependBatch(prepend);
+      }
     }
   }
 }
@@ -482,12 +510,13 @@ export class AomCore {
     this: AomClass<T>,
     handler: AomHandler<T>,
     storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
+    inherit?: InheritPlacement,
   ): ClassDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: ClassType) {
       // Получаем AOM-инстанс для этого конструктора
       const targetInstance = self.instance(target);
-      return targetInstance._.callstack.add([handler, [targetInstance]], storeFlag);
+      return targetInstance._.callstack.add([handler, [targetInstance], inherit], storeFlag);
       // Классные декораторы могут возвращать конструктор, но здесь мы только для сайд-эффекта
     };
   }
@@ -497,12 +526,16 @@ export class AomCore {
     this: AomClass<T>,
     handler: AomСombinedHandler<T>,
     storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
+    inherit?: InheritPlacement,
   ): CombinedDecorator {
     const self = this;
     return function (target: InstanceTarget, property?: Property, descriptor?: PropertyDescriptor) {
       // Получаем AOM-инстанс для этого конструктора
       const targetInstance = self.instance(target, property);
-      return targetInstance._.callstack.add([handler, [targetInstance, descriptor]], storeFlag);
+      return targetInstance._.callstack.add(
+        [handler, [targetInstance, descriptor], inherit],
+        storeFlag,
+      );
       // Вызываем обработчик
       // return handler(targetInstance, descriptor);
     };
@@ -513,12 +546,16 @@ export class AomCore {
     this: AomClass<T>,
     handler: AomMethodHandler<T>,
     storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
+    inherit?: InheritPlacement,
   ): MethodDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: InstanceTarget, property: Property, descriptor: PropertyDescriptor) {
       // Получаем AOM-инстанс для конструктора класса
       const targetInstance = self.instance(target, property);
-      return targetInstance._.callstack.add([handler, [targetInstance, descriptor]], storeFlag);
+      return targetInstance._.callstack.add(
+        [handler, [targetInstance, descriptor], inherit],
+        storeFlag,
+      );
       // return handler(targetInstance, descriptor);
     };
   }
@@ -528,12 +565,13 @@ export class AomCore {
     this: AomClass<T>,
     handler: AomPropertyHandler<T>,
     storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
+    inherit?: InheritPlacement,
   ): PropertyDecorator {
     const self = this; // t теперь типа AOMClass<T>
     return function (target: InstanceTarget, property: Property) {
       // Получаем AOM-инстанс для конструктора класса
       const targetInstance = self.instance(target, property);
-      return targetInstance._.callstack.add([handler, [targetInstance]], storeFlag);
+      return targetInstance._.callstack.add([handler, [targetInstance], inherit], storeFlag);
       // return handler(targetInstance);
     };
   }
@@ -543,6 +581,7 @@ export class AomCore {
     this: AomClass<T>,
     handler: AomParameterHandler<T>,
     storeFlag: ExecutionPhase = ExecutionPhase.FIRST,
+    inherit?: InheritPlacement,
   ): ParameterDecorator {
     const self = this; // t теперь типа AOMClass<T>
     // property === undefined у параметров конструктора — тогда это контекст самого класса
@@ -555,7 +594,7 @@ export class AomCore {
       const targetInstance = self.instance(target, property);
       //
       return targetInstance._.callstack.add(
-        [handler, [targetInstance, parameterIndex]],
+        [handler, [targetInstance, parameterIndex], inherit],
         storeFlag,
         parameterIndex,
       );

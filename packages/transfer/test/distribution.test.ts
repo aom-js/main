@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { Transfer, Isolator, ResponseTopic, Executor, IsDistributed } from "@aom-js/transfer";
+import {
+  Transfer, Isolator, ResponseTopic, Executor, IsDistributed, TopicSchema,
+} from "@aom-js/transfer";
 import { MemoryBus, tick } from "./memory-bus";
 
 const bus = new MemoryBus();
@@ -45,6 +47,7 @@ describe("transfer: реестр распределенных схем", () => {
   @IsDistributed()
   class DistService {
     @ResponseTopic()
+    @TopicSchema({ returns: "string" })
     static async ping(): Promise<string> {
       return undefined as never;
     }

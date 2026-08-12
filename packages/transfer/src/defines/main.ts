@@ -1,6 +1,8 @@
 import { AomCore, ClassType, ClassConstructor } from "@aom-js/core";
 
 import {
+  TopicSchemaArg,
+  TopicSchemaType,
   TransferConfig,
   TransferPublishHandler,
   TransferSubscribeHandler,
@@ -23,11 +25,11 @@ export class AomIsolator extends AomCore {
 
   waitForResponse: boolean;
 
-  /** схемы аргументов метода (ComponentSchema-классы), заданные через @TopicSchema */
-  argsSchemas?: ClassConstructor[];
+  /** схемы аргументов метода ({ имя: тип }), заданные через @TopicSchema; undefined = метод не описан */
+  argsSchemas?: TopicSchemaArg[];
 
-  /** схема возвращаемого значения (ComponentSchema-класс), заданная через @TopicSchema */
-  returnsSchema?: ClassConstructor;
+  /** схема возвращаемого значения, заданная через @TopicSchema */
+  returnsSchema?: TopicSchemaType;
 
   originDescriptorValue: Function;
 

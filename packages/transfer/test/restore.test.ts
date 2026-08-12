@@ -33,12 +33,13 @@ class PairDto {
 @IsDistributed()
 class CalcService {
   @ResponseTopic()
-  @TopicSchema({ args: [PairDto] })
+  @TopicSchema({ args: [{ pair: PairDto }], returns: "number" })
   static async mul(pair: PairDto): Promise<number> {
     return undefined as never;
   }
 
   @ResponseTopic()
+  @TopicSchema({})
   static async fail(): Promise<void> {
     return undefined as never;
   }

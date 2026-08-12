@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  Controller, Get, Middleware, Before, Router, OpenApi,
+  Controller, Get, Middleware, Before, After, Router, OpenApi,
   Query, Body, Err, This, OnInstance, HttpContextValues,
 } from "@aom-js/router";
 
@@ -43,6 +43,60 @@ describe("router: исполнение запроса", () => {
     const result = await call(router, "get", "/hello", makeContext({ query: { name: "aom" } }));
     expect(result).toBe("hi aom");
     expect(calls).toEqual(["guard", "endpoint"]);
+  });
+
+  it("наследование: Before родителя выполняется ДО Before потомка (InheritPlacement.PREPEND)", async () => {
+    const calls: string[] = [];
+
+    class M {
+      @Middleware()
+      static async parentBefore() {
+        calls.push("parent-before");
+      }
+
+      @Middleware()
+      static async childBefore() {
+        calls.push("child-before");
+      }
+
+      @Middleware()
+      static async parentAfter() {
+        calls.push("parent-after");
+      }
+
+      @Middleware()
+      static async childAfter() {
+        calls.push("child-after");
+      }
+    }
+
+    @Controller()
+    @Before(M.parentBefore)
+    @After(M.parentAfter)
+    class Base {}
+
+    @Controller()
+    @Before(M.childBefore)
+    @After(M.childAfter)
+    class App extends Base {
+      @Get("/ping")
+      static async ping() {
+        calls.push("endpoint");
+        return "ok";
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    const result = await call(router, "get", "/ping", makeContext());
+    expect(result).toBe("ok");
+    // Before: родитель первым (PREPEND); After: родитель последним (APPEND, как раньше)
+    expect(calls).toEqual([
+      "parent-before",
+      "child-before",
+      "child-after",
+      "parent-after",
+      "endpoint",
+    ]);
   });
 
   it("миддлварь, вернувшая значение, перехватывает ответ — эндпоинт не вызывается", async () => {

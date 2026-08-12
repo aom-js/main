@@ -4,7 +4,7 @@
 
 ## Основные концепции
 
-1. **Изоляция и выполнение** - Разделение классов на изолируемые (`@Isolation`) и исполняющие (`@Execution`), что позволяет распределить выполнение методов между разными сервисами.
+1. **Изоляция и выполнение** - Разделение классов на изолируемые (`@Isolator`) и исполняющие (`@Executor`), что позволяет распределить выполнение методов между разными сервисами.
 
 2. **Топики сообщений** - Методы изолируемых классов преобразуются в топики сообщений, которые могут быть:
    - Без ожидания ответа (`@CustomTopic`)
@@ -18,18 +18,21 @@
 
 ## Основные декораторы
 
-1. `@Isolation()` - помечает класс как изолируемый
-2. `@CustomTopic()` - создает топик без ожидания ответа
-3. `@ResponseTopic()` - создает топик с ожиданием ответа
-4. `@Execution()` - помечает класс как исполнитель изолированных методов
+1. `@Isolator(transfer)` - помечает класс как изолируемый; аргумент обязателен — сконфигурированный экземпляр `Transfer`
+2. `@CustomTopic(singletone?)` - создает топик без ожидания ответа
+3. `@ResponseTopic(singletone?)` - создает топик с ожиданием ответа
+4. `@Executor(instanceId?)` - помечает класс-наследник изолируемого как исполнителя его методов
+5. `@IsQueue()` - метод обрабатывается как распределенная очередь: сообщение получает один исполнитель, а не все
+6. `@TopicSchema({ args, returns })` - схемы аргументов и ответа метода (см. «Дистрибуция изоляторов»)
+7. `@IsDistributed()` - публикует контракт класса в реестр шины (см. «Дистрибуция изоляторов»)
 
 ## Конфигурация
 
-Изоляторы могут быть запущены на различных шинах данных, в том числе в рамках одного проекта. В общем случае может быть установлена конфигурация по умолчанию. Для этого следует установить настройки конфигурации, указав в них способы отправки и подписки на сообщения в топиках, где будет определена механика кодирования/декодирования значений, характерных конкретному инструменту.
+Изоляторы могут быть запущены на различных шинах данных, в том числе в рамках одного проекта. Конфигурация — экземпляр класса `Transfer`, в котором указаны способы отправки и подписки на сообщения в топиках, где определена механика кодирования/декодирования значений, характерных конкретному инструменту. Экземпляр передаётся аргументом в декоратор `@Isolator(transfer)` каждого изолируемого класса.
 
 Значения `instanceName` и `instanceKey` используются для разделения контекста в запускаемых сервисах, использующих общую шину. Чтобы, если изоляторы повторно инициируются в других инстансах, не было пересечений контекста при отправке сообщений и ожидании ответов.
 
-В настройках подписки используется `next`-функция, в которую передаётся значение, полученное из соответствующего топика.
+Обработчики принимают один объект-аргумент: `publisher` — `{ topic, message }`, `subscriber` — `{ topic, next, queue }`, где `next`-функция вызывается со значением, полученным из соответствующего топика.
 
 ** Пример для `Kafka` **
 
@@ -46,18 +49,18 @@ const consumer = kafka.consumer({
 
 await consumer.connect();
 
-Isolator.default({
+export default new Transfer({
   //
   instanceKey: INSTANCE_KEY,
   //
   instanceName: INSTANCE_NAME,
 
-  publisher: (topic, message) => {
+  publisher: ({ topic, message }) => {
     const topicMessage = { topic, messages: { value: JSON.stringify(message) } };
     producer.send(topicMessage);
   },
 
-  subscriber: (topic, next) => {
+  subscriber: ({ topic, next }) => {
     consumer.subscribe({ topic }).then(() => {
       consumer.run({
         eachMessage: async ({ message }) => {
@@ -73,35 +76,43 @@ Isolator.default({
 ** Пример для `NATS` **
 
 ```ts
+import { Transfer } from "@aom-js/transfer";
+import { StringCodec } from "nats";
+
+import nats from "../connections/nats";
+
+const { INSTANCE_NAME, INSTANCE_KEY } = process.env;
+
 // используем стандартное кодирование
 const sc = StringCodec();
 
-Isolator.default({
+// настроим изолятор по умолчанию
+export default new Transfer({
   //
-  instanceKey: INSTANCE_KEY,
+  instanceKey: INSTANCE_KEY!,
   //
-  instanceName: INSTANCE_NAME,
+  instanceName: INSTANCE_NAME!,
 
-  publisher: (topic, message) => {
+  publisher: ({ topic, message }) => {
     nats.publish(topic, sc.encode(JSON.stringify(message)));
   },
 
-  subscriber: (topic, next) => {
-    nats.subscribe(instanceTopic, {
+  subscriber: ({ topic, next }) => {
+    nats.subscribe(topic, {
       callback: (err, message) => {
-        next(JSON.parse(sc.decode(message.data)));
+        return next(JSON.parse(sc.decode(message.data)));
       },
     });
   },
 });
 ```
 
-Создание разделенных конфигураций для нескольких шин возможно за счет создания собственных экземпляров класса `Isolator` с последующим их использованием в аргументах декоратора `@Isolation()`. Без указания аргумента используется конфигурация по умолчанию.
+Разделенные конфигурации для нескольких шин — это несколько экземпляров `Transfer`, каждый из которых используется в аргументе `@Isolator()` соответствующих классов.
 
 ```ts
-const kafkaIsolator = new Isolator({ instanceKey, instanceName, publisher, subscriber });
+const kafkaTransfer = new Transfer({ instanceKey, instanceName, publisher, subscriber });
 
-const natsIsolator = new Isolator({ instanceKey, instanceName, publisher, subscriber });
+const natsTransfer = new Transfer({ instanceKey, instanceName, publisher, subscriber });
 ```
 
 ## Пример базового использования
@@ -116,18 +127,18 @@ const natsIsolator = new Isolator({ instanceKey, instanceName, publisher, subscr
 
 ```ts
 // создадим изолированный класс
-@Isolation()
+@Isolator(transfer)
 export class IsolatedPusher {
   @CustomTopic()
-  static async SendMessage(loginId: string, message: MessageData): void {
+  static async SendMessage(loginId: string, message: MessageData): Promise<void> {
     //
   }
 }
 
 // создадим исполнителя
-@Execution()
-class PusherExecution {
-  static async SendMessage(loginId: string, message: MessageData): void {
+@Executor()
+class PusherExecution extends IsolatedPusher {
+  static async SendMessage(loginId: string, message: MessageData): Promise<void> {
     const login = models.Logins.findById(loginId);
     await login.sendMessage(message);
     //
@@ -143,19 +154,53 @@ class PusherExecution {
 
 #### 1. Описание схем метода — `@TopicSchema`
 
-Методный декоратор (сознательно не пер-параметрный — ради совместимости со stage-3 декораторами, у которых нет декораторов параметров):
+Методный декоратор (сознательно не пер-параметрный — ради совместимости со stage-3 декораторами, у которых нет декораторов параметров). Аргументы описываются массивом пар `{ имя: тип }` — по одной на аргумент, в порядке сигнатуры; по указанным именам кодогенерация восстанавливает параметры функции:
 
 ```ts
 @Isolator(transfer)
 @IsDistributed()
 class GoodsService {
   @ResponseTopic()
-  @TopicSchema({ args: [GoodDto], returns: GoodDto })
+  @TopicSchema({ args: [{ good: GoodDto }], returns: GoodDto })
   static async save(good: GoodDto): Promise<GoodDto> { ... }
+
+  // скаляры — строковыми именами, [T] — массив значений типа T
+  @ResponseTopic()
+  @TopicSchema({
+    args: [{ id: "string" }, { maxWidth: "number" }, { tags: ["string"] }],
+    returns: "number",
+  })
+  static async resize(id: string, maxWidth: number, tags: string[]): Promise<number> { ... }
+
+  // явное «аргументов нет»
+  @CustomTopic()
+  @TopicSchema({})
+  static async ping(): Promise<void> {}
 }
 ```
 
-`args`/`returns` — обычные `@ComponentSchema`-классы из `@aom-js/schemer`. Один и тот же класс кормит и OpenAPI (router), и шину: единый источник схем на все транспорты. Порядок декораторов класса важен: `@Isolator` — верхний (он INSTANT и разбирает LAST-очередь, в которой лежит `@IsDistributed`).
+Типы (тип `TopicSchemaType`, рендерит `SchemasCollector.extract` — единый для transfer и OpenAPI):
+
+| Тип | Что уедет в дескриптор |
+|---|---|
+| `@ComponentSchema`-класс | `{ "$ref": "#/components/schemas/<Имя>" }` + каскад связей в `components` |
+| `"string"` / `"number"` / `"integer"` / `"boolean"` / `"date"` | `{"type": "string"}` / … / `{"type": "string", "format": "date-time"}` |
+| `[T]` — массив из одного типа | `{"type": "array", "items": <схема T>}` — восстанавливается в `T[]` |
+
+Валидацию выполняет сам декоратор, ошибки — в момент декорирования:
+
+- каждый элемент `args` содержит ровно одну пару `{ имя: тип }`;
+- имена аргументов уникальны в пределах метода;
+- класс в типе обязан быть задекорирован `@ComponentSchema` — «голый» класс не пройдёт;
+- строковый тип обязан быть из словаря скаляров, `[T]` — ровно один элемент.
+
+Правило трёх состояний метода:
+
+- `@TopicSchema({ args: [...] })` — метод описан;
+- `@TopicSchema({})` — явное «аргументов нет»: в дескрипторе `args: []`;
+- декоратора нет — метод **не описан**: поля `args` в дескрипторе не будет вовсе, при декорировании — `console.warn` (по тому же прецеденту, что предупреждение `Executor` о методе без исполнителя).
+
+Один и тот же класс кормит и OpenAPI (router), и шину: единый источник схем на все транспорты. Порядок декораторов класса важен: `@Isolator` — верхний (он INSTANT и разбирает LAST-очередь, в которой лежит `@IsDistributed`).
 
 #### 2. Дескриптор сервиса — `TransferServiceDescriptor`
 
@@ -169,12 +214,17 @@ class GoodsService {
   "methods": [{
     "name": "save", "topic": "GoodsService.save",
     "waitForResponse": true, "singleton": false, "queue": false,
-    "args": [{ "$ref": "#/components/schemas/GoodDto" }],
+    "args": [{ "good": { "$ref": "#/components/schemas/GoodDto" } }],
     "returns": { "$ref": "#/components/schemas/GoodDto" }
+  }, {
+    "name": "legacyPoke", "topic": "GoodsService.legacyPoke",
+    "waitForResponse": false, "singleton": false, "queue": false
   }],
   "components": { "GoodDto": { ... }, "PriceDto": { ... } }
 }
 ```
+
+У `legacyPoke` поля `args` нет — метод не был описан через `@TopicSchema`. Отсутствие поля и `args: []` — разные состояния («сигнатура неизвестна» против «аргументов нет»), потребители дескриптора обязаны их различать.
 
 Каскад `$ref` (вложенные `PropertySchema.Type`-связи) собирает `SchemasCollector` из `@aom-js/schemer` — тот же механизм, что строит `components.schemas` в OpenAPI. Дескриптор обязан переживать `JSON.parse(JSON.stringify(...))` без потерь: поля с `undefined` не записываются.
 
@@ -201,11 +251,51 @@ class GoodsService {
 - ошибки исполнителя едут конвертом `{name, message, status, data}` и восстанавливаются в `Error` на вызывающей стороне;
 - falsy-результаты (`0`, `false`, `""`, `null`) доставляются как есть; только `undefined` заменяется на `{}`.
 
+#### 6. Контракт для кодогенерации типизированных клиентов
+
+Кодогенерацией занимается пакет **`@aom-js/codegen`** (скелет заложен 2026-08-12): чистый эмиттер (`emitService`: дескриптор → строки исходников, файловой системы не касается), снапшот реестра (`collect`: опрос шины с таймаутом, LWW по имени) и CLI:
+
+```
+aom-codegen collect  --transfer-module ./src/config/transfer.ts --out descriptors.json   # снапшот с живой шины (под bun)
+aom-codegen generate --from descriptors.json --out src/generated --transfer "@/config/aom/transfer"
+aom-codegen check    --from descriptors.json --out src/generated   # дрейф hash → ненулевой код выхода (для CI)
+```
+
+`generate` кладёт `<out>/<service-dir>/{schemas,isolator}.ts` + `manifest.json` (имя → hash); `descriptors.json` и сгенерированный код коммитятся в репозиторий потребителя — сборка воспроизводима без живой шины. Пока не реализовано: `@JSONSchema`-фолбэк для непереносимых ключей (сейчас они помечаются `TODO(codegen)`-комментарием в сгенерированном коде), identity-харнес `render ∘ restore`, вложенные массивы.
+
+Генератор восстанавливает из дескриптора **исходные aom-классы**, а не голые интерфейсы: DTO с `@ComponentSchema`/`@PropertySchema.*` и изолятор с исходными декораторами. Дескриптор после правок 2026-08-12 (именованные аргументы + различимость «не описан») для этого полон. Правила зафиксированы здесь, чтобы генератор писался по ним, а не «по мотивам».
+
+**Восстановление DTO** (`components` → классы):
+
+- `{"type": "string"}` → `@PropertySchema.String({})`, `{"type": "number"}` → `.Number({})`, `"format": "date-time"` → `.Date({})`, `$ref` → `.Type({ value: () => X })`, массив с `items.$ref` → `.Type({ value: () => X, isArray: true })`;
+- свойство вне `required` → `isOptional: true`; `description` / `default` / `examples` / `nullable` / `deprecated` — сквозные параметры `PropertySchema`;
+- ключевые слова, у которых нет параметра в `PropertySchema` (например `pattern`), сохраняются фолбэком `@JSONSchema({...})`: схема остаётся точной, рантайм-валидатор не восстанавливается — валидация в любом случае забота границы исполнителя, у которого исходные классы;
+- ожидаемые потери: незадекорированные свойства, кастомные `Transform`, `hidden`-поля (их нет в схеме), наследование (рендер плоский — восстановится плоский класс);
+- **критерий приёмки**: прогон сгенерированного класса через `SchemasCollector` обязан дать те же `components`, что в дескрипторе (`render ∘ restore = identity`).
+
+**Восстановление изолятора** (`methods` → класс):
+
+- `waitForResponse` → `@ResponseTopic` / `@CustomTopic`, `singleton` → их аргумент, `queue` → `@IsQueue`, схемы → `@TopicSchema` (скаляры — обратно в строковые имена, `{"type": "array", "items": X}` → `[X]` в декораторе и `T[]` в сигнатуре);
+- имена параметров — ключи пар `args`: `[{ "id": { "type": "string" } }]` → `id: string`; у описанного метода имена есть всегда;
+- метод без поля `args` → `(...args: unknown[])` и без `@TopicSchema`; `args: []` → `()`;
+- нет `returns` при `waitForResponse: false` → `Promise<void>`, при `true` → `Promise<unknown>`;
+- тело метода — заглушка (`return undefined as never`): изолированная функция не вызывается, `AutoTopic` подменяет её на `rx.request`.
+
+**Инварианты генератора:**
+
+- **имя класса изолятора не переименовывать никогда** — топик выводится из имени (`${name}.${method}`, см. `DefineTopics`); переименованный класс публиковал бы в чужие топики;
+- неймспейс — модулем, не манглингом: каталог на сервис (`generated/<service>/{schemas,isolator}.ts`), имена классов дословные — `$ref`-имена строятся из `target.name`, переименованный DTO при повторном рендере дал бы другой `$ref`;
+- `@IsDistributed` в сгенерированный код **не переносится**: потребитель собрал бы дескриптор с собственным `origin` и отравил реестр — переизлучением чужих контрактов занимается кэш реестра (LWW);
+- конфиг генератора — module specifier настроенного transfer (`{ transferImport: "@/config/aom/transfer" }`): декораторы срабатывают при импорте модуля, сгенерированный изолятор подключается к шине как рукописный;
+- `hash` дескриптора зашивается в сгенерированный модуль константой — для сверки дрейфа контракта с живым реестром.
+
+К сгенерированному изолятору на стороне потребителя можно прицепить и `@Executor` — узел может не только звать чужой контракт, но и стать его исполнителем. Рантаймовый `transfer.restore(descriptor)` остаётся для динамических сценариев без кодогенерации.
+
 #### Ограничения и продолжение
 
 - Версионирование — минимальное (hash + LWW); честные версии схем — отдельная задача.
 - Валидация аргументов на границе исполнителя по JSON Schema — сознательно не включена (потребует ajv-класса валидатора; делать opt-in).
-- Кодогенерация типизированных клиентов из дескрипторов — отдельный будущий пакет.
+- Кодогенерация типизированных клиентов — скелет пакета `@aom-js/codegen` заложен (п. 6); осталось: `@JSONSchema`-фолбэк, identity-харнес `render ∘ restore`, мосты OpenAPI/ajv-прекомпиляция.
 
 ---
 

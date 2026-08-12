@@ -147,7 +147,7 @@ export class Server {
       }
 
       const localize = (text: string): string => {
-        if (locale && this.i18nizer) {
+        if (text && locale && this.i18nizer) {
           return this.i18nizer.localize(text, locale);
         } else {
           return text;

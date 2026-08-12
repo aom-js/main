@@ -53,4 +53,52 @@ describe("schemer: сборщик компонент (каскад $ref)", () =>
     collector.extract(Pet);
     expect(collector.components.get("Pet")).toBe(first);
   });
+
+  it("скалярные конструкторы разворачиваются в JSON Schema литералы", () => {
+    const collector = makeCollector();
+    expect(collector.extract(String)).toEqual({ type: "string" });
+    expect(collector.extract(Number)).toEqual({ type: "number" });
+    expect(collector.extract(Boolean)).toEqual({ type: "boolean" });
+    expect(collector.extract(Date)).toEqual({ type: "string", format: "date-time" });
+    expect(collector.components.size).toBe(0);
+  });
+
+  it("строковые имена скаляров разворачиваются в JSON Schema литералы", () => {
+    const collector = makeCollector();
+    expect(collector.extract("string")).toEqual({ type: "string" });
+    expect(collector.extract("number")).toEqual({ type: "number" });
+    expect(collector.extract("integer")).toEqual({ type: "integer" });
+    expect(collector.extract("boolean")).toEqual({ type: "boolean" });
+    expect(collector.extract("date")).toEqual({ type: "string", format: "date-time" });
+  });
+
+  it("неизвестное имя скаляра — ошибка на месте", () => {
+    const collector = makeCollector();
+    expect(() => collector.extract("strng")).toThrow(/strng/);
+  });
+
+  it("[T] разворачивается в array с items — для скаляров и компонентов", () => {
+    const collector = makeCollector();
+    expect(collector.extract(["string"])).toEqual({ type: "array", items: { type: "string" } });
+    expect(collector.extract([Owner])).toEqual({
+      type: "array",
+      items: { $ref: "#/components/schemas/Owner" },
+    });
+    expect(collector.components.has("Owner")).toBe(true);
+    expect(() => collector.extract([])).toThrow(/exactly one element type/);
+    expect(() => collector.extract(["string", "number"])).toThrow(/exactly one element type/);
+  });
+
+  it("возвращаемые литералы скаляров независимы — мутация одного не портит словарь", () => {
+    const collector = makeCollector();
+    const first = collector.extract(String);
+    first.title = "mutated";
+    expect(collector.extract(String)).toEqual({ type: "string" });
+  });
+
+  it("класс без @ComponentSchema — ошибка на месте, а не молча сломанная схема", () => {
+    const collector = makeCollector();
+    class Naked {}
+    expect(() => collector.extract(Naked)).toThrow(/Naked/);
+  });
 });

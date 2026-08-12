@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Transfer, Isolator, ResponseTopic, IsDistributed } from "@aom-js/transfer";
+import { Transfer, Isolator, ResponseTopic, IsDistributed, TopicSchema } from "@aom-js/transfer";
 import { MemoryBus, tick } from "./memory-bus";
 
 const bus = new MemoryBus();
@@ -24,6 +24,7 @@ const nodeC = new Transfer({
 @IsDistributed()
 class CachedService {
   @ResponseTopic()
+  @TopicSchema({ returns: "string" })
   static async ping(): Promise<string> {
     return undefined as never;
   }

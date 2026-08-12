@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AomCore, ExecutionPhase } from "@aom-js/core";
+import { AomCore, ExecutionPhase, InheritPlacement } from "@aom-js/core";
 
 class Meta extends AomCore {}
 
@@ -109,6 +109,53 @@ describe("core: наследование декораторов", () => {
     }
     Meta.instance(Child)._.inherit(Parent);
     expect(new Child().run()).toBe("child");
+  });
+
+  it("PREPEND: родительские LAST-вызовы встают единым блоком перед собственными вызовами потомка", () => {
+    const log: string[] = [];
+    const Late = (l: string, inherit?: InheritPlacement) =>
+      Meta.classDecorator(() => log.push(l), ExecutionPhase.LAST, inherit);
+    class Parent {}
+    class Child extends Parent {}
+    // применяем декораторы явными вызовами, чтобы порядок добавления был очевиден
+    Late("p1", InheritPlacement.PREPEND)(Parent);
+    Late("p2", InheritPlacement.PREPEND)(Parent);
+    Late("own")(Child);
+    Meta.instance(Child)._.inherit(Parent);
+    Meta.instance(Child)._.apply();
+    // блок родителя впереди, внутренний порядок p1→p2 не развёрнут
+    expect(log).toEqual(["p1", "p2", "own"]);
+  });
+
+  it("PREPEND у нескольких уровней: блок прародителя встаёт раньше блока родителя", () => {
+    const log: string[] = [];
+    const Late = (l: string) =>
+      Meta.classDecorator(() => log.push(l), ExecutionPhase.LAST, InheritPlacement.PREPEND);
+    class Grand {}
+    class Parent extends Grand {}
+    class Child extends Parent {}
+    Late("grand")(Grand);
+    Late("parent")(Parent);
+    Late("own")(Child);
+    // порядок как в @Controller: сначала ближайший родитель, затем выше по цепочке
+    Meta.instance(Child)._.inherit(Parent);
+    Meta.instance(Child)._.inherit(Grand);
+    Meta.instance(Child)._.apply();
+    expect(log).toEqual(["grand", "parent", "own"]);
+  });
+
+  it("SKIP: вызов не переносится на потомка, APPEND-соседи переносятся как раньше", () => {
+    const log: string[] = [];
+    const Late = (l: string, inherit?: InheritPlacement) =>
+      Meta.classDecorator(() => log.push(l), ExecutionPhase.LAST, inherit);
+    class Parent {}
+    class Child extends Parent {}
+    Late("skipped", InheritPlacement.SKIP)(Parent);
+    Late("kept")(Parent);
+    Late("own")(Child);
+    Meta.instance(Child)._.inherit(Parent);
+    Meta.instance(Child)._.apply();
+    expect(log).toEqual(["own", "kept"]);
   });
 
   it("перенос декораторов свойств инстанса: у потомка появляется собственный мета-инстанс свойства", () => {

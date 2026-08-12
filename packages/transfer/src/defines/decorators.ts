@@ -1,11 +1,16 @@
 import crypto from "node:crypto";
-import { ClassConstructor, ClassType, ExecutionPhase, Property } from "@aom-js/core";
-import { Schemer, SchemasCollector } from "@aom-js/schemer";
+import { ClassType, ExecutionPhase, Property } from "@aom-js/core";
+import { Schemer, SchemasCollector, AomSchemas, SCALAR_TYPE_SCHEMAS } from "@aom-js/schemer";
 
 // локальные импорты
 import { Transfer, AomIsolator } from "./main";
 import { RxTransfer } from "./rx-transfer";
-import { TransferMethodDescriptor, TransferServiceDescriptor } from "./types";
+import {
+  TopicSchemaArg,
+  TopicSchemaType,
+  TransferMethodDescriptor,
+  TransferServiceDescriptor,
+} from "./types";
 
 /**
  * Декоратор для изоляции класса
@@ -30,16 +35,65 @@ export function IsQueue() {
   });
 }
 
+// проверка типа в @TopicSchema: имя скаляра, @ComponentSchema-класс или [T]
+function assertTopicSchemaType(type: TopicSchemaType, context: string): void {
+  if (typeof type === "string") {
+    if (!SCALAR_TYPE_SCHEMAS[type]) {
+      throw new Error(
+        `@TopicSchema ${context}: unknown scalar type "${type}" (allowed: ${Object.keys(SCALAR_TYPE_SCHEMAS).join(", ")})`,
+      );
+    }
+    return;
+  }
+  if (Array.isArray(type)) {
+    if (type.length !== 1) {
+      throw new Error(
+        `@TopicSchema ${context}: array type must hold exactly one element type, e.g. ["string"]`,
+      );
+    }
+    assertTopicSchemaType(type[0], context);
+    return;
+  }
+  if (typeof type === "function" && AomSchemas.checkExists(type)?.isComponentSchema) {
+    return;
+  }
+  const shown = typeof type === "function" ? type.name : String(type);
+  throw new Error(`@TopicSchema ${context}: "${shown}" is not a @ComponentSchema-decorated class`);
+}
+
 /**
- * Декоратор схемы изолированного метода: ComponentSchema-классы аргументов и ответа.
+ * Декоратор схемы изолированного метода. Аргументы — массив пар `{ имя: тип }` (по одной
+ * на аргумент, имена уникальны — из них кодогенерация восстанавливает сигнатуру); типы —
+ * имена скаляров ("string" | "number" | "integer" | "boolean" | "date"), `@ComponentSchema`-классы
+ * или `[T]` для массивов. `@TopicSchema({})` — явное «аргументов нет»; отсутствие декоратора —
+ * «метод не описан» (в дескрипторе не будет поля args). Корректность типов проверяется
+ * на месте: незадекорированный класс или неизвестный скаляр — ошибка при декорировании.
  * Методный (не пер-параметрный) — сознательно, ради совместимости со stage-3 декораторами.
  */
 export function TopicSchema(schema: {
-  args?: ClassConstructor[];
-  returns?: ClassConstructor;
+  args?: TopicSchemaArg[];
+  returns?: TopicSchemaType;
 }): MethodDecorator {
   return AomIsolator.methodDecorator(($) => {
-    $.argsSchemas = schema.args || [];
+    const method = `${$._.target.name}.${String($._.property)}`;
+    const args = schema.args || [];
+    const seen = new Set<string>();
+    args.forEach((entry) => {
+      const pairs = Object.entries(entry);
+      if (pairs.length !== 1) {
+        throw new Error(`@TopicSchema ${method}: each args entry must hold exactly one { name: type } pair`);
+      }
+      const [name, type] = pairs[0];
+      if (seen.has(name)) {
+        throw new Error(`@TopicSchema ${method}: duplicate argument name "${name}"`);
+      }
+      seen.add(name);
+      assertTopicSchemaType(type, `${method}(${name})`);
+    });
+    if (schema.returns !== undefined) {
+      assertTopicSchemaType(schema.returns, `${method} returns`);
+    }
+    $.argsSchemas = args;
     $.returnsSchema = schema.returns;
   });
 }
@@ -60,8 +114,18 @@ export function IsDistributed() {
         waitForResponse: !!method$.waitForResponse,
         singleton: !!method$.singletone,
         queue: !!method$.queue,
-        args: (method$.argsSchemas || []).map((schema) => collector.extract(schema)),
       };
+      // args пишется только для методов, описанных через @TopicSchema: отсутствие поля —
+      // признак «сигнатура неизвестна» для потребителей дескриптора (кодогенерации).
+      // Формат провода зеркалит декоратор: [{ имя: JSON Schema }]
+      if (method$.argsSchemas) {
+        method.args = method$.argsSchemas.map((entry) => {
+          const [name, type] = Object.entries(entry)[0];
+          return { [name]: collector.extract(type) };
+        });
+      } else {
+        console.warn(`distributed method "${$._.target.name}.${method.name}" has no @TopicSchema`);
+      }
       // returns добавляется только при наличии — дескриптор обязан переживать JSON без потерь
       if (method$.returnsSchema) {
         method.returns = collector.extract(method$.returnsSchema);

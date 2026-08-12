@@ -1,13 +1,11 @@
 import _ from "es-toolkit/compat";
 import WebSocket, { WebSocketServer } from "ws";
 import { Args, Controller, Ctx, AomRoute, Middleware } from "@aom-js/router";
-import { Params, This, Before, Body, After, Route } from "@aom-js/router";
+import { This, Body, Route } from "@aom-js/router";
 //
 import { type ClassConstructor } from "../../types";
 import { type HttpRequest, type HttpSocket, type SocketCtx } from "../../types";
 import { messages } from "../../constants";
-
-// import { Auth } from "../auth";
 
 export declare type WebSocketConnections = Map<string, WebSocket[]>;
 
@@ -141,7 +139,7 @@ export class WebSocketsController {
   }
 
   @Middleware()
-  static async Setup(
+  static async Connect(
     @Ctx() ctx: SocketCtx,
     @Body() head: Buffer,
     @This() self: WebSocketsController,
@@ -156,6 +154,10 @@ export class WebSocketsController {
     }
   }
 
+  /*
+  инициация id осуществляется напрямую в контроллере, которые подключает к себе сокет
+  то есть это задача внешняя, а не внутренняя
+
   @Middleware()
   @Before(WebSocketsController.Define)
   @After(WebSocketsController.Setup)
@@ -164,7 +166,6 @@ export class WebSocketsController {
     self.id = `${ctx.req.socket.remoteAddress}`;
   }
 
-  /*
   @Middleware()
   @Before(WebSockets.Define)
   @After(WebSockets.Setup)

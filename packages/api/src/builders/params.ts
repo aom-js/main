@@ -15,9 +15,9 @@ import { plainJsonSchema } from "../functions";
 const SafeOrigin = ThisRef((<T extends typeof ParamsBuilderConstructor>({ schema }: T) =>
   SafeData(schema)) as RefFunction);
 
-const SafeOriginParameters = ThisRef((<T extends typeof ParamsBuilderConstructor>(constructor: T) => [
-  PathParameters(constructor.JSONSchema()),
-]) as RefFunction);
+const SafeOriginParameters = ThisRef((<T extends typeof ParamsBuilderConstructor>(
+  constructor: T,
+) => [PathParameters(constructor.JSONSchema())]) as RefFunction);
 
 @Controller()
 class ParamsBuilderConstructor<T extends ClassConstructor<any>, R = InstanceType<T>> {
@@ -33,11 +33,11 @@ class ParamsBuilderConstructor<T extends ClassConstructor<any>, R = InstanceType
 
   static toString() {
     // здесь проверить, как будет работать паттерн
-    return `${this.attr}${this.jsonSchema.schema.pattern ? `(${this.jsonSchema.schema.pattern})` : ""}`;
+    return `:${this.attr}${this.jsonSchema.schema.pattern ? `(${this.jsonSchema.schema.pattern})` : ""}`;
   }
 
   static JSONSchema(): OpenApiPathParameters {
-    return { [this.attr]: this.jsonSchema };
+    return { [`:${this.attr}`]: this.jsonSchema };
   }
 
   @Middleware()
@@ -60,7 +60,9 @@ class ParamsBuilderConstructor<T extends ClassConstructor<any>, R = InstanceType
   }
 }
 
-export function ParamsBuilder<T extends ClassConstructor<any>>(schema: T): typeof ParamsBuilderConstructor {
+export function ParamsBuilder<T extends ClassConstructor<any>>(
+  schema: T,
+): typeof ParamsBuilderConstructor<T> {
   const aomSchemasClass = AomSchemas.checkExists(schema);
   //
   if (!aomSchemasClass || !aomSchemasClass.isComponentSchema) {

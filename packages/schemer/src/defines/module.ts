@@ -6,8 +6,6 @@ import { validateSync } from "class-validator";
 
 import {
   ConnectionSchema,
-  // SchemerConfig,
-  // RenderHandler,
   CommonDescriptionsProperties,
   SchemaTypes,
 } from "./types";
@@ -29,12 +27,10 @@ export class Schemer {
 
   /**
    * Конструктор класса Schemer
-   * @param config Конфигурация схемера
+   * @param refPointerPrefix Префикс $ref-ссылок (например "#/components/schemas/")
    */
   constructor(refPointerPrefix: string) {
     this.refPointerPrefix = refPointerPrefix;
-    //
-    // this.render = config.render;
   }
 
   // функция для рендера данных
@@ -61,15 +57,4 @@ export class Schemer {
 
     return { values, errors };
   }
-
-  // // конфигурация по умолчанию
-  // static default: Schemer;
-
-  // /**
-  //  * Устанавливает конфигурацию по умолчанию
-  //  * @param config Конфигурация схемера
-  //  */
-  // static config(config: SchemerConfig) {
-  //   this.default = new this(config);
-  // }
 }

@@ -1,4 +1,4 @@
-import { CombinedDecorator, ClassType, ExecutionPhase } from "@aom-js/core";
+import { CombinedDecorator, ClassType, ExecutionPhase, InheritPlacement } from "@aom-js/core";
 
 import * as constants from "../../constants";
 import { FwdContainer, HandlerFunction, MarkerHandler, MiddlewareHandler } from "../../common";
@@ -7,13 +7,18 @@ import { AomApi } from "../../common";
 // ************************************************ //
 // ...
 export function Before(...middlewares: MiddlewareHandler[]): CombinedDecorator {
-  return AomApi.combinedDecorator(($) => {
-    $.element.addPreMiddlewares(
-      ...middlewares
-        .map((middleware) => AomApi.instance(middleware))
-        .filter(($) => $.element.isMiddleware),
-    );
-  }, ExecutionPhase.LAST);
+  // PREPEND: при наследовании родительские Before встают перед собственными Before потомка
+  return AomApi.combinedDecorator(
+    ($) => {
+      $.element.addPreMiddlewares(
+        ...middlewares
+          .map((middleware) => AomApi.instance(middleware))
+          .filter(($) => $.element.isMiddleware),
+      );
+    },
+    ExecutionPhase.LAST,
+    InheritPlacement.PREPEND,
+  );
 }
 
 // export const UseBefore = Use;

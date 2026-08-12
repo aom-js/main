@@ -21,6 +21,7 @@ export default defineConfig({
       "@aom-js/schemer": resolve(__dirname, "packages/schemer/src"),
       "@aom-js/router": resolve(__dirname, "packages/router/src"),
       "@aom-js/transfer": resolve(__dirname, "packages/transfer/src"),
+      "@aom-js/codegen": resolve(__dirname, "packages/codegen/src"),
       "@aom-js/holder": resolve(__dirname, "packages/holder/src"),
     },
   },

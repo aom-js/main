@@ -73,6 +73,6 @@ export function DelayRefStack(
   handler: FwdContainer | ThisRefContainer | RouteRefContainer,
 ): MethodDecorator {
   return AomApi.methodDecorator(($) => {
-    $.openApi.delayStack.push(handler);
+    $.delayStack.push(handler);
   });
 }

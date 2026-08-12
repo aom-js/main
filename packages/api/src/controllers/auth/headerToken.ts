@@ -12,25 +12,27 @@ export const HeaderTokenSecuritySchema = {
 export class AuthHeaderToken {
   static TOKEN_NAME: string = "Bearer";
 
-  static HEADERS_KEYS: string[] = ['authorization'];
+  static HEADERS_KEYS: string[] = ["authorization"];
 
-  value?: string;
+  value!: string;
 
-  type?: string;
+  type!: string;
 
   @Middleware()
   @Security(HeaderTokenSecuritySchema)
   @Responses(AuthRequiredResponse.JSONSchema())
   static async Required(
     @This() self: AuthHeaderToken,
-    @Headers() headers: Record<string, string | string[]>
+    @Headers() headers: Record<string, string | string[]>,
   ) {
-    this.HEADERS_KEYS.forEach(headerKey => {
+    this.HEADERS_KEYS.forEach((headerKey) => {
       const [headerValue] = [headers[headerKey]].flat();
       if (!self.value && headerValue) {
         // это специальное разрешение, позволяющее прокидывать токен через альтернативые заголовки
         // например `sec-websocket-protocol`
-        [self.type, self.value] = headerValue.replace(`${this.TOKEN_NAME}_`, `${this.TOKEN_NAME} `).split(" ");
+        [self.type, self.value] = headerValue
+          .replace(`${this.TOKEN_NAME}_`, `${this.TOKEN_NAME} `)
+          .split(" ");
       }
     });
 
@@ -41,7 +43,5 @@ export class AuthHeaderToken {
     if (self.type !== this.TOKEN_NAME) {
       throw new AuthRequiredResponse(messages.AUTH_WRONG_TOKEN_TYPE);
     }
-
   }
-
 }

@@ -70,7 +70,7 @@ class AomHttpOpenApi {
 
   security?: OpenApiSecuritySchema;
 
-  delayStack: Array<FwdContainer | RouteRefContainer | ThisRefContainer> = [];
+  // delayStack: Array<FwdContainer | RouteRefContainer | ThisRefContainer> = [];
 
   private http!: AomApi;
 
@@ -157,6 +157,8 @@ export class AomApi extends AomCore {
 
   element = new AomApiElement(this);
 
+  delayStack: Array<FwdContainer | RouteRefContainer | ThisRefContainer> = [];
+
   title?: string;
 
   description?: string;
@@ -214,6 +216,31 @@ export class AomCursor {
     this.prefix = prefix;
     this.endpoint = endpoint;
     this.index = 0;
+
+    this.realizeDelay();
+  }
+
+  private realizeDelay() {
+    const { $ } = this;
+
+    const { target, property } = $._;
+    // такая процедура используется для того, чтобы на одном и том же курсоре не вызывать повторно отложенный стек
+    // то есть в изолированном контексте он вызывается однократно, а затем удаляется из очереди
+    if ($.delayStack.length) {
+      while ($.delayStack.length) {
+        const handler = $.delayStack.shift();
+        // вызовем отложенные действия
+        if (handler instanceof FwdContainer) {
+          Reflect.decorate([...handler.exec()], target, property!);
+        } else if (handler instanceof ThisRefContainer) {
+          Reflect.decorate([...handler.exec(this.$._.target)], target, property!);
+        } else if (handler instanceof RouteRefContainer) {
+          Reflect.decorate([...handler.exec(this.endpoint!.$._.target)], target, property!);
+        }
+      }
+      // применим вероятные отложенные вызовы
+      $._.apply();
+    }
   }
 }
 

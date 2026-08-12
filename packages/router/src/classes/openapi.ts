@@ -72,8 +72,8 @@ export class OpenApi {
     // let nextTagRule = constants.NEXT_TAGS_REPLACE; // правило сборки тегов, по умолчанию - замена
 
     cursors.forEach((cursor: AomCursor) => {
+      /*
       const { $ } = cursor;
-
       const { target, property } = $._;
       // такая процедура используется для того, чтобы на одном и том же курсоре не вызывать повторно отложенный стек
       // то есть в изолированном контексте он вызывается однократно, а затем удаляется из очереди
@@ -92,6 +92,7 @@ export class OpenApi {
         // применим вероятные отложенные вызовы
         $._.apply();
       }
+      */
 
       // console.log("delayStack success started");
       // соберем теги

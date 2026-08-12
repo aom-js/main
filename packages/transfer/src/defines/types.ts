@@ -1,3 +1,14 @@
+import type { ClassConstructor } from "@aom-js/core";
+
+/**
+ * Тип значения в @TopicSchema: имя скаляра ("string" | "number" | "integer" | "boolean" | "date"),
+ * `@ComponentSchema`-класс либо массив из одного такого типа — `[T]` восстанавливается в `T[]`
+ */
+export declare type TopicSchemaType = ClassConstructor | string | [TopicSchemaType];
+
+/** Аргумент изолированного метода в @TopicSchema: ровно одна пара { имя: тип } на элемент */
+export declare type TopicSchemaArg = Record<string, TopicSchemaType>;
+
 export declare interface TransferTopics {
   topic: string;
 
@@ -130,7 +141,12 @@ export declare interface TransferMethodDescriptor {
   waitForResponse: boolean;
   singleton: boolean;
   queue: boolean;
-  args: any[];
+  /**
+   * Схемы аргументов: массив пар { имя: JSON Schema }, по одной на аргумент — зеркалит
+   * формат @TopicSchema. Поле отсутствует, если метод не описан через @TopicSchema —
+   * потребитель (кодогенерация) обязан отличать «не описан» от «аргументов нет» ([])
+   */
+  args?: Record<string, any>[];
   returns?: any;
 }
 

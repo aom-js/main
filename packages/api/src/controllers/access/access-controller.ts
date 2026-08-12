@@ -1,23 +1,39 @@
 import _ from "es-toolkit/compat";
 
 import { type CombinedDecorator } from "@aom-js/core";
-import { Before, This, type HandlerFunction, UseMarker, After } from "@aom-js/router";
+import {
+  Before,
+  This,
+  type HandlerFunction,
+  UseMarker,
+  After,
+  ThisRef,
+  RefFunction,
+  DelayRefStack,
+} from "@aom-js/router";
 import { AomRoute, AomApi, AomCursor, Marker, Cursor, Route } from "@aom-js/router";
 import { Responses, Middleware, Controller } from "@aom-js/router";
-
 //
 import { messages } from "../../constants";
 import { AccessDenyResponse } from "../../responses";
+//
 
-import { type ActiveAccessTypes, AomAccessCore, type IAomAccessPoint, AomAccessMapStructure } from "./types";
-import { AomAccessMarkerElement, AomAccessIdentElement, AomAccessToModulesStructure } from "./schemas";
+import type { ActiveAccessTypes, IAomAccessPoint } from "./types";
+import { AomAccessCore, AomAccessMapStructure } from "./types";
+import {
+  AomAccessMarkerElement,
+  AomAccessIdentElement,
+  AomAccessToModulesStructure,
+} from "./schemas";
 import { AccessTypes } from "./init";
 
-
+// для корректного проброса маркера в наследуемых классах используется ThisRef + DelayRefStack
+const SafeAccessMarker = ThisRef((<T extends typeof AccessController>(constructor: T) => [
+  UseMarker(constructor.setAccessMark),
+]) as RefFunction);
 
 @Controller()
 export class AccessController {
-
   static readonly markerName: string;
 
   static readonly allowedAccessTypes: AccessTypes[] | string[];
@@ -58,7 +74,6 @@ export class AccessController {
   }
 
   generateAccessMap(allowedAccessTypes: string[], userRoles: AomAccessToModulesStructure[]) {
-
     // установим разрешенный набор из переданных значений
     allowedAccessTypes.forEach((accessType) => {
       this.activeAccessTypes[accessType] = true;
@@ -91,7 +106,7 @@ export class AccessController {
   }
 
   @Middleware()
-  static async Init(@This() self: AccessController,): Promise<void> {
+  static async Init(@This() self: AccessController): Promise<void> {
     self.enabled = true;
   }
 
@@ -106,7 +121,7 @@ export class AccessController {
     }
 
     return this.AccessCore.combinedDecorator(($) => {
-      $.accessTypes.push(...accessTypes as never[]);
+      $.accessTypes.push(...(accessTypes as never[]));
       const { target, property } = $._;
       Reflect.decorate([Before(this.Required) as MethodDecorator], target, property!);
     });
@@ -121,7 +136,6 @@ export class AccessController {
 
   // определить middleware как слой доступа
   static SetExtraAccess(...accessTypes: typeof this.allowedAccessTypes): MethodDecorator {
-
     const diff = _.difference(<string[]>accessTypes, <string[]>this.allowedAccessTypes);
     if (diff.length) {
       throw new Error(`${messages.CONTROLLERS_ACCESS_TYPES_MISMATCH}: ${diff}`);
@@ -129,13 +143,9 @@ export class AccessController {
 
     return this.AccessCore.methodDecorator(($) => {
       $.extraAccess = true;
-      $.accessTypes.push(...accessTypes as never[]);
+      $.accessTypes.push(...(accessTypes as never[]));
       const { target, property } = $._;
-      Reflect.decorate(
-        [Before(this.CheckLayerPass) as MethodDecorator],
-        target,
-        property!,
-      );
+      Reflect.decorate([Before(this.CheckLayerPass) as MethodDecorator], target, property!);
     });
   }
 
@@ -223,8 +233,8 @@ export class AccessController {
     });
   }
 
-  @UseMarker(AccessController.setAccessMark)
   @Middleware()
+  @DelayRefStack(SafeAccessMarker)
   @Responses(AccessDenyResponse.JSONSchema())
   static async Required(
     @This() self: AccessController,
@@ -243,7 +253,6 @@ export class AccessController {
       throw new AccessDenyResponse(messages.ERROR_ACCESS_DENY);
     }
   }
-
 
   // установить типичный доступ с учетом требований к конкретным типам партнерств
   @Marker()
@@ -305,7 +314,10 @@ export class AccessController {
       const extraPermissionsTypes = extraAccessInstance.accessTypes;
 
       const accessTypes = currentAccessControl.accessTypes.length
-        ? _.intersection(<string[]>currentAccessControl.accessTypes, <string[]>extraPermissionsTypes)
+        ? _.intersection(
+            <string[]>currentAccessControl.accessTypes,
+            <string[]>extraPermissionsTypes,
+          )
         : extraPermissionsTypes;
 
       return { ident, title, accessTypes };
