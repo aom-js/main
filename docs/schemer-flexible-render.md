@@ -53,7 +53,7 @@ export class Points extends EnabledEntity {
   @ValidateComponentConnect(() => UsersOrgs)
   @JSONSchema({ description: "Пользователь создавший запись" })
   @ManyToOne({ entity: () => UsersOrgs, hidden: true })
-  createdByUserOrg: UsersOrgs;
+  createdByOrgUser: UsersOrgs;
 }
 ```
 
@@ -413,7 +413,7 @@ export class Points extends EnabledEntity {
     description: "Пользователь создавший запись",
   })
   @ManyToOne({ entity: () => UsersOrgs, hidden: true })
-  createdByUserOrg: UsersOrgs;
+  createdByOrgUser: UsersOrgs;
 }
 ```
 

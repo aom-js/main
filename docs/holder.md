@@ -72,7 +72,7 @@ export class DefaultEntity extends WithJSONSchema {
       description: "ID",
       decorators: [IsUUID()],
     }),
-    PrimaryKey({ type: "uuid", onCreate: () => uuidv7() })
+    PrimaryKey({ type: "uuid", onCreate: () => uuidv7() }),
   )
   id: string = uuidv7();
 
@@ -81,7 +81,7 @@ export class DefaultEntity extends WithJSONSchema {
       description: "Дата создания",
       decorators: [],
     }),
-    Property({ type: t.datetime })
+    Property({ type: t.datetime }),
   )
   readonly createdAt: Date = new Date();
 
@@ -92,7 +92,7 @@ export class DefaultEntity extends WithJSONSchema {
       nullable: true,
       decorators: [],
     }),
-    Property({ nullable: true, type: t.datetime })
+    Property({ nullable: true, type: t.datetime }),
   )
   deletedAt?: Date | null;
 
@@ -101,7 +101,7 @@ export class DefaultEntity extends WithJSONSchema {
       description: "Дата обновления",
       decorators: [],
     }),
-    Property({ onUpdate: () => new Date(), type: t.datetime })
+    Property({ onUpdate: () => new Date(), type: t.datetime }),
   )
   readonly updatedAt: Date = new Date();
 
@@ -118,7 +118,7 @@ export class EnabledEntity extends DefaultEntity {
       description: "Признак активности",
       decorators: [],
     }),
-    Property({ type: t.boolean })
+    Property({ type: t.boolean }),
   )
   enabled: boolean;
 }
@@ -157,12 +157,11 @@ export class Contractors extends EnabledEntity {
 
   @PropertySchema.Type({ value: () => UsersOrgs, hidden: true, description: "Создан сотрудником" })
   @ManyToOne({ entity: () => UsersOrgs, hidden: true })
-  createdByUserOrg: UsersOrgs;
+  createdByOrgUser: UsersOrgs;
 }
 ```
 
 При этом, что характерно, такой потомок не может являться сущностью, от которой можно будет повторно унаследовать аналогичную конструкцию, так что для такого типа действия следует будет создавать буферную сущность с "подвешенными" декораторами, от которой потом будет определен и первичный сущностный класс, и последующие потомки.
-
 
 Что должно происходить внутри, и как должны различаться между собой вызовы декораторы на классах и на свойствах?
 

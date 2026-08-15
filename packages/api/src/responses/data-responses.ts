@@ -1,11 +1,11 @@
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
 //
-import { WithJSONSchema } from "../schemas";
+import { ResponseJSONSchema } from "../schemas";
 import { messages } from "../constants";
 import { RESPONSES_NUMBER_RESPONSE_VALUE } from "../constants/messages";
 
 @ComponentSchema({ description: messages.RESPONSES_COMMON_RESPONSE })
-export class CommonResponse extends WithJSONSchema {
+export class CommonResponse extends ResponseJSONSchema {
   static status = 200;
 
   static description: string;

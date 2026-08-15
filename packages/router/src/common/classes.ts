@@ -211,6 +211,12 @@ export class AomCursor {
   $: AomApi;
 
   constructor($: AomApi, origin: AomApi, prefix: string, endpoint?: AomEndpoint) {
+    // если $ ссылается на родительский класс относительно места сцепки —
+    // перепривяжемся к инстансу потомка до реализации отложенного стека
+    if ($._.property && origin._.target.prototype instanceof $._.target) {
+      $ = $._.base.instance(origin._.target, $._.property);
+    }
+
     this.$ = $;
     this.origin = origin;
     this.prefix = prefix;

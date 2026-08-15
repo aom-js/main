@@ -11,7 +11,7 @@ import swagger from "./swagger";
 //
 import { CommonResponse } from "../responses";
 
-const SafeOriginResponse = ThisRef((<T extends typeof RootController>(constructor: T) => [
+const SafeOriginResponse = ThisRef((<T extends typeof BaseRootController>(constructor: T) => [
   Responses(constructor.RoutesStructure.JSONSchema()),
 ]) as RefFunction);
 
@@ -48,7 +48,7 @@ export class RoutesStructure<RE extends RouteElement> extends CommonResponse {
 }
 
 @Controller()
-export class RootController {
+export class BaseRootController {
   readonly ident!: string;
 
   static readonly RoutesStructure: typeof RoutesStructure<RouteElement>;
@@ -80,7 +80,7 @@ export class RootController {
   @Title(messages.CONTROLLERS_ROOT_ROUTES_LIST)
   @DelayRefStack(SafeOriginResponse)
   static Index<RE extends RouteElement, RS extends RoutesStructure<RE>>(
-    @This() self: RootController,
+    @This() self: BaseRootController,
     @Route() route: AomRoute,
   ): RS {
     const { routes } = route.router;
@@ -106,7 +106,7 @@ export class RootController {
     description: messages.CONTROLLERS_ROOT_OPENAPI_RESPONSE,
     schema: { type: "string" },
   })
-  static JSONDocs(@This() { docs }: RootController) {
+  static JSONDocs(@This() { docs }: BaseRootController) {
     // сохраним документацию в контексте класса, чтобы не генерировать ее заново при повторных вызовах
     // это валидно, потому что от RootRoute будут наследоваться
     if (!this.docsJSON) {

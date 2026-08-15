@@ -7,7 +7,8 @@ import { SafeData } from "../decorators";
 import { messages } from "../constants";
 
 //
-import { CookieJSONSchema, QueryStringJSONSchema } from "../common";
+import { CookieJSONSchema } from "../schemas";
+import { CookieBuildersBase } from "./common";
 
 const SafeOrigin = ThisRef((<T extends typeof CookieBuilderConstructor>({ schema }: T) =>
   SafeData(schema)) as RefFunction);
@@ -20,9 +21,7 @@ const SafeOriginParameters = ThisRef((<T extends typeof CookieBuilderConstructor
 class CookieBuilderConstructor<
   T extends ClassConstructor,
   R = InstanceType<T>,
-> extends CookieJSONSchema {
-  static readonly schema: ClassConstructor;
-
+> extends CookieBuildersBase {
   cookies!: R;
 
   @Middleware()
@@ -38,13 +37,15 @@ class CookieBuilderConstructor<
   @Responses(WrongDataResponse.JSONSchema())
   static async Cookie(
     @Cookies(SafeOrigin) cookies: any,
-    @This() queryBuilder: CookieBuilderConstructor<typeof QueryStringJSONSchema>,
+    @This() queryBuilder: CookieBuilderConstructor<typeof CookieJSONSchema>,
   ) {
     queryBuilder.cookies = cookies;
   }
 }
 
-export function CookieBuilder<T extends ClassConstructor>(schema: T): typeof CookieBuilderConstructor<T> {
+export function CookieBuilder<T extends ClassConstructor>(
+  schema: T,
+): typeof CookieBuilderConstructor<T> {
   return class extends CookieBuilderConstructor<T> {
     static readonly schema = schema;
   };

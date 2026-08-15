@@ -28,12 +28,12 @@ import {
 import { AccessTypes } from "./init";
 
 // для корректного проброса маркера в наследуемых классах используется ThisRef + DelayRefStack
-const SafeAccessMarker = ThisRef((<T extends typeof AccessController>(constructor: T) => [
+const SafeAccessMarker = ThisRef((<T extends typeof BaseAccessController>(constructor: T) => [
   UseMarker(constructor.setAccessMark),
 ]) as RefFunction);
 
 @Controller()
-export class AccessController {
+export class BaseAccessController {
   static readonly markerName: string;
 
   static readonly allowedAccessTypes: AccessTypes[] | string[];
@@ -106,7 +106,7 @@ export class AccessController {
   }
 
   @Middleware()
-  static async Init(@This() self: AccessController): Promise<void> {
+  static async Init(@This() self: BaseAccessController): Promise<void> {
     self.enabled = true;
   }
 
@@ -156,7 +156,7 @@ export class AccessController {
   static async CheckLayerPass(
     @Cursor() cursor: AomCursor,
     @Route() route: AomRoute,
-    @This() self: AccessController,
+    @This() self: BaseAccessController,
   ) {
     // слой считается пройденным, если роль с полным доступ без указания типа
     const { accessMap, activeAccessTypes: permissions } = self;
@@ -237,7 +237,7 @@ export class AccessController {
   @DelayRefStack(SafeAccessMarker)
   @Responses(AccessDenyResponse.JSONSchema())
   static async Required(
-    @This() self: AccessController,
+    @This() self: BaseAccessController,
     @Cursor() cursor: AomCursor,
     @Route() route: AomRoute,
   ): Promise<void | Error> {

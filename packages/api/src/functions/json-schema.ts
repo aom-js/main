@@ -3,7 +3,6 @@ import { Schemer } from "@aom-js/schemer";
 //
 import { type ClassConstructor } from "../types";
 
-
 const schemer = new Schemer(OpenApi.refPointerPrefix);
 export type pathVariants = "path" | "query" | "header" | "cookie";
 

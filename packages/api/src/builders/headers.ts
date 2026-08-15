@@ -6,7 +6,8 @@ import { Controller, DelayRefStack, Headers, Parameters } from "@aom-js/router";
 import { type ClassConstructor } from "../types";
 import { WrongDataResponse } from "../responses";
 import { SafeData } from "../decorators";
-import { HeaderJSONSchema } from "../common";
+import { HeaderJSONSchema } from "../schemas";
+import { HeaderBuildersBase } from "./common";
 
 const SafeOrigin = ThisRef((<T extends typeof HeadersBuilderConstructor>({ schema }: T) =>
   SafeData(schema)) as RefFunction);
@@ -19,16 +20,14 @@ const SafeOriginParameters = ThisRef((<T extends typeof HeadersBuilderConstructo
 class HeadersBuilderConstructor<
   T extends ClassConstructor,
   R = InstanceType<T>,
-> extends HeaderJSONSchema {
-  static readonly schema: ClassConstructor;
-
+> extends HeaderBuildersBase {
   headers!: R;
 
   // определить заголовок с его описанием в open-api
   @Middleware()
   @DelayRefStack(SafeOriginParameters)
   @Before(HeadersBuilderConstructor.ImplicitHeaders)
-  static async Headers() { }
+  static async Headers() {}
 
   // определить заголовок без его описания в open-api
   @Middleware()
@@ -41,7 +40,9 @@ class HeadersBuilderConstructor<
   }
 }
 
-export function HeadersBuilder<T extends ClassConstructor>(schema: T): typeof HeadersBuilderConstructor<T> {
+export function HeadersBuilder<T extends ClassConstructor>(
+  schema: T,
+): typeof HeadersBuilderConstructor<T> {
   return class extends HeadersBuilderConstructor<T> {
     static readonly schema = schema;
   };

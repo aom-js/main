@@ -5,24 +5,25 @@ import { type ClassConstructor } from "../types";
 import { WrongDataResponse } from "../responses";
 import { SafeData } from "../decorators";
 import { messages } from "../constants";
+import { QueryJSONSchema } from "../schemas";
+import { QueryStringBuildersBase } from "./common";
 
 //
-import { QueryStringJSONSchema } from "../common";
 
 const SafeOrigin = ThisRef((<T extends typeof QueryStringBuilderConstructor>({ schema }: T) =>
   SafeData(schema)) as RefFunction);
 
 const SafeOriginParameters = ThisRef((<T extends typeof QueryStringBuilderConstructor>(
   constructor: T,
-) => [QueryParameters(...constructor.JSONSchema())]) as RefFunction);
+) => {
+  return [QueryParameters(...constructor.JSONSchema())];
+}) as RefFunction);
 
 @Controller()
 class QueryStringBuilderConstructor<
   T extends ClassConstructor,
   R = InstanceType<T>,
-> extends QueryStringJSONSchema {
-  static readonly schema: ClassConstructor;
-
+> extends QueryStringBuildersBase {
   query!: R;
 
   @Middleware()
@@ -38,13 +39,15 @@ class QueryStringBuilderConstructor<
   @Responses(WrongDataResponse.JSONSchema())
   static async Query(
     @Query(SafeOrigin) query: any,
-    @This() queryBuilder: QueryStringBuilderConstructor<typeof QueryStringJSONSchema>,
+    @This() queryBuilder: QueryStringBuilderConstructor<typeof QueryJSONSchema>,
   ) {
     queryBuilder.query = query;
   }
 }
 
-export function QueryStringBuilder<T extends ClassConstructor>(schema: T): typeof QueryStringBuilderConstructor<T> {
+export function QueryStringBuilder<T extends ClassConstructor>(
+  schema: T,
+): typeof QueryStringBuilderConstructor<T> {
   return class extends QueryStringBuilderConstructor<T> {
     static readonly schema = schema;
   };
