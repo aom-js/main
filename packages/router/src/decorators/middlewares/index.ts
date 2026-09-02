@@ -6,13 +6,16 @@ import { FwdContainer, HandlerFunction, MarkerHandler, MiddlewareHandler } from 
 import { AomApi } from "../../common";
 // ************************************************ //
 // ...
-export function Before(...middlewares: MiddlewareHandler[]): CombinedDecorator {
+export function Before(...middlewares: Array<MiddlewareHandler | FwdContainer>): CombinedDecorator {
   // PREPEND: при наследовании родительские Before встают перед собственными Before потомка
   return AomApi.combinedDecorator(
     ($) => {
       $.element.addPreMiddlewares(
         ...middlewares
-          .map((middleware) => AomApi.instance(middleware))
+          .map((middleware) => (middleware instanceof FwdContainer ? middleware.exec() : middleware))
+          // ссылка могла зафиксировать статику родителя (Self.Method до отработки @Controller);
+          // доразрешаем её в контексте класса, объявившего декоратор
+          .map((middleware) => AomApi.resolveFor(AomApi.instance(middleware), $._.target))
           .filter(($) => $.element.isMiddleware),
       );
     },
@@ -24,11 +27,12 @@ export function Before(...middlewares: MiddlewareHandler[]): CombinedDecorator {
 // export const UseBefore = Use;
 
 // ...
-export function After(...middlewares: MiddlewareHandler[]): CombinedDecorator {
+export function After(...middlewares: Array<MiddlewareHandler | FwdContainer>): CombinedDecorator {
   return AomApi.combinedDecorator(($) => {
     $.element.addPostMiddlewares(
       ...middlewares
-        .map((middleware) => AomApi.instance(middleware))
+        .map((middleware) => (middleware instanceof FwdContainer ? middleware.exec() : middleware))
+        .map((middleware) => AomApi.resolveFor(AomApi.instance(middleware), $._.target))
         .filter(($) => $.element.isMiddleware),
     );
   }, ExecutionPhase.LAST);
@@ -76,9 +80,12 @@ export function Marker(): MethodDecorator {
 
 // ************************************************ //
 // ...
-export function UseMarker(handler: MarkerHandler): MethodDecorator {
+export function UseMarker(handler: MarkerHandler | FwdContainer): MethodDecorator {
   return AomApi.methodDecorator(($, descriptor) => {
-    const marker = AomApi.instance(handler);
+    const marker = AomApi.resolveFor(
+      AomApi.instance(handler instanceof FwdContainer ? handler.exec() : handler),
+      $._.target,
+    );
     if (marker.element.isMarker) {
       $.element.descriptor = descriptor;
       $.element.markers.push(marker);
@@ -91,8 +98,9 @@ export function UseMarker(handler: MarkerHandler): MethodDecorator {
 // ************************************************ //
 export function Next(handler: HandlerFunction | FwdContainer): MethodDecorator {
   return AomApi.methodDecorator(($, descriptor) => {
-    const handlerInstance = AomApi.instance(
-      handler instanceof FwdContainer ? handler.exec() : handler,
+    const handlerInstance = AomApi.resolveFor(
+      AomApi.instance(handler instanceof FwdContainer ? handler.exec() : handler),
+      $._.target,
     );
     if (handlerInstance.element.isNextpoint) {
       $.element.addNextpoint(handlerInstance);

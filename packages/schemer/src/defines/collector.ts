@@ -56,6 +56,7 @@ export class SchemasCollector {
     if (scalar) {
       return { ...scalar };
     }
+
     const saved = AomSchemas.checkExists(schema);
     if (saved && saved.isComponentSchema) {
       const { name } = saved._.target;

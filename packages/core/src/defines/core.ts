@@ -505,6 +505,18 @@ export class AomCore {
     return instance;
   }
 
+  // позднее доразрешение ссылки на статику по контекстному классу: если инстанс `$`
+  // привязан к родителю контекста, вернуть инстанс каррированной копии потомка
+  static resolveFor<T extends AomCore>(this: AomClass<T>, $: T, context: ClassConstructor): T {
+    const { target, property } = $._;
+    // Object.hasOwn обязателен: собственная копия появляется у потомка только при inherit();
+    // без неё instance() создал бы пустой инстанс без дескриптора вместо корректного
+    if (property && context.prototype instanceof target && Object.hasOwn(context, property)) {
+      return this.instance(context, property);
+    }
+    return $;
+  }
+
   // Используем AOMClass для 'this'
   static classDecorator<T extends AomCore>(
     this: AomClass<T>,

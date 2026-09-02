@@ -6,7 +6,11 @@ export class PlainBuildersBase {
   static readonly schema: ClassConstructor;
 
   static JSONSchema(path: pathVariants): OpenApiParameterObject[] {
-    console.log("PlainBuildersBase render", this, this.schema);
+    if (!this.schema) {
+      throw new Error(
+        `schema is not defined for ${this.name}: вероятно, ссылка зафиксировала базовый класс билдера вместо потомка`,
+      );
+    }
     return plainJsonSchema(this.schema, path);
   }
 }

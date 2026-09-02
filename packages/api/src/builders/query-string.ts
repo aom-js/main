@@ -30,7 +30,7 @@ class QueryStringBuilderConstructor<
   @Responses(WrongDataResponse.JSONSchema())
   static async NotEmpty(@Query(SafeOrigin) query: any) {
     if (!Object.entries(query).length) {
-      return new WrongDataResponse(messages.REQUIRED_DATA_MISSING);
+      throw new WrongDataResponse(messages.REQUIRED_DATA_MISSING);
     }
   }
 

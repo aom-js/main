@@ -159,6 +159,9 @@ export class AomApi extends AomCore {
 
   delayStack: Array<FwdContainer | RouteRefContainer | ThisRefContainer> = [];
 
+  // признак однократной реализации delayStack (см. AomCursor.realizeDelay)
+  delayRealized = false;
+
   title?: string;
 
   description?: string;
@@ -211,13 +214,10 @@ export class AomCursor {
   $: AomApi;
 
   constructor($: AomApi, origin: AomApi, prefix: string, endpoint?: AomEndpoint) {
-    // если $ ссылается на родительский класс относительно места сцепки —
-    // перепривяжемся к инстансу потомка до реализации отложенного стека
-    if ($._.property && origin._.target.prototype instanceof $._.target) {
-      $ = $._.base.instance(origin._.target, $._.property);
-    }
-
-    this.$ = $;
+    // если $ ссылается на статику родительского класса относительно места сцепки —
+    // перепривяжемся к инстансу потомка до реализации отложенного стека, иначе ThisRef
+    // получит класс без унаследованных значений (например, без schema у билдеров)
+    this.$ = AomApi.resolveFor($, origin._.target);
     this.origin = origin;
     this.prefix = prefix;
     this.endpoint = endpoint;
@@ -230,20 +230,20 @@ export class AomCursor {
     const { $ } = this;
 
     const { target, property } = $._;
-    // такая процедура используется для того, чтобы на одном и том же курсоре не вызывать повторно отложенный стек
-    // то есть в изолированном контексте он вызывается однократно, а затем удаляется из очереди
-    if ($.delayStack.length) {
-      while ($.delayStack.length) {
-        const handler = $.delayStack.shift();
+    // отложенный стек реализуется на инстансе однократно; при ошибке признак не взводится
+    // и стек не расходуется — проблема привязки воспроизводится на каждой сборке, а не гаснет тихо
+    if (!$.delayRealized && $.delayStack.length) {
+      for (const handler of $.delayStack) {
         // вызовем отложенные действия
         if (handler instanceof FwdContainer) {
           Reflect.decorate([...handler.exec()], target, property!);
         } else if (handler instanceof ThisRefContainer) {
-          Reflect.decorate([...handler.exec(this.$._.target)], target, property!);
+          Reflect.decorate([...handler.exec(target)], target, property!);
         } else if (handler instanceof RouteRefContainer) {
           Reflect.decorate([...handler.exec(this.endpoint!.$._.target)], target, property!);
         }
       }
+      $.delayRealized = true;
       // применим вероятные отложенные вызовы
       $._.apply();
     }
@@ -294,12 +294,7 @@ export class AomRoute {
 
   private plain(cursors: AomCursor[]) {
     cursors.forEach((cursor) => {
-      // если текущий применяет курсор использует контекст, который тянется из его собственного
-      // родительского класса то есть сработало наследование, но перенос контекста не состоялся
-      if (cursor.origin._.target.prototype instanceof cursor.$._.target) {
-        // то заменим в текущем курсоре его основание из контекста собственного класса места сцепки
-        cursor.$ = cursor.$._.base.instance(cursor.origin._.target, cursor.$._.property);
-      }
+      // перепривязка контекста к потомку выполняется в конструкторе AomCursor (resolveFor)
 
       // сначала загоним в качестве значений собственные миддлвари текущего курсора
       this.plain(
