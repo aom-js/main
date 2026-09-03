@@ -163,7 +163,7 @@ export const script = String.raw`
   }
 
   function schemaChip(name) {
-    var chip = el("div", { "class": "chip", "data-key": "schema:" + name },
+    var chip = el("div", { "class": "chip schema-ref" },
       el("span", { "class": "t", text: name }));
     chip.addEventListener("click", function (event) { event.stopPropagation(); select("schema", name); });
     return chip;
@@ -213,16 +213,6 @@ export const script = String.raw`
       section("middleware после", item.post.length ? el("div", { "class": "chips" }, item.post.map(middlewareChip)) : null),
       section("хуки инстанса", item.hooks.length ? el("div", { "class": "chips" }, item.hooks.map(middlewareChip)) : null),
       section("маркеры", item.markers.length ? el("div", { "class": "chips" }, item.markers.map(middlewareChip)) : null),
-      section("маршруты", item.routes.length
-        ? el("div", { "class": "chips" }, item.routes.map(function (id) {
-            var route = routeIndex.get(id);
-            var chip = el("div", { "class": "chip", "data-key": "route-link:" + id },
-              el("span", { "class": "method " + route.method, text: route.method }),
-              el("span", { "class": "t", text: route.path }));
-            chip.addEventListener("click", function (event) { event.stopPropagation(); select("route", id); });
-            return chip;
-          }))
-        : el("div", { "class": "empty", text: "собственных маршрутов нет" })),
       section("прочие звенья класса", otherMembers(item).length
         ? el("div", { "class": "chips" }, otherMembers(item).map(function (member) {
             return middlewareChip(member.id);
@@ -238,7 +228,7 @@ export const script = String.raw`
           }))
         : null));
 
-    var node = card("controller:" + item.id, [head, counts], body, item.depth < 2);
+    var node = card("controller:" + item.id, [head, counts], body, true);
     node.setAttribute("data-search", (item.id + " " + prefix + " " + (item.title || "")).toLowerCase());
     node.addEventListener("click", function (event) {
       if (event.target.closest(".chip, .step, .row.link")) return;
@@ -260,30 +250,48 @@ export const script = String.raw`
     return item.members.filter(function (member) { return !shown.has(member.id); });
   }
 
-  function controllerTree(id, prefix, stack) {
-    var item = controllerIndex.get(id);
-    if (!item) return null;
-    if (stack.indexOf(id) >= 0) {
-      var repeat = el("div", { "class": "repeat", text: "\u21BA " + id + " (уже раскрыт выше)" });
-      repeat.addEventListener("click", function () { select("controller", id); });
-      return repeat;
-    }
-    var nextStack = stack.concat([id]);
-    var wrap = el("div", { "class": "tree" }, controllerCard(item, prefix));
-    if (item.bridges.length) {
-      var kids = el("div", { "class": "kids" });
-      item.bridges.forEach(function (bridge) {
-        var child = controllerTree(bridge.target, joinPrefix(prefix, bridge.prefix), nextStack);
-        if (child) kids.appendChild(child);
-      });
-      wrap.appendChild(kids);
-    }
-    return wrap;
+  /**
+   * Раскладка по уровням вложенности: столбец — это глубина от корня, внутри
+   * столбца одноранговые контроллеры идут сверху вниз. Обход в глубину, поэтому
+   * потомки одного родителя оказываются в столбце рядом друг с другом.
+   */
+  function layoutLevels() {
+    var levels = [];
+    var placed = new Set();
+
+    (function walk(id, depth) {
+      if (!id || placed.has(id)) return;
+      var item = controllerIndex.get(id);
+      if (!item) return;
+      placed.add(id);
+      if (!levels[depth]) levels[depth] = [];
+      levels[depth].push(id);
+      item.bridges.forEach(function (bridge) { walk(bridge.target, depth + 1); });
+    })(graph.root, 0);
+
+    // контроллеры, до которых от корня не ведёт ни один бридж (например, объявившие
+    // endpoint через наследование) — отдельным столбцом в конце, а не вперемешку
+    var orphans = graph.controllers
+      .filter(function (item) { return !placed.has(item.id); })
+      .map(function (item) { return item.id; });
+    if (orphans.length) levels.push(orphans);
+
+    return levels;
   }
 
-  function joinPrefix(prefix, next) {
-    var parts = (prefix + "/" + next).split("/").filter(Boolean);
-    return "/" + parts.join("/");
+  /** Контроллер вместе со своими методами — они живут прямо под ним */
+  function controllerGroup(item) {
+    var group = el("div", { "class": "group" }, controllerCard(item, item.prefixes[0] || "/"));
+    var methods = el("div", { "class": "methods" });
+    item.routes.forEach(function (id) {
+      var route = routeIndex.get(id);
+      if (route) methods.appendChild(methodCard(route));
+    });
+    if (!item.routes.length) {
+      methods.appendChild(el("div", { "class": "empty", text: "методов нет" }));
+    }
+    group.appendChild(methods);
+    return group;
   }
 
   // ------------------------------------------------------------ маршруты
@@ -303,7 +311,7 @@ export const script = String.raw`
     return el("span", { "class": "ptype", text: schema.label });
   }
 
-  function routeCard(route) {
+  function methodCard(route) {
     var head = el("div", { "class": "grow" },
       el("span", { "class": "method " + route.method, text: route.method }),
       " ",
@@ -367,40 +375,75 @@ export const script = String.raw`
       section("защита", route.security.length ? el("div", { "class": "chips" }, route.security.map(function (name) {
         return el("div", { "class": "chip" }, el("span", { "class": "t", text: name }));
       })) : null),
-      section("схемы", route.schemas.length ? el("div", { "class": "chips" }, route.schemas.map(schemaChip)) : null),
+      section("структуры данных", route.schemas.length
+        ? el("div", { "class": "schemas" }, route.schemas.map(function (name) {
+            return schemaBlock(route, name);
+          }))
+        : null),
       section("маркеры", Object.keys(route.markers).length
         ? el("pre", { "class": "markers", text: JSON.stringify(route.markers, null, 2) })
         : null));
 
     var node = card("route:" + route.id, head, body, false);
+    node.classList.add("method-card");
     node.setAttribute("data-search",
       (route.method + " " + route.path + " " + route.operationId + " " + (route.title || "") + " " +
-        route.chain.map(function (step) { return step.id; }).join(" ")).toLowerCase());
+        route.chain.map(function (step) { return step.id; }).join(" ") + " " +
+        route.schemas.join(" ")).toLowerCase());
     node.addEventListener("click", function (event) {
-      if (event.target.closest(".chip, .step, .row.link")) return;
+      if (event.target.closest(".chip, .step, .row.link, .schema-block")) return;
       select("route", route.id);
     });
     return node;
   }
 
-  // -------------------------------------------------------------- схемы
+  // ------------------------------------------------- структуры данных
 
-  function schemaCard(schema) {
-    var head = el("div", { "class": "grow" }, el("span", { "class": "id", text: schema.id }));
-    var counts = el("span", { "class": "count", text: schema.properties.length + " п." });
+  /**
+   * Структура данных внутри метода: общего списка схем на странице нет, каждая
+   * показывается там, где используется. Шеврон раскрывает состав, «подсветить»
+   * находит эту же структуру во всех остальных методах.
+   *
+   * data-key у всех вхождений одной схемы одинаков — на нём держится подсветка;
+   * data-occ уникален и нужен, чтобы связать вхождения линиями.
+   */
+  function schemaBlock(route, name) {
+    var schema = schemaIndex.get(name);
+    if (!schema) {
+      return el("div", { "class": "empty", text: name + " — вне текущего среза" });
+    }
+
+    var occurrences = schema.usedBy.length;
+
+    var highlight = el("button", {
+      "class": "hl",
+      type: "button",
+      title: "показать эту структуру в остальных методах"
+    }, "подсветить");
+    highlight.addEventListener("click", function (event) {
+      event.stopPropagation();
+      select("schema", name);
+    });
+
+    var head = el("div", { "class": "grow" },
+      el("span", { "class": "id", text: name }),
+      occurrences > 1 ? el("span", { "class": "count " + sharedClass(occurrences), text: occurrences }) : null);
 
     var rows = schema.properties.length
       ? el("div", null, schema.properties.map(function (property) {
           var row = el("div", {
             "class": "row" + (property.ref ? " link" : ""),
-            "data-key": property.ref ? "prop:" + schema.id + ">" + property.name : null,
             title: property.description || ""
           },
             el("span", { "class": "pname", text: property.name }),
             property.required ? el("span", { "class": "req", text: "*" }) : null,
             el("span", { "class": "ptype", text: property.type + (property.nullable ? " | null" : "") }));
+          // вложенная структура выбирается так же, как и через «подсветить»
           if (property.ref) {
-            row.addEventListener("click", function (event) { event.stopPropagation(); select("schema", property.ref); });
+            row.addEventListener("click", function (event) {
+              event.stopPropagation();
+              select("schema", property.ref);
+            });
           }
           return row;
         }))
@@ -409,27 +452,13 @@ export const script = String.raw`
     var body = el("div", null,
       schema.description ? el("div", { "class": "note", text: schema.description }) : null,
       rows,
-      section("используется маршрутами", schema.usedBy.length
-        ? el("div", { "class": "chips" }, schema.usedBy.map(function (id) {
-            var route = routeIndex.get(id);
-            var chip = el("div", { "class": "chip" },
-              el("span", { "class": "method " + route.method, text: route.method }),
-              el("span", { "class": "t", text: route.path }));
-            chip.addEventListener("click", function (event) { event.stopPropagation(); select("route", id); });
-            return chip;
-          }))
-        : el("div", { "class": "empty", text: "напрямую не используется" })),
-      section("ссылаются", schema.referencedBy.length
-        ? el("div", { "class": "chips" }, schema.referencedBy.map(schemaChip))
-        : null));
+      schema.referencedBy.length
+        ? section("ссылаются", el("div", { "class": "chips" }, schema.referencedBy.map(schemaChip)))
+        : null);
 
-    var node = card("schema:" + schema.id, [head, counts], body, true);
-    node.setAttribute("data-search",
-      (schema.id + " " + schema.properties.map(function (one) { return one.name; }).join(" ")).toLowerCase());
-    node.addEventListener("click", function (event) {
-      if (event.target.closest(".chip, .step, .row.link")) return;
-      select("schema", schema.id);
-    });
+    var node = card("schema:" + name, [head, highlight], body, false);
+    node.classList.add("schema-block");
+    node.setAttribute("data-occ", route.id + "|" + name);
     return node;
   }
 
@@ -453,21 +482,19 @@ export const script = String.raw`
 
     lanes.textContent = "";
 
-    var controllersLane = el("div", { "class": "lane" }, el("div", { "class": "lane-title", text: "Контроллеры" }));
-    var tree = controllerTree(graph.root, rootPrefix(), []);
-    controllersLane.appendChild(tree || el("div", { "class": "empty", text: "контроллеров нет" }));
-
-    var routesLane = el("div", { "class": "lane wide" }, el("div", { "class": "lane-title", text: "Маршруты" }));
-    graph.routes.forEach(function (route) { routesLane.appendChild(routeCard(route)); });
-    if (!graph.routes.length) routesLane.appendChild(el("div", { "class": "empty", text: "маршрутов нет" }));
-
-    var schemasLane = el("div", { "class": "lane" }, el("div", { "class": "lane-title", text: "Схемы данных" }));
-    graph.schemas.forEach(function (schema) { schemasLane.appendChild(schemaCard(schema)); });
-    if (!graph.schemas.length) schemasLane.appendChild(el("div", { "class": "empty", text: "схем нет" }));
-
-    lanes.appendChild(controllersLane);
-    lanes.appendChild(routesLane);
-    lanes.appendChild(schemasLane);
+    var levels = layoutLevels();
+    if (!levels.length) {
+      lanes.appendChild(el("div", { "class": "empty", text: "контроллеров нет" }));
+    }
+    levels.forEach(function (ids, depth) {
+      var column = el("div", { "class": "level" },
+        el("div", { "class": "lane-title", text: depth === 0 ? "корень" : "уровень " + depth }));
+      ids.forEach(function (id) {
+        var item = controllerIndex.get(id);
+        if (item) column.appendChild(controllerGroup(item));
+      });
+      lanes.appendChild(column);
+    });
 
     var stats = document.getElementById("stats");
     stats.textContent = "";
@@ -499,12 +526,6 @@ export const script = String.raw`
     if (input.value) input.dispatchEvent(new Event("input", { bubbles: true }));
 
     applySelection();
-  }
-
-  /** Префикс, с которого начинается дерево среза: у неполного вида он не «/» */
-  function rootPrefix() {
-    var item = controllerIndex.get(graph.root);
-    return item && item.prefixes.length ? item.prefixes[0] : "/";
   }
 
   function setRoot(rootId) {
@@ -812,24 +833,34 @@ export const script = String.raw`
   // --------------------------------------------------------------- связи
 
   var pending = null;
+  var fallback = null;
+
+  function flush() {
+    if (pending) { cancelAnimationFrame(pending); pending = null; }
+    if (fallback) { clearTimeout(fallback); fallback = null; }
+    clampView();
+    applyView();
+    drawWires();
+  }
+
+  /**
+   * Перерисовка на следующем кадре, но с запасным таймером: в скрытой вкладке
+   * requestAnimationFrame не вызывается вовсе, и слой связей оставался бы
+   * устаревшим до возвращения фокуса. Что сработает первым — то и сбросит второе.
+   */
   function schedule() {
     if (pending) cancelAnimationFrame(pending);
-    pending = requestAnimationFrame(function () {
-      pending = null;
-      clampView();
-      applyView();
-      drawWires();
-    });
+    if (fallback) clearTimeout(fallback);
+    pending = requestAnimationFrame(flush);
+    fallback = setTimeout(flush, 250);
   }
 
   function visible(node) {
     return !!node && !!node.offsetParent && !node.closest(".is-hidden");
   }
 
-  /** Точка привязки в координатах полотна; свёрнутая строка отдаёт свою карточку */
-  function anchor(key, fallbackKey) {
-    var node = document.querySelector('[data-key="' + cssEscape(key) + '"]');
-    if (!visible(node) && fallbackKey) node = document.querySelector('[data-key="' + cssEscape(fallbackKey) + '"]');
+  /** Точка привязки узла в координатах полотна */
+  function anchorNode(node) {
     if (!visible(node)) return null;
     var stageRect = stage.getBoundingClientRect();
     var rect = node.getBoundingClientRect();
@@ -839,6 +870,26 @@ export const script = String.raw`
       top: (rect.top - stageRect.top) / view.scale,
       middle: (rect.top + rect.height / 2 - stageRect.top) / view.scale
     };
+  }
+
+  function controllerAnchor(id) {
+    return anchorNode(document.querySelector('.card[data-key="controller:' + cssEscape(id) + '"]'));
+  }
+
+  /**
+   * Вхождения структуры данных на полотне. Свёрнутый метод свой блок не показывает —
+   * тогда привязываемся к карточке метода, чтобы линия всё равно куда-то вела.
+   */
+  function occurrences(name) {
+    var out = [];
+    document.querySelectorAll('.schema-block[data-occ$="|' + cssEscape(name) + '"]').forEach(function (node) {
+      if (visible(node)) out.push(node);
+      else {
+        var method = node.closest(".method-card");
+        if (visible(method) && out.indexOf(method) < 0) out.push(method);
+      }
+    });
+    return out;
   }
 
   function path(from, to) {
@@ -858,52 +909,43 @@ export const script = String.raw`
     wires.setAttribute("height", stage.offsetHeight);
 
     var hits = selection ? hitsFor(selection.type, selection.id) : null;
-    var edges = [];
-
-    // связи схема → схема: постоянная часть картины, это и есть ER-слой
-    graph.schemas.forEach(function (schema) {
-      schema.refs.forEach(function (edge) {
-        edges.push({
-          from: "prop:" + schema.id + ">" + edge.property,
-          fromCard: "schema:" + schema.id,
-          to: "schema:" + edge.target,
-          kind: "er",
-          hot: !!hits && hits.has("schema:" + schema.id) && hits.has("schema:" + edge.target)
-        });
-      });
-    });
-
-    // связи маршрут → схема и контроллер → маршрут: только по выбору либо по флагу
-    graph.routes.forEach(function (route) {
-      var routeHot = !!hits && hits.has("route:" + route.id);
-      if (!allWires && !routeHot) return;
-      edges.push({
-        from: "controller:" + route.controller,
-        to: "route:" + route.id,
-        kind: "use",
-        hot: routeHot
-      });
-      route.schemas.forEach(function (name) {
-        edges.push({
-          from: "route:" + route.id,
-          to: "schema:" + name,
-          kind: "use",
-          hot: routeHot && !!hits && hits.has("schema:" + name)
-        });
-      });
-    });
-
     var fragment = document.createDocumentFragment();
-    edges.forEach(function (edge) {
-      var from = anchor(edge.from, edge.fromCard);
-      var to = anchor(edge.to);
+
+    function line(from, to, kind, hot) {
       if (!from || !to) return;
-      if (hits && !edge.hot && edge.kind === "er") return;
       var node = document.createElementNS("http://www.w3.org/2000/svg", "path");
       node.setAttribute("d", path(from, to));
-      node.setAttribute("class", edge.kind + (edge.hot ? " hot" : ""));
+      node.setAttribute("class", kind + (hot ? " hot" : ""));
       fragment.appendChild(node);
+    }
+
+    // бриджи: постоянный каркас картины, ровно он и задаёт раскладку по уровням
+    graph.controllers.forEach(function (item) {
+      var from = controllerAnchor(item.id);
+      if (!from) return;
+      item.bridges.forEach(function (bridge) {
+        var hot = !!hits && hits.has("controller:" + item.id) && hits.has("controller:" + bridge.target);
+        line(from, controllerAnchor(bridge.target), "bridge", hot);
+      });
     });
+
+    // повторы структуры данных: по выбранной схеме либо по всем сразу
+    var names = [];
+    if (selection && selection.type === "schema") {
+      names = [selection.id];
+    } else if (allWires) {
+      names = graph.schemas
+        .filter(function (item) { return item.usedBy.length > 1; })
+        .map(function (item) { return item.id; });
+    }
+
+    names.forEach(function (name) {
+      var nodes = occurrences(name);
+      for (var i = 1; i < nodes.length; i++) {
+        line(anchorNode(nodes[i - 1]), anchorNode(nodes[i]), "use", true);
+      }
+    });
+
     wires.appendChild(fragment);
   }
 

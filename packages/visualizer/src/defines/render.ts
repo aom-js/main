@@ -76,8 +76,8 @@ export function renderVisualGraph(graph: VisualGraph, options: RenderOptions = {
       <div><i class="swatch" style="background:var(--shared-2)"></i> звено в 6–12 маршрутах</div>
       <div><i class="swatch" style="background:var(--shared-3)"></i> звено более чем в 12 маршрутах</div>
       <div><i class="swatch" style="background:var(--accent)"></i> endpoint маршрута</div>
-      <div>сплошная линия — связь схем (ER)</div>
-      <div>пунктир — использование схемы маршрутом</div>
+      <div>сплошная линия — бридж между контроллерами</div>
+      <div>пунктир — одна структура данных в разных методах</div>
       <div>▶ — свернуть/развернуть, клик по названию — выделение</div>
       <div>перетаскивание — панорама, ⌘/Ctrl + колесо — зум, Esc — сброс</div>
       <div>корень вида — в адресе после #, вид собирается на клиенте</div>
@@ -86,7 +86,7 @@ export function renderVisualGraph(graph: VisualGraph, options: RenderOptions = {
   <div class="viewport" id="viewport">
     <div class="stage" id="stage">
       <svg class="wires" id="wires" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div class="lanes" id="lanes"></div>
+      <div class="levels" id="lanes"></div>
     </div>
   </div>
 </div>

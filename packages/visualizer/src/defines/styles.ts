@@ -245,13 +245,25 @@ button, select, input { font: inherit; color: inherit; }
 }
 
 .wires path.hot { stroke: var(--wire-hot); stroke-width: 1.8; opacity: 1; }
-.wires path.er { stroke-dasharray: none; }
+.wires path.bridge { stroke-dasharray: none; opacity: .55; }
 .wires path.use { stroke-dasharray: 4 3; }
 
-.lanes { display: flex; align-items: flex-start; gap: 46px; position: relative; }
+/* Уровни вложенности: столбец — глубина от корня, внутри столбца одноранговые
+   контроллеры идут сверху вниз, методы — прямо под своим контроллером. */
+.levels { display: flex; align-items: flex-start; gap: 70px; position: relative; }
 
-.lane { display: flex; flex-direction: column; gap: 8px; width: 340px; flex: none; }
-.lane.wide { width: 400px; }
+.level { display: flex; flex-direction: column; gap: 22px; width: 400px; flex: none; }
+
+.group { display: flex; flex-direction: column; gap: 6px; }
+
+.methods {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-left: 16px;
+  padding-left: 13px;
+  border-left: 1px dashed var(--line);
+}
 
 .lane-title {
   position: sticky;
@@ -334,10 +346,6 @@ button, select, input { font: inherit; color: inherit; }
 
 /* ------------------------------------------------------------- контроллеры */
 
-.tree { display: flex; flex-direction: column; gap: 6px; }
-.tree .kids { margin-left: 12px; padding-left: 10px; border-left: 1px dashed var(--line); }
-.tree .kids > * { margin-top: 6px; }
-
 .prefix {
   font-family: var(--font);
   font-size: 10px;
@@ -347,17 +355,31 @@ button, select, input { font: inherit; color: inherit; }
   padding: 1px 5px;
 }
 
-.repeat {
-  font-family: var(--font);
-  font-size: 11px;
+/* ------------------------------------------------- структуры данных */
+
+.schemas { display: flex; flex-direction: column; gap: 4px; }
+
+.card.schema-block { background: var(--panel-2); border-style: dashed; }
+.card.schema-block > .head { background: transparent; padding: 4px 6px; }
+.card.schema-block > .head .id { font-weight: 500; }
+.card.schema-block > .body { padding: 5px 7px; }
+
+/* «подсветить» — единственное действие блока помимо сворачивания */
+.hl {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 20px;
   color: var(--muted);
-  border: 1px dashed var(--line);
-  border-radius: 6px;
-  padding: 4px 7px;
+  font-size: 10px;
+  padding: 1px 7px;
   cursor: pointer;
+  flex: none;
 }
 
-.repeat:hover { color: var(--accent); border-color: var(--accent); }
+.hl:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.card.schema-block.is-hit > .head .hl { border-color: var(--accent); color: var(--accent); }
+
+.chip.schema-ref { border-style: dashed; }
 
 /* ---------------------------------------------------------------- чипы */
 
