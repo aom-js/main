@@ -23,6 +23,7 @@ export default defineConfig({
       "@aom-js/transfer": resolve(__dirname, "packages/transfer/src"),
       "@aom-js/codegen": resolve(__dirname, "packages/codegen/src"),
       "@aom-js/holder": resolve(__dirname, "packages/holder/src"),
+      "@aom-js/visualizer": resolve(__dirname, "packages/visualizer/src"),
     },
   },
   test: {

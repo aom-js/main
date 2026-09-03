@@ -8,9 +8,14 @@ export class Router {
 
   sockets: AomRoute[] = [];
 
+  // класс, от которого собрано дерево: маршрут знает свой роутер, но не его корень,
+  // а инструментам обхода (визуализация, кодогенерация) нужна точка входа
+  readonly root: ClassType;
+
   // private routesMap: Map<string, AomRoute>;
 
   constructor(root: ClassType, docs: OpenApi) {
+    this.root = root;
     const rootInstance = AomApi.instance(root);
     // this.routesMap = new Map();
     this.build(rootInstance);
