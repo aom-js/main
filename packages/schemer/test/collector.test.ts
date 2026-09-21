@@ -69,7 +69,13 @@ describe("schemer: сборщик компонент (каскад $ref)", () =>
     expect(collector.extract("number")).toEqual({ type: "number" });
     expect(collector.extract("integer")).toEqual({ type: "integer" });
     expect(collector.extract("boolean")).toEqual({ type: "boolean" });
-    expect(collector.extract("date")).toEqual({ type: "string", format: "date-time" });
+    // KI-SCHEMER-08: форма совпадает с тем, что class-validator-jsonschema даёт для IsDate
+    expect(collector.extract("date")).toEqual({
+      oneOf: [
+        { format: "date", type: "string" },
+        { format: "date-time", type: "string" },
+      ],
+    });
   });
 
   it("неизвестное имя скаляра — ошибка на месте", () => {

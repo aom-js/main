@@ -1,4 +1,4 @@
-/** Стили страницы визуализатора: инлайнятся в документ, внешних загрузок нет */
+/** CSS for the visualizer page; inlined into the document by `renderVisualGraph`, no external loads. */
 export const styles = `
 :root {
   color-scheme: light dark;
@@ -68,7 +68,7 @@ html, body {
 
 button, select, input { font: inherit; color: inherit; }
 
-/* ---------------------------------------------------------------- шапка */
+/* ---------------------------------------------------------------- header */
 
 .top {
   display: flex;
@@ -127,7 +127,7 @@ button, select, input { font: inherit; color: inherit; }
 .btn:hover { border-color: var(--accent); color: var(--accent); }
 .btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 
-/* ------------------------------------------------------------- раскладка */
+/* ------------------------------------------------------------- layout */
 
 .body { display: flex; height: calc(100% - 45px); }
 
@@ -206,7 +206,7 @@ button, select, input { font: inherit; color: inherit; }
   margin-bottom: 6px;
 }
 
-/* --------------------------------------------------------------- полотно */
+/* --------------------------------------------------------------- canvas */
 
 .viewport {
   flex: 1;
@@ -248,8 +248,8 @@ button, select, input { font: inherit; color: inherit; }
 .wires path.bridge { stroke-dasharray: none; opacity: .55; }
 .wires path.use { stroke-dasharray: 4 3; }
 
-/* Уровни вложенности: столбец — глубина от корня, внутри столбца одноранговые
-   контроллеры идут сверху вниз, методы — прямо под своим контроллером. */
+/* Nesting levels: a column is the depth from the root; within a column, sibling
+   controllers are stacked top to bottom, and methods sit directly under their controller. */
 .levels { display: flex; align-items: flex-start; gap: 70px; position: relative; }
 
 .level { display: flex; flex-direction: column; gap: 22px; width: 400px; flex: none; }
@@ -275,7 +275,7 @@ button, select, input { font: inherit; color: inherit; }
   padding-bottom: 2px;
 }
 
-/* --------------------------------------------------------------- карточки */
+/* --------------------------------------------------------------- cards */
 
 .card {
   background: var(--panel);
@@ -300,7 +300,7 @@ button, select, input { font: inherit; color: inherit; }
 
 .card.open > .head { border-bottom-color: var(--line-soft); }
 
-/* шеврон — отдельная кнопка сворачивания, поэтому у него своя зона попадания */
+/* chevron is a separate collapse button, so it gets its own hit area */
 .card > .head .chev {
   color: var(--muted);
   font-size: 9px;
@@ -344,7 +344,7 @@ button, select, input { font: inherit; color: inherit; }
 
 .note { color: var(--muted); font-size: 11px; line-height: 1.4; }
 
-/* ------------------------------------------------------------- контроллеры */
+/* ------------------------------------------------------------- controllers */
 
 .prefix {
   font-family: var(--font);
@@ -355,7 +355,7 @@ button, select, input { font: inherit; color: inherit; }
   padding: 1px 5px;
 }
 
-/* ------------------------------------------------- структуры данных */
+/* ------------------------------------------------- data structures */
 
 .schemas { display: flex; flex-direction: column; gap: 4px; }
 
@@ -364,7 +364,7 @@ button, select, input { font: inherit; color: inherit; }
 .card.schema-block > .head .id { font-weight: 500; }
 .card.schema-block > .body { padding: 5px 7px; }
 
-/* «подсветить» — единственное действие блока помимо сворачивания */
+/* "highlight" is the block's only action besides collapsing */
 .hl {
   background: transparent;
   border: 1px solid var(--line);
@@ -381,7 +381,7 @@ button, select, input { font: inherit; color: inherit; }
 
 .chip.schema-ref { border-style: dashed; }
 
-/* ---------------------------------------------------------------- чипы */
+/* ---------------------------------------------------------------- chips */
 
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
 
@@ -427,7 +427,7 @@ button, select, input { font: inherit; color: inherit; }
 .method.options, .method.all { background: var(--muted); }
 .method.sockets { background: var(--sockets); }
 
-/* --------------------------------------------------------------- цепочка */
+/* --------------------------------------------------------------- chain */
 
 .chain { display: flex; flex-direction: column; gap: 2px; }
 
@@ -455,7 +455,7 @@ button, select, input { font: inherit; color: inherit; }
 .step.kind-hook .dot { background: var(--get); }
 .step.kind-endpoint .t, .step.kind-websocket .t { font-weight: 600; }
 
-/* --------------------------------------------------------------- таблицы */
+/* --------------------------------------------------------------- tables */
 
 table.grid { width: 100%; border-collapse: collapse; font-family: var(--font); font-size: 11px; }
 table.grid td { padding: 2px 4px; border-top: 1px solid var(--line-soft); vertical-align: top; }

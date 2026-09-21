@@ -29,7 +29,37 @@ type Intersection<T extends Type[]> = MappedType<
 >;
 
 /**
- * @publicApi
+ * Builds a new component whose properties are the union of every listed class's own properties.
+ *
+ * Same rebuild mechanism as the other mapped-types, applied across several sources: for each class in
+ * `classRefs`, walks its own decorated properties and re-applies each property's original
+ * `PropertySchema.*` factory unchanged. Properties are collected into two maps (static and instance)
+ * keyed by name, so when the same property name appears in more than one source class, the last class
+ * passed wins. The result is a component under the fixed class name `IntersectionClassType`
+ * (`KI-SCHEMER-07`) — wrap it in a named subclass before using it as a `$ref` target. Composes with
+ * the other mapped-types, including recursively (`IntersectionType(A, PartialType(B))`).
+ *
+ * @param classRefs - classes decorated with `@ComponentSchema()`; later entries win on name conflicts
+ * @returns a new anonymous component class with the combined properties of `classRefs`
+ * @throws {Error} if any of `classRefs` is not a `@ComponentSchema` class
+ *
+ * @example
+ * ```ts
+ * import { ComponentSchema, PropertySchema, IntersectionType, PickType } from "@aom-js/schemer";
+ * import { entities } from "./entities";
+ *
+ * @ComponentSchema()
+ * class OrgIdDTO {
+ *   @PropertySchema.String({})
+ *   orgId!: string;
+ * }
+ *
+ * @ComponentSchema()
+ * class TicketBodyDTO extends PickType(entities.Tickets, ["title", "text"]) {}
+ *
+ * @ComponentSchema()
+ * class OrgTicketDTO extends IntersectionType(OrgIdDTO, TicketBodyDTO) {}
+ * ```
  */
 export function IntersectionType<T extends Type[]>(...classRefs: T) {
   abstract class IntersectionClassType {}
@@ -37,10 +67,16 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
     InstanceTarget,
     PropertyDescriptor | undefined,
     SchemaTypes,
-    CommonDescriptionsProperties
+    CommonDescriptionsProperties,
   ];
   const intersectionsMap: Map<Property, intersectionValue> = new Map();
   const intersectionsProtoMap: Map<Property, intersectionValue> = new Map();
+
+  // mark as a mapped class — foldSchemas will unfold it into extends instead of a name reference
+  AomSchemas.instance(IntersectionClassType).mapped = {
+    kind: "Intersection",
+    of: [...classRefs],
+  };
 
   classRefs.forEach((classRef) => {
     const $classInstance = AomSchemas.checkExists(classRef);
@@ -49,8 +85,8 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
     }
 
     $classInstance._.origins.forEach((origin) => {
-      // если у оригинальной конструкции установлены соответствующие требуемые значения
-      // то переносим исключительно их, добавляя в значения schemaParams правильно isOptional=true
+      // if the original property has schemaName/schemaParams set (i.e. it was described via
+      // PropertySchema.*), transfer exactly those, unchanged
       const { schemaName, schemaParams } = origin.self;
       if (schemaName && schemaParams) {
         const isClassOrigin = origin.target === origin._.target;
@@ -59,7 +95,7 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
         targetMap.set(origin.property, [target, origin.descriptor, schemaName, schemaParams]);
       }
     });
-    // теперь здесь следует собрать комплект атрибутов, которые будут
+    // at this point, this is where the set of attributes should be collected, which will be
   });
 
   intersectionsMap.forEach((value, property) => {
@@ -69,7 +105,7 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
       // [Schema[schemaName](schemaParams)],
       [Reflect.apply(PropertySchema[schemaName], undefined, [schemaParams])],
       target,
-      property
+      property,
     );
   });
 
@@ -80,7 +116,7 @@ export function IntersectionType<T extends Type[]>(...classRefs: T) {
       // [Schema[schemaName](schemaParams)],
       [Reflect.apply(PropertySchema[schemaName], undefined, [schemaParams])],
       target,
-      property
+      property,
     );
   });
 

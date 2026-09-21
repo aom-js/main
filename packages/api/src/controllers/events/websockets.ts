@@ -7,8 +7,13 @@ import { type ClassConstructor } from "../../types";
 import { type HttpRequest, type HttpSocket, type SocketCtx } from "../../types";
 import { messages } from "../../constants";
 
+// The `controllers/events` directory isn't re-exported from `controllers/index.ts` - these symbols
+// don't belong to the public entry point of the `@aom-js/api` package, only to their own module.
+
+/** Active WebSocket connections, keyed by connection identifier (see `AomWebSockets.connect`). */
 export declare type WebSocketConnections = Map<string, WebSocket[]>;
 
+/** A controller class carrying WebSocket state: connection registry plus an optional id-source parameter. */
 export declare type WithWebSockets<T extends {}> = T & {
   sockets: AomWebSockets;
   socketsParam?: string | Function;
@@ -16,8 +21,14 @@ export declare type WithWebSockets<T extends {}> = T & {
 
 export declare type CtxWS = () => WebSocket;
 
+/** Callback invoked for every message received on a connection. */
 export declare type OnMessageFunction = (id: string, socket: WebSocket, data: any) => unknown;
 
+/**
+ * Registry and helpers for a controller's WebSocket connections, keyed by an application-defined
+ * connection id (e.g. a user id). Not part of the package's public entry point (`controllers/events`
+ * isn't re-exported from `controllers/index.ts`); import it from its own module if needed.
+ */
 export class AomWebSockets {
   connections: WebSocketConnections;
 
@@ -35,6 +46,7 @@ export class AomWebSockets {
   //   return this;
   // }
 
+  /** Sends `data` to every socket currently registered under connection id `_id`. */
   send(_id: any, data: any): void {
     const sockets = this.connections.get(_id) || [];
     // console.log("socket send data", _id, data, sockets.length);
@@ -43,11 +55,13 @@ export class AomWebSockets {
     });
   }
 
+  /** Sends `data` to every socket across every connection id. */
   broadcast(data: any): void {
     this.connections.forEach((sockets, _id) => this.send(_id, data));
     // [...this.connections.keys()].forEach((_id) => this.send(_id, data));
   }
 
+  /** Registers `socket` under connection id `_id`; a single id may have several sockets. */
   connect(_id: string, socket: WebSocket): AomWebSockets {
     const sockets = this.connections.get(_id) || [];
     this.connections.set(_id, sockets.concat([socket]));
@@ -55,6 +69,7 @@ export class AomWebSockets {
     return this;
   }
 
+  /** Removes `socket` from connection id `_id`'s registered sockets. */
   disconnect(_id: string, socket: WebSocket): AomWebSockets {
     const sockets = this.connections.get(_id) || [];
     // console.log("socket disconnect", _id, sockets);
@@ -66,6 +81,7 @@ export class AomWebSockets {
   }
 }
 
+/** Parameter decorator: injects the current request's `WebSocket` instance from the route context. */
 export function Ws(): ParameterDecorator {
   const handler = ({ context }: any) => {
     return context.ws;
@@ -75,6 +91,7 @@ export function Ws(): ParameterDecorator {
 
 const wss = new WebSocketServer({ noServer: true });
 
+/** Per-route registry of `WebSocketWrapper`s, keyed by the matched `AomRoute`. */
 export declare type SocketServerConnections = Map<AomRoute, WebSocketWrapper>;
 
 class WebSocketWrapper {
@@ -116,13 +133,25 @@ class WebSocketWrapper {
   }
 }
 
+/**
+ * Middleware controller that performs the WebSocket handshake for a socket route: attaches a
+ * `WebSocketWrapper` to the route (`Define`) and hands the upgrade request off to `ws` for that
+ * connection id (`Connect`). Not part of the package's public entry point.
+ */
 @Controller()
 export class WebSocketsController {
   static wssMap: SocketServerConnections = new Map();
 
   //
+  /** Connection id for this request; set by an application middleware before `Connect` runs. */
   id!: string | null;
 
+  /**
+   * Middleware: verifies the route's target controller has a `sockets: AomWebSockets` field and
+   * lazily registers a `WebSocketWrapper` for the route in `wssMap`.
+   *
+   * @throws {Error} when the target controller doesn't declare `sockets` as an `AomWebSockets` instance
+   */
   @Middleware()
   static async Define(@Route() route: AomRoute) {
     //
@@ -138,6 +167,10 @@ export class WebSocketsController {
     }
   }
 
+  /**
+   * Middleware: completes the WebSocket upgrade for `id` using the wrapper registered by
+   * `Define`; destroys the socket if the route wasn't defined or `id` wasn't set.
+   */
   @Middleware()
   static async Connect(
     @Ctx() ctx: SocketCtx,
@@ -155,14 +188,14 @@ export class WebSocketsController {
   }
 
   /*
-  инициация id осуществляется напрямую в контроллере, которые подключает к себе сокет
-  то есть это задача внешняя, а не внутренняя
+  id initialization is done directly in the controller that attaches the socket to itself,
+  i.e. it's an external concern, not an internal one
 
   @Middleware()
   @Before(WebSocketsController.Define)
   @After(WebSocketsController.Setup)
   static async Init(@Ctx() ctx: SocketCtx, @This() self: WebSocketsController) {
-    // тут должна быть сессия, в рамках которой действует пользователь
+    // this should be the session the user operates within
     self.id = `${ctx.req.socket.remoteAddress}`;
   }
 
@@ -187,4 +220,5 @@ export class WebSocketsController {
   */
 }
 
+/** Default shared `AomWebSockets` instance; use it when a single global connection registry is enough. */
 export default new AomWebSockets();

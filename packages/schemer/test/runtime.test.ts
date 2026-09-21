@@ -68,6 +68,76 @@ describe("schemer: валидация", () => {
     const errors = validateSync(plainToInstance(FormDto, { name: "ok", age: "5" }));
     expect(errors).toEqual([]);
   });
+
+  // KI-SCHEMER-02: Number с nullable без isOptional отвергал null — не было IsNullable()
+  it("Number с nullable без isOptional пропускает null", () => {
+    @ComponentSchema()
+    class ScoreDto {
+      @PropertySchema.Number({ nullable: true })
+      score!: number | null;
+    }
+    const errors = validateSync(plainToInstance(ScoreDto, { score: null }));
+    expect(errors).toEqual([]);
+  });
+
+  // KI-SCHEMER-04: Min/Max вызывались без each — при isArray ограничение проверяло сам массив, а не элементы.
+  // Number.Transform приводит значение через Number(...), поэтому инстанс собираем напрямую, минуя plainToInstance
+  it("minValue с isArray проверяет каждый элемент массива, а не сам массив", () => {
+    @ComponentSchema()
+    class RanksDto {
+      @PropertySchema.Number({ isArray: true, minValue: 1 })
+      values!: number[];
+    }
+
+    const good = new RanksDto();
+    good.values = [1, 2, 3];
+    expect(validateSync(good)).toEqual([]);
+
+    const bad = new RanksDto();
+    bad.values = [0, 1];
+    expect(validateSync(bad).map((e) => e.property)).toContain("values");
+  });
+});
+
+describe("schemer: params.decorators применяются", () => {
+  // KI-SCHEMER-03: Date и Type игнорировали params.decorators
+  it("Date применяет декораторы из params.decorators", () => {
+    const seen: string[] = [];
+    const marker: PropertyDecorator = (_target, key) => {
+      seen.push(String(key));
+    };
+
+    @ComponentSchema()
+    class DateWithDecorators {
+      @PropertySchema.Date({ decorators: [marker] })
+      when!: Date;
+    }
+    void DateWithDecorators;
+
+    expect(seen).toContain("when");
+  });
+
+  it("Type применяет декораторы из params.decorators", () => {
+    const seen: string[] = [];
+    const marker: PropertyDecorator = (_target, key) => {
+      seen.push(String(key));
+    };
+
+    @ComponentSchema()
+    class Nested {
+      @PropertySchema.String({})
+      value!: string;
+    }
+
+    @ComponentSchema()
+    class TypeWithDecorators {
+      @PropertySchema.Type({ value: () => Nested, decorators: [marker] })
+      nested!: Nested;
+    }
+    void TypeWithDecorators;
+
+    expect(seen).toContain("nested");
+  });
 });
 
 describe("schemer: защита от двойного описания", () => {

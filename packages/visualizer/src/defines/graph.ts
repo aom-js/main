@@ -20,7 +20,7 @@ import type {
 
 const REF_PREFIX = "#/components/schemas/";
 
-/** Роль звена по флагам `AomApiElement`: те же признаки, что расставляют декораторы роутера */
+/** Role of a link, read off `AomApiElement` flags — the same flags router decorators set. */
 function nodeKind($: AomApi): VisualNodeKind {
   const { element } = $;
   if (element.isEndpoint) return "endpoint";
@@ -29,13 +29,13 @@ function nodeKind($: AomApi): VisualNodeKind {
   if (element.isMarker) return "marker";
   if (element.isInstance) return "hook";
   if (element.isMiddleware) return "middleware";
-  // курсор без флагов — это метод, поднятый в цепочку декоратором `@Bridge`
+  // a cursor without flags is a method promoted into the chain by the `@Bridge` decorator
   return $._.property ? "middleware" : "controller";
 }
 
 /**
- * Путь маршрута в нотации OpenAPI. Повторяет подстановку из `OpenApi.registerPath`:
- * иначе операцию из готового документа не найти по маршруту роутера.
+ * Route path in OpenAPI notation. Mirrors the substitution `OpenApi.registerPath` performs —
+ * otherwise the router's route could not be matched back to an operation in the built document.
  */
 function openApiPath(route: AomRoute): string {
   let path = route.path;
@@ -56,8 +56,8 @@ function refName(ref: unknown): string | undefined {
 }
 
 /**
- * Краткое описание JSON Schema: имя связанной компоненты (ребро ER) и подпись типа.
- * Разбирается ровно то, что реально эмитят `Schemer` и декораторы роутера.
+ * Short description of a JSON Schema value: the linked component's name (an ER edge) and a
+ * type label. Only parses the shapes `Schemer` and the router's decorators actually emit.
  */
 function describeSchema(value: any): VisualSchemaRef {
   if (!value || typeof value !== "object") return { label: "any" };
@@ -97,7 +97,7 @@ function describeSchema(value: any): VisualSchemaRef {
   return { label: value.properties ? "object" : "any" };
 }
 
-/** Свойство компонентной схемы в виде строки ER-таблицы */
+/** One component-schema property, shaped as a row of the ER table. */
 function describeProperty(name: string, value: any, required: string[]): VisualSchemaProperty {
   const described = describeSchema(value);
   const types = Array.isArray(value?.type) ? value.type : [value?.type];
@@ -115,9 +115,9 @@ function describeProperty(name: string, value: any, required: string[]): VisualS
 }
 
 /**
- * Декорированные члены класса. Реестр мета-инстансов не перечисляется снаружи,
- * но у узла класса есть `_.origins` — список дескрипторов, зарегистрированных
- * декораторами. Через него видно и те звенья, что нигде не подключены.
+ * Decorated members of a class. The meta-instance registry cannot be enumerated from outside,
+ * but a class node's `_.origins` lists every descriptor registered by a decorator — that's how
+ * links never attached to a route still show up here.
  */
 function declaredMembers($: AomApi): VisualMember[] {
   const origins: any[] = Array.isArray(($._ as any).origins) ? ($._ as any).origins : [];
@@ -138,9 +138,20 @@ function declaredMembers($: AomApi): VisualMember[] {
 }
 
 /**
- * Все контроллеры, достижимые от указанного класса по бриджам.
- * Тот же обход, что делает `Router.build`, но без построения маршрутов —
- * нужен, чтобы разрешить имя корня из query-параметра и наполнить селектор.
+ * Every controller reachable from `target` by following `@Bridge` links.
+ *
+ * Same traversal `Router.build` performs, but without building any routes — cheap enough to
+ * call just to resolve a root name or populate a root-selector UI.
+ *
+ * @param target - Controller to start the bridge walk from.
+ * @returns Map of controller class name to class, including `target` itself.
+ *
+ * @example
+ * ```ts
+ * import { collectControllers } from "@aom-js/visualizer";
+ *
+ * const names = [...collectControllers(AppRoot).keys()]; // ["AppRoot", "Items", "Feed", ...]
+ * ```
  */
 export function collectControllers(target: ClassType): Map<string, ClassType> {
   const found = new Map<string, ClassType>();
@@ -158,12 +169,32 @@ export function collectControllers(target: ClassType): Map<string, ClassType> {
 }
 
 /**
- * Собрать граф API от указанного контроллера (в общем случае — корневого).
+ * Builds an API graph from a controller (typically, but not necessarily, the root of a module).
  *
- * Источником может быть живой `Router` — тогда берётся его корень. Дерево всё равно
- * пересобирается на собственном документе OpenApi: у роутера приложения сборщик схем
- * общий на весь модуль, и от него не отделить поддерево, а декларации курсоров
- * материализуются только в момент сборки маршрутов.
+ * Accepts either a controller class or a live `Router` — for a `Router`, its root is used.
+ * Either way, the tree is rebuilt on a fresh `OpenApi` document owned by this call: an
+ * application router's schema collector is shared by the whole module and a subtree cannot be
+ * carved out of it, and cursor declarations (`openApi.*` — parameters, responses, markers) only
+ * materialize when routes are actually built, not by walking the meta-model alone. Building the
+ * graph therefore constructs its own `Router` internally; it does not read or mutate one passed
+ * in, so calling this on a live application router is safe to repeat.
+ *
+ * Because of this, a graph can be built from **any** node of the controller tree, not just the
+ * root — the resulting graph is scoped to that node's own bridges and routes.
+ *
+ * @param source - Controller class, or a `Router` whose root controller to start from.
+ * @param options - `title` for the document, `info` forwarded to the internal `OpenApi`
+ *   document, `skipMarkers` to skip serializing route markers.
+ * @returns Serializable `VisualGraph`: controllers, routes, middleware links and component
+ *   schemas, all cross-referenced (`usedBy`/`referencedBy`/`refs`) and counted in `stats`.
+ *
+ * @example
+ * ```ts
+ * import { buildVisualGraph } from "@aom-js/visualizer";
+ *
+ * const graph = buildVisualGraph(AppRoot, { title: "Public API" });
+ * console.log(graph.stats.routes, graph.routes.map((r) => r.id));
+ * ```
  */
 export function buildVisualGraph(
   source: ClassType | Router,
@@ -182,8 +213,8 @@ export function buildVisualGraph(
   });
 
   const router = new Router(target, docs);
-  // `Router` регистрирует в документе только http-маршруты; сокеты добавим сами,
-  // иначе их схемы не попадут в общий сборщик компонент
+  // `Router` only registers http routes in the document; add sockets ourselves,
+  // otherwise their schemas would never reach the shared component collector
   router.sockets.forEach((route) => {
     try {
       docs.registerPath(route);
@@ -195,7 +226,7 @@ export function buildVisualGraph(
   const document: any = docs.toJSON();
   const components: Record<string, any> = document.components?.schemas ?? {};
 
-  // операции документа по ключу `method:path` — так их находит маршрут роутера
+  // document operations keyed by `method:path` — that's how the router's route looks them up
   const operations = new Map<string, any>();
   Object.entries(document.paths ?? {}).forEach(([path, methods]) => {
     Object.entries(methods as Record<string, any>).forEach(([method, operation]) => {
@@ -236,7 +267,7 @@ export function buildVisualGraph(
     return node;
   };
 
-  // обход дерева бриджей — источник иерархии контроллеров и их префиксов
+  // walking the bridge tree — the source of the controller hierarchy and their prefixes
   const walk = ($: AomApi, prefix: string, depth: number, stack: Set<string>) => {
     const node = controllerNode($, depth);
     if (!node.prefixes.includes(prefix)) node.prefixes.push(prefix);
@@ -345,8 +376,8 @@ export function buildVisualGraph(
     if (controller) {
       if (!controller.routes.includes(id)) controller.routes.push(id);
     } else {
-      // endpoint объявлен в классе, до которого не ведёт ни один бридж от корня —
-      // такое бывает при наследовании контроллеров, фиксируем как отдельный узел
+      // the endpoint is declared on a class no bridge from the root leads to —
+      // this happens with controller inheritance; record it as a separate node
       const node = controllerNode(AomApi.instance(endpoint._.target), 0);
       node.routes.push(id);
     }
@@ -377,7 +408,7 @@ export function buildVisualGraph(
   router.routes.forEach((route) => registerRoute(route, false));
   router.sockets.forEach((route) => registerRoute(route, true));
 
-  // декларации, объявленные на самих звеньях: их видно только в мета-инстансе курсора
+  // declarations made on the links themselves: visible only through the cursor's meta-instance
   router.routes.concat(router.sockets).forEach((route) => {
     route.cursors.forEach((cursor) => {
       const node = middlewares.get(cursor.$.toString());
@@ -450,15 +481,16 @@ export function buildVisualGraph(
   };
 }
 
-/** `resolve(join(prefix, next))` роутера, но без обращения к node:path */
+/** The router's `resolve(join(prefix, next))`, without reaching for `node:path`. */
 function joinPrefix(prefix: string, next: string): string {
   const parts = `${prefix}/${next}`.split("/").filter(Boolean);
   return `/${parts.join("/")}`;
 }
 
 /**
- * Маркеры — прикладные структуры (например, карта доступов), их пишут сторонние
- * классы. Сериализуем защищённо: одна нештатная структура не должна ронять страницу.
+ * Markers are application-defined structures (e.g. an access map) written by third-party
+ * classes. Serialized defensively — one malformed structure must not break the whole page;
+ * a circular or otherwise unserializable value yields empty markers plus a `warnings` entry.
  */
 function safeMarkers(route: AomRoute, warnings: string[]): Record<string, unknown> {
   try {

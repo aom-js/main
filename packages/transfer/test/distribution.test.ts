@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  Transfer, Isolator, ResponseTopic, Executor, IsDistributed, TopicSchema,
+  Transfer, AomIsolator, Isolator, ResponseTopic, Executor, TopicSchema,
 } from "@aom-js/transfer";
 import { MemoryBus, tick } from "./memory-bus";
 
@@ -40,11 +40,58 @@ describe("transfer: адресация конкретного инстанса",
     expect(bus.topicCount("Worker.whoami_w1")).toBe(1);
     expect(bus.topicCount("Worker.whoami")).toBe(0); // безадресный топик не использовался
   });
+
+  @Isolator(nodeA)
+  class Shard {
+    @ResponseTopic(true)
+    static async echo(x: number): Promise<string> {
+      return undefined as never;
+    }
+  }
+
+  @Executor()
+  class ShardAny extends Shard {
+    static async echo(x: number) {
+      return `any:${x}`;
+    }
+  }
+
+  @Executor("a")
+  class ShardA extends Shard {
+    static async echo(x: number) {
+      return `a:${x}`;
+    }
+  }
+
+  @Executor("b")
+  class ShardB extends Shard {
+    static async echo(x: number) {
+      return `b:${x}`;
+    }
+  }
+
+  it("синглтон к разным исполнителям не склеивается, адрес не переходит на чужой вызов", async () => {
+    const results = await Promise.all([
+      Transfer.toInstance(Shard, "a").echo(1),
+      Transfer.toInstance(Shard, "b").echo(1), // те же аргументы, другой адрес
+      Shard.echo(2), // без адреса — не должен унаследовать "b"
+    ]);
+    expect(results).toEqual(["a:1", "b:1", "any:2"]);
+  });
+
+  it("синглтон к одному адресу склеивается: одна публикация на оба вызова", async () => {
+    const before = bus.topicCount("Shard.echo_a");
+    const results = await Promise.all([
+      Transfer.toInstance(Shard, "a").echo(5),
+      Transfer.toInstance(Shard, "a").echo(5),
+    ]);
+    expect(results).toEqual(["a:5", "a:5"]);
+    expect(bus.topicCount("Shard.echo_a") - before).toBe(1);
+  });
 });
 
 describe("transfer: реестр распределенных схем", () => {
-  @Isolator(nodeA)
-  @IsDistributed()
+  @Isolator(nodeA, { distributed: true })
   class DistService {
     @ResponseTopic()
     @TopicSchema({ returns: "string" })
@@ -53,12 +100,21 @@ describe("transfer: реестр распределенных схем", () => {
     }
   }
 
-  it("IsDistributed регистрирует дескриптор в registryMap своего транспорта", () => {
+  it("{ distributed: true } регистрирует дескриптор в registryMap своего транспорта", () => {
     expect(nodeA.registryMap.get("DistService")).toMatchObject({
       name: "DistService",
       origin: { instanceName: "node-a", instanceKey: "a1" },
     });
     void DistService;
+  });
+
+  it("@Isolator — INSTANT: перенос мета-инстанса на наследника его не повторяет", () => {
+    @Isolator(nodeA)
+    class Origin {}
+    class Heir extends Origin {}
+    const heir$ = AomIsolator.instance(Heir);
+    heir$._.inherit(Origin);
+    expect(heir$.transfer).toBeUndefined();
   });
 
   it("collectDistributions опрашивает другие ноды и получает их схемы", async () => {

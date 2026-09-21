@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   Controller, Get, Post, Router, OpenApi,
   Title, Description, Responses, RequestBody, PathParameters, Security,
-  Params, Body,
+  Params, Body, UseTag,
 } from "@aom-js/router";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
 
@@ -88,5 +88,50 @@ describe("router: генерация OpenAPI", () => {
     const json = build();
     expect(json.paths["/items"].post.security).toEqual([{ Shop: [] }]);
     expect(json.components.securitySchemes.Shop).toMatchObject({ scheme: "bearer" });
+  });
+
+  it("components, tags и paths из initData сливаются со сгенерированными; совпадающее поле — сгенерированное", () => {
+    class Catalog {}
+
+    @Controller()
+    class Merged {
+      @Get("/items")
+      @UseTag(Catalog)
+      @Responses({ status: 200, schema: ItemDto, description: "ok" })
+      static async list() {
+        return [];
+      }
+    }
+
+    const docs = new OpenApi({
+      openapi: "3.1.0",
+      info: { title: "t", version: "1" },
+      components: {
+        schemas: { Manual: { type: "string" }, ItemDto: { type: "null" } },
+        responses: { NotFound: { description: "not found" } },
+      },
+      tags: [{ name: "manual" }, { name: "Catalog", description: "каталог" }],
+      paths: {
+        "/health": { get: { responses: {} } },
+        "/items": {
+          get: { operationId: "stale" },
+          post: { operationId: "manual_create", responses: {} },
+        },
+      },
+    });
+    new Router(Merged, docs);
+    const json = docs.toJSON();
+
+    expect(json.components.schemas.Manual).toEqual({ type: "string" });
+    expect(json.components.schemas.ItemDto).toMatchObject({
+      properties: { title: { type: "string" } },
+    });
+    expect(json.components.responses.NotFound).toEqual({ description: "not found" });
+    // тег того же имени сохраняет описание из initData
+    expect(json.tags).toEqual([{ name: "manual" }, { name: "Catalog", description: "каталог" }]);
+    expect(json.paths["/health"]).toEqual({ get: { responses: {} } });
+    // на совпавшем пути метод из initData сохраняется, совпавший метод — сгенерированный
+    expect(json.paths["/items"].get.operationId).toBe("Merged_list");
+    expect(json.paths["/items"].post).toEqual({ operationId: "manual_create", responses: {} });
   });
 });

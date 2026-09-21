@@ -3,8 +3,8 @@ import { styles } from "./styles";
 import type { RenderOptions, VisualGraph } from "./types";
 
 /**
- * JSON внутри `<script>`: закрывающий тег в данных завершил бы блок, поэтому
- * угловые скобки и разделители строк уходят в экранированном виде.
+ * JSON embedded inside a `<script>` element: a closing tag occurring inside the data would end
+ * the block early, so angle brackets and line separators are escaped before embedding.
  */
 function embedJson(value: unknown): string {
   return JSON.stringify(value)
@@ -23,11 +23,25 @@ function escapeHtml(value: string): string {
 }
 
 /**
- * Готовая страница по собранному графу; внешних загрузок нет, файл самодостаточен.
+ * Renders a self-contained HTML page for a graph built by `buildVisualGraph` — CSS, client
+ * script and the graph data are all inlined, there are no external requests.
  *
- * В документ уходит весь граф целиком. Смена корня — операция клиента: он читает
- * имя из hash (`#root=ИмяКонтроллера`) и пересобирает вид из уже загруженных данных.
- * Ни query-параметров, ни повторных обращений к серверу здесь нет.
+ * The whole graph is embedded as-is. Switching the displayed root happens entirely on the
+ * client: it reads the controller name from the URL hash (`#root=ControllerName`) and
+ * recomputes the visible slice from the data already loaded. There is no query-parameter
+ * handling and no further request to a server.
+ *
+ * @param graph - Graph produced by `buildVisualGraph`.
+ * @param options - `sharedThreshold` — how many routes a link must appear in to be highlighted
+ *   as shared; default `1`.
+ * @returns Complete `<!DOCTYPE html>` document as a string.
+ *
+ * @example
+ * ```ts
+ * import { buildVisualGraph, renderVisualGraph } from "@aom-js/visualizer";
+ *
+ * const html = renderVisualGraph(buildVisualGraph(AppRoot));
+ * ```
  */
 export function renderVisualGraph(graph: VisualGraph, options: RenderOptions = {}): string {
   const settings = { sharedThreshold: options.sharedThreshold ?? 1 };

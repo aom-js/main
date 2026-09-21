@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   Controller, Get, Middleware, Before, After, Router, OpenApi,
   Query, Body, Err, This, OnInstance, HttpContextValues,
+  Run, Headers, State, Args, HandlerFunction,
 } from "@aom-js/router";
 
 const makeDocs = () => new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
@@ -205,13 +206,53 @@ describe("router: исполнение запроса", () => {
     expect(hookLog).toEqual(["init:alice", "init:bob"]);
   });
 
-  // FINDING: аргументы метода решаются конкурентно (Promise.all), а This делает async
-  // check-then-create по context.state без дедупликации — два @This одного класса в одном
-  // методе создают два инстанса (гонка)
-  it.fails("два @This одного класса в одном методе дают один инстанс (дефект: гонка Promise.all)", async () => {
+  it("потомок со своим конструктором получает свои аргументы, а не родительские", async () => {
+    @Controller()
+    class P {
+      v: string;
+      constructor(@Query("p") p: string) {
+        this.v = `P:${p}`;
+      }
+    }
+
+    @Controller()
+    class C extends P {
+      constructor(@Query("c") c: string) {
+        super(c);
+      }
+    }
+
+    @Controller()
+    class App {
+      @Get("/x")
+      static async x(@This(C) c: C) {
+        return c.v;
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    const result = await call(
+      router,
+      "get",
+      "/x",
+      makeContext({ query: { p: "fromP", c: "fromC" } }),
+    );
+    expect(result).toBe("P:fromC");
+  });
+
+  // аргументы метода решаются конкурентно (Promise.all): идущее создание хранится в context.pending,
+  // и повторный @This того же класса ждёт его, а не создаёт второй инстанс
+  it("два @This одного класса в одном методе дают один инстанс и один вызов @OnInstance", async () => {
+    let hooks = 0;
+
     @Controller()
     class Service {
       constructor(@Query("user") public who: string) {}
+
+      @OnInstance()
+      static async init() {
+        hooks += 1;
+      }
     }
 
     @Controller()
@@ -225,5 +266,271 @@ describe("router: исполнение запроса", () => {
     const router = new Router(App, makeDocs());
     const result = await call(router, "get", "/pair", makeContext({ query: { user: "x" } }));
     expect(result).toEqual({ same: true });
+    expect(hooks).toBe(1);
+  });
+
+  it("класс, нужный методу и конструктору другого @This-класса, создаётся один раз", async () => {
+    let created = 0;
+
+    class Data {
+      constructor() {
+        created += 1;
+      }
+    }
+
+    @Controller()
+    class Value {
+      constructor(@This(Data) public data: Data) {}
+    }
+
+    @Controller()
+    class App {
+      @Get("/deps")
+      static async deps(@This(Data) data: Data, @This(Value) value: Value) {
+        return { same: data === value.data };
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    const result = await call(router, "get", "/deps", makeContext());
+    expect(result).toEqual({ same: true });
+    expect(created).toBe(1);
+  });
+
+  it("перехваченная ошибка конструктора не пускает следующий курсор того же класса без инстанса", async () => {
+    @Controller()
+    class Auth {
+      constructor(@Headers("authorization") token: string) {
+        if (token !== "ok") throw new Error("401");
+      }
+
+      @Middleware()
+      static async Required() {}
+    }
+
+    // необязательная авторизация: ошибку проверки перехватывает и продолжает цепочку
+    @Controller()
+    class Optional {
+      @Middleware()
+      static async Check(@Run() next: (...handlers: HandlerFunction[]) => Promise<unknown>) {
+        try {
+          await next(Auth.Required);
+        } catch {
+          // гость — идём дальше
+        }
+      }
+    }
+
+    @Controller()
+    @Before(Optional.Check, Auth.Required)
+    class App {
+      @Get("/secret")
+      static async secret() {
+        return "secret";
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    await expect(call(router, "get", "/secret", makeContext())).rejects.toThrow("401");
+    const authorized = makeContext({ headers: { authorization: "ok" } });
+    expect(await call(router, "get", "/secret", authorized)).toBe("secret");
+  });
+
+  it("два @This класса с падающим конструктором: конструктор вызван один раз, запрос отклонён его ошибкой", async () => {
+    let created = 0;
+
+    class Broken {
+      constructor() {
+        created += 1;
+        throw new Error("ctor-boom");
+      }
+    }
+
+    @Controller()
+    class App {
+      @Get("/broken")
+      static async broken(@This(Broken) a: Broken, @This(Broken) b: Broken) {
+        return { a, b };
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    await expect(call(router, "get", "/broken", makeContext())).rejects.toThrow("ctor-boom");
+    expect(created).toBe(1);
+  });
+
+  it("@State(X) во время создания X видит только готовые инстансы, а не промис создания", async () => {
+    class Slow {}
+
+    @Controller()
+    class App {
+      @Get("/state")
+      static async state(
+        @This(Slow) slow: Slow,
+        @State(Slow) fromState: Slow | undefined,
+        @Args(({ context }) => ({ raw: context.state.get(Slow) })) holder: { raw: unknown },
+      ) {
+        return { slow, fromState, raw: holder.raw };
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    const result = await call(router, "get", "/state", makeContext());
+    expect(result.slow).toBeInstanceOf(Slow);
+    expect(result.fromState).toBeUndefined();
+    expect(result.raw).toBeUndefined();
+  });
+
+  it("курсор класса, чьё создание уже идёт, ждёт готового инстанса", async () => {
+    const order: string[] = [];
+
+    @Controller()
+    class Slow {
+      constructor(@Args(() => new Promise((resolve) => setTimeout(resolve, 5))) _: unknown) {
+        order.push("Slow:ctor");
+      }
+
+      @Middleware()
+      static async Check() {
+        order.push("Slow.Check");
+      }
+    }
+
+    // хук Fast запускает курсор Slow, пока Slow ещё создаётся параллельным @This
+    @Controller()
+    class Fast {
+      @OnInstance()
+      static async init(@Run() next: (...handlers: HandlerFunction[]) => Promise<unknown>) {
+        await next(Slow.Check);
+      }
+    }
+
+    @Controller()
+    class App {
+      @Get("/sequence")
+      static async sequence(@This(Slow) _slow: Slow, @This(Fast) _fast: Fast) {
+        return order;
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    expect(await call(router, "get", "/sequence", makeContext())).toEqual(["Slow:ctor", "Slow.Check"]);
+  });
+
+  it("перехваченная ошибка хука-проверки не пускает следующий курсор того же класса без авторизации", async () => {
+    let checks = 0;
+
+    @Controller()
+    class Auth {
+      @OnInstance()
+      static async Verify(@Headers("authorization") token: string) {
+        checks += 1;
+        if (token !== "ok") throw new Error("401");
+      }
+
+      @Middleware()
+      static async Required() {}
+    }
+
+    // необязательная авторизация: ошибку проверки перехватывает и продолжает цепочку
+    @Controller()
+    class Optional {
+      @Middleware()
+      static async Check(@Run() next: (...handlers: HandlerFunction[]) => Promise<unknown>) {
+        try {
+          await next(Auth.Required);
+        } catch {
+          // гость — идём дальше
+        }
+      }
+    }
+
+    @Controller()
+    @Before(Optional.Check, Auth.Required)
+    class App {
+      @Get("/secret")
+      static async secret() {
+        return "secret";
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    await expect(call(router, "get", "/secret", makeContext())).rejects.toThrow("401");
+    expect(checks).toBe(1); // отказ запомнен до конца запроса: Auth.Required получает ту же ошибку
+    const authorized = makeContext({ headers: { authorization: "ok" } });
+    expect(await call(router, "get", "/secret", authorized)).toBe("secret");
+  });
+
+  it("отказ хука-проверки запоминается до конца запроса: соседний хук не пересоздаёт класс в фоне", async () => {
+    let checks = 0;
+
+    @Controller()
+    class Auth {
+      @OnInstance()
+      static async Verify(@Headers("authorization") token: string) {
+        checks += 1;
+        if (token !== "ok") throw new Error("401");
+      }
+
+      // соседний хук после паузы снова обращается к Auth через класс с @This(Auth)
+      @OnInstance()
+      static async Audit(@Run() next: (...handlers: HandlerFunction[]) => Promise<unknown>) {
+        await new Promise((resolve) => setImmediate(resolve));
+        await next(AuditLog.write);
+      }
+    }
+
+    @Controller()
+    class AuditLog {
+      @Middleware()
+      static async write(@This(Auth) _auth: Auth) {}
+    }
+
+    @Controller()
+    class App {
+      @Get("/audit")
+      static async audit(@This(Auth) _auth: Auth) {
+        return "done";
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    await expect(call(router, "get", "/audit", makeContext())).rejects.toThrow("401");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(checks).toBe(1);
+  });
+
+  it("повторное обращение к классу после отказа в том же запросе получает ту же ошибку", async () => {
+    let created = 0;
+
+    class Broken {
+      constructor() {
+        created += 1;
+        throw new Error(`ctor-boom-${created}`);
+      }
+    }
+
+    @Controller()
+    class Probe {
+      @Middleware()
+      static async use(@This(Broken) _broken: Broken) {}
+    }
+
+    @Controller()
+    class App {
+      @Get("/again")
+      static async again(@Run() next: (...handlers: HandlerFunction[]) => Promise<unknown>) {
+        const first = await next(Probe.use).catch((error: Error) => error.message);
+        const second = await next(Probe.use).catch((error: Error) => error.message);
+        return { first, second, created };
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    expect(await call(router, "get", "/again", makeContext())).toEqual({
+      first: "ctor-boom-1",
+      second: "ctor-boom-1",
+      created: 1,
+    });
   });
 });

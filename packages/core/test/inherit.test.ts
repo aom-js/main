@@ -46,6 +46,44 @@ describe("core: наследование декораторов", () => {
   // Статики защищены проверкой физического владения (Object.hasOwn на конструкторе):
   // собственный статик потомка не затирается родительским независимо от того,
   // задекорирован он или нет. Оба случая закреплены ниже.
+  it("унаследованный статический метод получает потомка как this при вызове", () => {
+    const { MarkMethod } = makeLog();
+    class Parent {
+      @MarkMethod("m")
+      static run(this: unknown) {
+        return this;
+      }
+    }
+    class Child extends Parent {}
+    Meta.instance(Child)._.inherit(Parent);
+    expect(Child.run()).toBe(Child);
+    expect(Parent.run()).toBe(Parent); // у родителя контекст не подменился
+  });
+
+  it("унаследованный прототипный метод получает инстанс как this при вызове", () => {
+    const { MarkMethod } = makeLog();
+    class Parent {
+      @MarkMethod("m")
+      run(this: unknown) {
+        return this;
+      }
+    }
+    class Child extends Parent {}
+    Meta.instance(Child)._.inherit(Parent);
+    const child = new Child();
+    expect(child.run()).toBe(child);
+  });
+
+  it("повторный inherit того же родителя не повторяет FIRST-вызовы", () => {
+    const { log, MarkClass } = makeLog();
+    @MarkClass("cls")
+    class Parent {}
+    class Child extends Parent {}
+    Meta.instance(Child)._.inherit(Parent);
+    Meta.instance(Child)._.inherit(Parent);
+    expect(log).toEqual(["cls@Parent", "cls@Child"]);
+  });
+
   it("собственное ЗАдекорированное переопределение потомка не затирается переносом", () => {
     const { MarkMethod } = makeLog();
     class Parent {
@@ -170,5 +208,73 @@ describe("core: наследование декораторов", () => {
     const $parentField = Meta.checkExists(Parent.prototype, "field");
     expect($childField).toBeDefined();
     expect($childField).not.toBe($parentField);
+  });
+
+  it("метод с FIRST-декоратором не первого параметра переносится на потомка без ошибки", () => {
+    const seen: string[] = [];
+    const Param = () =>
+      Meta.parameterDecorator(($, index) => seen.push(`${$._.target.name}:${index}`));
+    class Parent {
+      static run(a: string, @Param() b: string) {}
+    }
+    class Child extends Parent {}
+    expect(() => Meta.instance(Child)._.inherit(Parent)).not.toThrow();
+    expect(seen).toEqual(["Parent:1", "Child:1"]);
+  });
+
+  it("потомок со своими декораторами параметров конструктора не получает родительские", () => {
+    const log: string[] = [];
+    const Param = (l: string) =>
+      Meta.parameterDecorator(
+        ($, index) => log.push(`${l}@${$._.target.name}:${index}`),
+        ExecutionPhase.LAST,
+      );
+    class Parent {
+      constructor(@Param("p") a: string) {}
+    }
+    class Child extends Parent {
+      constructor(@Param("c") a: string) {
+        super(a);
+      }
+    }
+    Meta.instance(Child)._.inherit(Parent);
+    Meta.instance(Child)._.apply();
+    expect(log).toEqual(["c@Child:0"]);
+  });
+
+  it("потомок без своего конструктора получает декораторы параметров конструктора родителя", () => {
+    const log: string[] = [];
+    const Param = (l: string) =>
+      Meta.parameterDecorator(
+        ($, index) => log.push(`${l}@${$._.target.name}:${index}`),
+        ExecutionPhase.LAST,
+      );
+    class Parent {
+      constructor(@Param("p") a: string) {}
+    }
+    class Child extends Parent {}
+    Meta.instance(Child)._.inherit(Parent);
+    Meta.instance(Child)._.apply();
+    expect(log).toEqual(["p@Child:0"]);
+  });
+
+  it("собственные декораторы полей потомка не дополняются родительскими", () => {
+    const log: string[] = [];
+    const Late = (l: string) =>
+      Meta.propertyDecorator(
+        ($) => log.push(`${l}@${$._.target.name}.${String($._.property)}`),
+        ExecutionPhase.LAST,
+      );
+    class Parent {
+      @Late("p") field!: string;
+      @Late("p") static shared: string;
+    }
+    class Child extends Parent {
+      @Late("c") field!: string;
+      @Late("c") static shared: string;
+    }
+    Meta.instance(Child)._.inherit(Parent);
+    Meta.instance(Child)._.apply();
+    expect(log.sort()).toEqual(["c@Child.field", "c@Child.shared"]);
   });
 });

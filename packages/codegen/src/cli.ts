@@ -3,8 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { emitService, serviceDirName } from "./defines/emit";
+import { planGeneration } from "./defines/emit";
 import { collect } from "./defines/collect";
+import { diffManifest } from "./defines/check";
 import { TransferServiceDescriptor } from "./defines/types";
 
 const USAGE = `aom-codegen — генерация типизированных клиентов из дескрипторов шины
@@ -39,7 +40,7 @@ function readSnapshot(file: string): TransferServiceDescriptor[] {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
-/** manifest.json в каталоге генерации: { имя сервиса: hash } — опора команды check */
+/** `manifest.json` in the generation output directory: `{ serviceName: hash }` — what `check` compares against. */
 function manifestPath(out: string): string {
   return path.join(out, "manifest.json");
 }
@@ -55,7 +56,7 @@ async function collectCommand(options: Record<string, string>): Promise<void> {
   const descriptors = await collect(transfer, Number(options.timeout || 3000));
   fs.writeFileSync(required(options, "out"), JSON.stringify(descriptors, null, 2));
   console.log(`collected ${descriptors.length} descriptors → ${options.out}`);
-  // подписки шины держат процесс — снапшот записан, выходим штатно
+  // bus subscriptions keep the process alive — the snapshot is written, so exit cleanly
   process.exit(0);
 }
 
@@ -66,16 +67,24 @@ function generateCommand(options: Record<string, string>): void {
     transferImport: required(options, "transfer"),
     transferExportName: options["transfer-export"],
   };
+  const { succeeded, errors } = planGeneration(descriptors, config);
+
   const manifest: Record<string, string> = {};
-  descriptors.forEach((descriptor) => {
-    const service = emitService(descriptor, config);
-    const dir = path.join(out, serviceDirName(service.name));
+  succeeded.forEach(({ service, dir: dirName }) => {
+    const dir = path.join(out, dirName);
     fs.mkdirSync(dir, { recursive: true });
     service.files.forEach((file) => fs.writeFileSync(path.join(dir, file.path), file.source));
     manifest[service.name] = service.hash;
     console.log(`${service.name} → ${dir} (${service.files.map((f) => f.path).join(", ")})`);
   });
   fs.writeFileSync(manifestPath(out), JSON.stringify(manifest, null, 2));
+
+  // one broken descriptor (or a directory collision) shouldn't block the rest —
+  // but the run as a whole is still a failure: report all of them at once and exit with code 1
+  if (errors.length) {
+    errors.forEach((message) => console.error(message));
+    process.exit(1);
+  }
 }
 
 function checkCommand(options: Record<string, string>): void {
@@ -85,11 +94,11 @@ function checkCommand(options: Record<string, string>): void {
     throw new Error(`no manifest at ${manifestPath(out)} — run generate first`);
   }
   const manifest: Record<string, string> = JSON.parse(fs.readFileSync(manifestPath(out), "utf8"));
-  const drifted = descriptors.filter((d) => manifest[d.name] && manifest[d.name] !== d.hash);
-  const missing = descriptors.filter((d) => !manifest[d.name]);
+  const { drifted, missing, removed } = diffManifest(descriptors, manifest);
   drifted.forEach((d) => console.error(`drift: ${d.name} (${manifest[d.name]} → ${d.hash})`));
   missing.forEach((d) => console.error(`not generated: ${d.name}`));
-  if (drifted.length || missing.length) process.exit(1);
+  removed.forEach((name) => console.error(`removed: ${name} (сервис пропал из снапшота реестра)`));
+  if (drifted.length || missing.length || removed.length) process.exit(1);
   console.log(`check: ${descriptors.length} contracts match`);
 }
 

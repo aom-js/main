@@ -24,6 +24,7 @@ export default defineConfig({
       "@aom-js/codegen": resolve(__dirname, "packages/codegen/src"),
       "@aom-js/holder": resolve(__dirname, "packages/holder/src"),
       "@aom-js/visualizer": resolve(__dirname, "packages/visualizer/src"),
+      "@aom-js/api": resolve(__dirname, "packages/api/src"),
     },
   },
   test: {

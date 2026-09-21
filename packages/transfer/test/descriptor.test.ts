@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import {
-  Transfer, Isolator, ResponseTopic, CustomTopic, IsDistributed, TopicSchema,
+  Transfer, Isolator, ResponseTopic, CustomTopic, TopicSchema,
 } from "@aom-js/transfer";
-import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
+import { ComponentSchema, PropertySchema, foldSchemas } from "@aom-js/schemer";
 import { MemoryBus, tick } from "./memory-bus";
 
 const bus = new MemoryBus();
@@ -28,8 +28,7 @@ class GoodDto {
   price!: PriceDto;
 }
 
-@Isolator(node)
-@IsDistributed()
+@Isolator(node, { distributed: true })
 class GoodsService {
   @ResponseTopic()
   @TopicSchema({ args: [{ good: GoodDto }], returns: GoodDto })
@@ -60,7 +59,7 @@ class GoodsService {
 }
 
 describe("transfer: дескриптор сервиса", () => {
-  it("IsDistributed кладёт в реестр дескриптор с методами, топиками и происхождением", () => {
+  it("распределённый изолятор кладёт в реестр дескриптор с методами, топиками и происхождением", () => {
     const descriptor = node.registryMap.get("GoodsService")!;
     expect(descriptor).toMatchObject({
       name: "GoodsService",
@@ -158,8 +157,7 @@ describe("transfer: дескриптор сервиса", () => {
   it("метод без @TopicSchema в распределенном классе даёт предупреждение", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      @Isolator(node)
-      @IsDistributed()
+      @Isolator(node, { distributed: true })
       class WarnService {
         @CustomTopic()
         static async mystery(payload: unknown): Promise<void> {
@@ -183,6 +181,7 @@ describe("transfer: дескриптор сервиса", () => {
 
   it("дескриптор переживает JSON-сериализацию без потерь", () => {
     const descriptor = node.registryMap.get("GoodsService")!;
+    expect(descriptor.schemas).toBeDefined(); // круг проходит и формат свёртки
     expect(JSON.parse(JSON.stringify(descriptor))).toEqual(descriptor);
   });
 
@@ -202,5 +201,75 @@ describe("transfer: дескриптор сервиса", () => {
       name: "GoodsService",
       origin: { instanceName: "desc-node" },
     });
+  });
+
+  it("schemas — свёртка foldSchemas тех же классов, что дали components", () => {
+    const descriptor = node.registryMap.get("GoodsService")!;
+    expect(descriptor.schemas).toEqual(foldSchemas([GoodDto, PriceDto]));
+    expect(Object.keys(descriptor.schemas!.components)).toEqual(
+      Object.keys(descriptor.components).sort(),
+    );
+  });
+
+  it("без компонентов schemas — пустой формат 1", () => {
+    @Isolator(node, { distributed: true })
+    class BareService {
+      @ResponseTopic()
+      @TopicSchema({ args: [{ id: "string" }], returns: "number" })
+      static async get(_id: string): Promise<number> {
+        return undefined as never;
+      }
+    }
+    void BareService;
+    expect(node.registryMap.get("BareService")!.schemas).toEqual({
+      format: 1,
+      components: {},
+      enums: {},
+    });
+  });
+
+  it("hash учитывает schemas: меняется от одного enumName, которого нет в JSON Schema", () => {
+    // один и тот же сервис; отличие — только имя enum для codegen
+    const build = (enumName: string) => {
+      @ComponentSchema()
+      class StatusDto {
+        @PropertySchema.Enum({ value: { OPEN: "open", CLOSED: "closed" }, enumName })
+        status!: string;
+      }
+      @Isolator(node, { distributed: true })
+      class HashService {
+        @ResponseTopic()
+        @TopicSchema({ args: [{ dto: StatusDto }] })
+        static async put(_dto: StatusDto): Promise<void> {}
+      }
+      void HashService;
+      return node.registryMap.get("HashService")!;
+    };
+    const a = build("StatusA");
+    const b = build("StatusB");
+    expect(b.components).toEqual(a.components); // JSON Schema одинакова
+    expect(b.methods).toEqual(a.methods);
+    expect(b.schemas).not.toEqual(a.schemas);
+    expect(b.hash).not.toBe(a.hash);
+  });
+
+  it("ошибка foldSchemas при сборке дескриптора называет сервис", () => {
+    expect(() => {
+      @ComponentSchema()
+      class ClashDto {
+        @PropertySchema.Enum({ value: { A: "a" }, enumName: "Clash" })
+        first!: string;
+
+        @PropertySchema.Enum({ value: { B: "b" }, enumName: "Clash" })
+        second!: string;
+      }
+      @Isolator(node, { distributed: true })
+      class ClashService {
+        @ResponseTopic()
+        @TopicSchema({ args: [{ dto: ClashDto }] })
+        static async put(_dto: ClashDto): Promise<void> {}
+      }
+      void ClashService;
+    }).toThrow(/distributed service "ClashService": foldSchemas: enum "Clash"/);
   });
 });

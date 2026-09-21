@@ -37,9 +37,7 @@ describe("holder: отложенное применение декораторо
     expect(applied).toEqual(["cls:Applied"]);
   });
 
-  // FINDING: Delay работает в фазе INSTANT, которая не сохраняется в callstack —
-  // очередь класс-декораторов родителя не переносится при наследовании (holder — черновик 0.0.1)
-  it.fails("Delay на родителе + Apply на потомке переносит класс-декораторы родителя", () => {
+  it("Delay на родителе + Apply на потомке переносит класс-декораторы родителя", () => {
     const applied: string[] = [];
     const ClassSpy =
       (label: string): ClassDecorator =>
@@ -55,6 +53,30 @@ describe("holder: отложенное применение декораторо
     void DelayedChild;
 
     expect(applied).toEqual(["cls:DelayedChild"]);
+  });
+
+  it("трёхуровневая цепочка Delay/Delay/Apply переносит очередь прародителя и родителя", () => {
+    const applied: string[] = [];
+    const ClassSpy =
+      (label: string): ClassDecorator =>
+      (target) => {
+        applied.push(`${label}:${target.name}`);
+      };
+
+    @Delay(ClassSpy("grand"))
+    class GrandBase {}
+
+    @Delay(ClassSpy("parent"))
+    class MiddleBase extends GrandBase {}
+
+    @Apply()
+    class LeafChild extends MiddleBase {}
+    void LeafChild;
+
+    // порядок внутри Reflect.decorate не гарантирован (см. тест ниже про Hold), важно,
+    // что перенеслись оба уровня и без дублирования
+    expect(applied).toEqual(expect.arrayContaining(["grand:LeafChild", "parent:LeafChild"]));
+    expect(applied).toHaveLength(2);
   });
 
   it("несколько Hold-декораторов применяются в сохраненном порядке", () => {

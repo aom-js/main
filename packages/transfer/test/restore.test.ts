@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  Transfer, Isolator, ResponseTopic, Executor, IsDistributed, TopicSchema,
+  Transfer, Isolator, ResponseTopic, Executor, TopicSchema,
   TransferServiceDescriptor,
 } from "@aom-js/transfer";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
@@ -29,8 +29,7 @@ class PairDto {
   b!: number;
 }
 
-@Isolator(nodeA)
-@IsDistributed()
+@Isolator(nodeA, { distributed: true })
 class CalcService {
   @ResponseTopic()
   @TopicSchema({ args: [{ pair: PairDto }], returns: "number" })

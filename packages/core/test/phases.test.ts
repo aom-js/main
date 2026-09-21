@@ -83,7 +83,7 @@ describe("core: фабрики декораторов и фазы", () => {
     expect(log).toEqual(["field"]);
   });
 
-  it("parameterDecorator получает индекс параметра, порядок стабилен по индексам", () => {
+  it("parameterDecorator получает индекс параметра", () => {
     const seen: number[] = [];
     const Param = () => Meta.parameterDecorator(($, index) => seen.push(index));
     class G {
@@ -91,6 +91,28 @@ describe("core: фабрики декораторов и фазы", () => {
     }
     // legacy применяет параметры справа налево, но индексы приходят корректные
     expect([...seen].sort()).toEqual([0, 1, 2]);
+  });
+
+  it("LAST на параметре выполняется, даже если левее декорированных параметров нет", () => {
+    const seen: number[] = [];
+    const Param = () =>
+      Meta.parameterDecorator(($, index) => seen.push(index), ExecutionPhase.LAST);
+    class G2 {
+      static run(a: string, b: string, @Param() c: string) {}
+    }
+    Meta.instance(G2)._.apply();
+    expect(seen).toEqual([2]);
+  });
+
+  it("два LAST-декоратора на одном параметре выполняются оба", () => {
+    const seen: string[] = [];
+    const Param = (label: string) =>
+      Meta.parameterDecorator(() => seen.push(label), ExecutionPhase.LAST);
+    class G3 {
+      static run(@Param("a") @Param("b") x: string) {}
+    }
+    Meta.instance(G3)._.apply();
+    expect([...seen].sort()).toEqual(["a", "b"]);
   });
 
   it("combinedDecorator различает класс и статический метод", () => {

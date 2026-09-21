@@ -1,3 +1,8 @@
+/**
+ * Static Swagger UI HTML page, served by `BaseRootController.Swagger`. Loads
+ * `swagger-ui-dist@5.11.0` from unpkg and points itself at `/openapi.json` on the same host.
+ * Not re-exported from the package's public entry point — used internally by `root.ts`.
+ */
 export default `
 <!DOCTYPE html>
 <html lang="en">
@@ -30,4 +35,4 @@ export default `
 </body>
 
 </html>
-`
+`;

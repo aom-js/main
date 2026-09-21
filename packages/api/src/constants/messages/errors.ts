@@ -1,5 +1,12 @@
 import { PREFIX } from "./prefix";
 
+/**
+ * Message codes for every error/response class in `responses/*` (`ErrorMessage` and its
+ * subclasses) plus a handful of generic error codes used elsewhere in the package. Each has a
+ * translation in both `constants/locales/en/errors.ts` and `constants/locales/ru/errors.ts`
+ * (checked at module load via `checkLocales`). Internal to the package, like the rest of
+ * `constants/messages/*`.
+ */
 export const ERROR_MESSAGE = PREFIX("ERROR_MESSAGE");
 export const ERROR_NOT_FOUND = PREFIX("ERROR_NOT_FOUND");
 export const ERROR_WRONG_PARAMS = PREFIX("ERROR_WRONG_PARAMS");
@@ -8,6 +15,9 @@ export const ERROR_ACCESS_DENY = PREFIX("ERROR_ACCESS_DENY");
 export const PAYMENT_REQUIRED = PREFIX("PAYMENT_REQUIRED");
 export const ERROR_AUTH_REQUIRED = PREFIX("ERROR_AUTH_REQUIRED");
 export const ERROR_CONFLICT = PREFIX("ERROR_CONFLICT");
+export const ERROR_DATA_LOCKED = PREFIX("ERROR_DATA_LOCKED");
+export const ERROR_WRONG_DEPENDENCY = PREFIX("ERROR_WRONG_DEPENDENCY");
+export const ERROR_PAYLOAD_TOO_LARGE = PREFIX("ERROR_PAYLOAD_TOO_LARGE");
 export const ERROR_ID = PREFIX("ERROR_ID");
 export const ERROR_DATA_NOT_EXISTS = PREFIX("ERROR_DATA_NOT_EXISTS");
 export const ERROR_QUERY_SEARCH = PREFIX("ERROR_QUERY_SEARCH");
@@ -31,9 +41,11 @@ export const API_ERROR_402_PAYMENT_REQUIRED = PREFIX("API_ERROR_402_PAYMENT_REQU
 export const API_ERROR_403_ACCESS_DENY = PREFIX("API_ERROR_403_ACCESS_DENY");
 export const API_ERROR_404_NOT_FOUND = PREFIX("API_ERROR_404_NOT_FOUND");
 export const API_ERROR_409_CONFLICT = PREFIX("API_ERROR_409_CONFLICT");
-export const API_ERROR_423_DATA_LOCKED = PREFIX("API_ERROR_432_DATA_LOCKED");
+export const API_ERROR_413_PAYLOAD_TOO_LARGE = PREFIX("API_ERROR_413_PAYLOAD_TOO_LARGE");
+export const API_ERROR_423_DATA_LOCKED = PREFIX("API_ERROR_423_DATA_LOCKED");
 export const API_ERROR_424_WRONG_DEPENDENCY = PREFIX("API_ERROR_424_WRONG_DEPENDENCY");
 
-
 export const COMPONENT_SCHEMA_NOT_DEFINED = PREFIX("COMPONENT_SCHEMA_NOT_DEFINED");
-export const COMPONENT_SCHEMA_ONLY_PROPERTY_REQUIRED = PREFIX("COMPONENT_SCHEMA_ONLY_PROPERTY_REQUIRED");
+export const COMPONENT_SCHEMA_ONLY_PROPERTY_REQUIRED = PREFIX(
+  "COMPONENT_SCHEMA_ONLY_PROPERTY_REQUIRED",
+);

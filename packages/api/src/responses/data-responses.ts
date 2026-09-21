@@ -4,6 +4,7 @@ import { ResponseJSONSchema } from "../schemas";
 import { messages } from "../constants";
 import { RESPONSES_NUMBER_RESPONSE_VALUE } from "../constants/messages";
 
+/** Base for every successful (2xx) response class in this package; status defaults to `200`. */
 @ComponentSchema({ description: messages.RESPONSES_COMMON_RESPONSE })
 export class CommonResponse extends ResponseJSONSchema {
   static status = 200;
@@ -11,6 +12,18 @@ export class CommonResponse extends ResponseJSONSchema {
   static description: string;
 }
 
+/**
+ * Response carrying just an optional message string — the common case for "operation succeeded,
+ * here's a note about it".
+ *
+ * @example
+ * ```ts
+ * import { MessageResponse } from "@aom-js/api";
+ *
+ * // in a handler:
+ * return new MessageResponse("Organization created");
+ * ```
+ */
 @ComponentSchema({ description: messages.RESPONSES_MESSAGE_RESPONSE })
 export class MessageResponse extends CommonResponse {
   static description = messages.RESPONSES_MESSAGE_RESPONSE_DESCRIPTION;
@@ -27,6 +40,7 @@ export class MessageResponse extends CommonResponse {
   }
 }
 
+/** `MessageResponse` plus an untyped `data` payload. Applications typically subclass this to type `data`. */
 @ComponentSchema({ description: messages.RESPONSES_DATA_RESPONSE })
 export class DataResponse extends MessageResponse {
   static description = messages.RESPONSES_DATA_RESPONSE_DESCRIPTION;
@@ -40,6 +54,7 @@ export class DataResponse extends MessageResponse {
   }
 }
 
+/** `MessageResponse` plus a numeric `value`. */
 @ComponentSchema({ description: messages.RESPONSES_NUMBER_RESPONSE })
 export class NumberResponse extends MessageResponse {
   static description = messages.RESPONSES_NUMBER_RESPONSE_DESCRIPTION;
@@ -53,6 +68,7 @@ export class NumberResponse extends MessageResponse {
   }
 }
 
+/** `MessageResponse` plus a boolean `value`. */
 @ComponentSchema({ description: messages.RESPONSES_BOOLEAN_RESPONSE })
 export class BooleanResponse extends MessageResponse {
   static description = messages.RESPONSES_BOOLEAN_RESPONSE_DESCRIPTION;
@@ -65,6 +81,7 @@ export class BooleanResponse extends MessageResponse {
     this.value = value;
   }
 }
+/** `MessageResponse` plus a string `value`. */
 @ComponentSchema({ description: messages.RESPONSES_STRING_RESPONSE })
 export class StringResponse extends MessageResponse {
   static description = messages.RESPONSES_STRING_RESPONSE_DESCRIPTION;

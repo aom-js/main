@@ -1,26 +1,26 @@
 import type { TransferServiceDescriptor } from "@aom-js/transfer";
 
-/** Конфигурация генератора */
+/** Generator configuration — where a generated `isolator.ts` imports its `Transfer` instance from. */
 export declare interface CodegenConfig {
-  /** module specifier сконфигурированного Transfer — его импортируют сгенерированные изоляторы */
+  /** Module specifier of the configured `Transfer` instance; imported verbatim by generated isolators. */
   transferImport: string;
 
-  /** имя экспорта в модуле transferImport; по умолчанию — default */
+  /** Export name to import from `transferImport`; defaults to the default export. */
   transferExportName?: string;
 }
 
-/** Один сгенерированный файл: путь относительно каталога сервиса и исходник */
+/** One generated file: its path relative to the service's output directory, and its source text. */
 export declare interface EmittedFile {
   path: string;
   source: string;
 }
 
-/** Результат генерации одного сервиса */
+/** Result of generating one service. */
 export declare interface EmittedService {
-  /** имя сервиса — дословно имя класса изолятора (топики выводятся из имени, не переименовывать) */
+  /** Service name — verbatim the isolator class name (topics are derived from it; do not rename after generation). */
   name: string;
 
-  /** sha256 контракта, зашитый в сгенерированный модуль для сверки дрейфа */
+  /** sha256 of the contract, embedded in the generated module for drift checks (see `diffManifest`). */
   hash: string;
 
   files: EmittedFile[];

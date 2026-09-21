@@ -12,3 +12,5 @@ dist/
 **/*.tgz
 coverage/
 .supergoal/
+
+packages/codegen/test/__generated__/

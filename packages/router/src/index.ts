@@ -7,3 +7,4 @@ export * from "./classes";
 export * from "./common/openapi";
 export * from "./common/classes";
 export * from "./common/types";
+export * from "./common/lazy";

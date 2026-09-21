@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import * as transferPackage from "@aom-js/transfer";
 import { Transfer, Isolator, ResponseTopic, CustomTopic, Executor } from "@aom-js/transfer";
 import { MemoryBus, tick } from "./memory-bus";
 
@@ -11,6 +12,8 @@ const node = new Transfer({
 });
 
 const fired: string[] = [];
+// вызовы тела изолятора: тело — интерфейс и не выполняется ни при вызове, ни после ответа
+const isolatorCalls: unknown[] = [];
 
 @Isolator(node)
 class MathService {
@@ -41,6 +44,7 @@ class MathService {
 
   @CustomTopic()
   static async fire(msg: string): Promise<unknown> {
+    isolatorCalls.push(msg);
     return undefined;
   }
 }
@@ -117,5 +121,21 @@ describe("transfer: RPC поверх шины", () => {
     await MathService.fire("hello");
     await tick(10);
     expect(fired).toContain("hello");
+  });
+
+  it("тело изолятора CustomTopic не вызывается после ответа исполнителя", async () => {
+    await MathService.fire("once");
+    await tick(20);
+    expect(fired).toContain("once");
+    expect(isolatorCalls).toEqual([]);
+  });
+});
+
+describe("transfer: публичный API", () => {
+  it("TransferTimeoutError экспортируется, черновик реестра и RxTransfer — нет", () => {
+    expect(transferPackage).toHaveProperty("TransferTimeoutError");
+    ["TransferRegistry", "TransferRegistryIsolator", "TransferRegistryExecutor", "RxTransfer"].forEach(
+      (name) => expect(transferPackage).not.toHaveProperty(name),
+    );
   });
 });

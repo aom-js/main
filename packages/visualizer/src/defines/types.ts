@@ -1,17 +1,17 @@
 import type { HTTPMethods } from "@aom-js/router";
 
-/** Роль узла в цепочке курсоров: тем же словарём подписаны блоки в HTML */
+/** Role of a node in a cursor chain: the same vocabulary labels the blocks rendered in the HTML page. */
 export type VisualNodeKind =
   "controller" | "middleware" | "endpoint" | "websocket" | "nextpoint" | "marker" | "hook";
 
-/** Где объявлен параметр запроса — совпадает с `in` из OpenAPI */
+/** Where a parameter is read from — matches OpenAPI's `in`. */
 export type VisualParameterIn = "path" | "query" | "header" | "cookie";
 
-/** Ссылка на компонентную схему либо инлайн-описание типа */
+/** Reference to a component schema, or an inline description of a type that did not resolve to one. */
 export interface VisualSchemaRef {
-  /** имя компонентной схемы, если значение свелось к `$ref` */
+  /** Component schema name, when the value collapsed to a `$ref`. */
   ref?: string;
-  /** краткая подпись типа для инлайновых схем: `string`, `array<Foo>`, `object` */
+  /** Short type label for inline schemas: `string`, `array<Foo>`, `object`. */
   label: string;
   isArray?: boolean;
 }
@@ -37,14 +37,14 @@ export interface VisualRequestBody {
   schema: VisualSchemaRef;
 }
 
-/** Звено цепочки исполнения маршрута — один курсор роутера */
+/** One link in a route's execution chain — a single router cursor. */
 export interface VisualChainItem {
-  /** `Class.method` — совпадает с `AomApi.toString()` */
+  /** `Class.method`, matches `AomApi.toString()`. */
   id: string;
   cls: string;
   method?: string;
   kind: VisualNodeKind;
-  /** класс, в котором курсор был прицеплен к маршруту (`AomCursor.origin`) */
+  /** Class the cursor was attached to the route from (`AomCursor.origin`). */
   origin: string;
   prefix: string;
   index: number;
@@ -53,7 +53,7 @@ export interface VisualChainItem {
 }
 
 export interface VisualRoute {
-  /** `get /api/orgs/:id` */
+  /** `get /api/orgs/:id`. */
   id: string;
   method: HTTPMethods;
   path: string;
@@ -61,7 +61,7 @@ export interface VisualRoute {
   title?: string;
   description?: string;
   tags: string[];
-  /** контроллер, объявивший endpoint */
+  /** Controller that declared the endpoint. */
   controller: string;
   endpoint: string;
   isWebsocket: boolean;
@@ -70,20 +70,20 @@ export interface VisualRoute {
   requestBody?: VisualRequestBody;
   responses: VisualResponse[];
   security: string[];
-  /** имена компонентных схем, задействованных маршрутом */
+  /** Names of the component schemas this route touches. */
   schemas: string[];
-  /** данные маркеров маршрута (`AomRoute.markers`), сериализованные как есть */
+  /** Route marker data (`AomRoute.markers`), serialized as-is. */
   markers: Record<string, unknown>;
 }
 
 export interface VisualBridge {
   prefix: string;
   target: string;
-  /** middleware, обёрнутая вокруг бриджа (`@Bridge` на методе), если есть */
+  /** Middleware wrapping the bridge (`@Bridge` on a method), if any. */
   via?: string;
 }
 
-/** Декорированный член контроллера — в том числе не подключённый ни к одному маршруту */
+/** A decorated controller member — including one not attached to any route. */
 export interface VisualMember {
   id: string;
   method: string;
@@ -95,22 +95,22 @@ export interface VisualController {
   id: string;
   title?: string;
   description?: string;
-  /** класс-родитель, если он тоже контроллер */
+  /** Parent class, if it is also a controller. */
   parent?: string;
-  /** все префиксы, по которым контроллер смонтирован */
+  /** Every prefix this controller is mounted under. */
   prefixes: string[];
   bridges: VisualBridge[];
-  /** контроллеры, из которых сюда ведут бриджи */
+  /** Controllers that bridge into this one. */
   parents: string[];
   pre: string[];
   post: string[];
   hooks: string[];
   markers: string[];
-  /** id маршрутов, объявленных непосредственно в этом контроллере */
+  /** Ids of routes declared directly on this controller. */
   routes: string[];
-  /** все декорированные члены класса, включая неподключённые */
+  /** Every decorated class member, including ones not wired to a route. */
   members: VisualMember[];
-  /** глубина в дереве бриджей от корня визуализации */
+  /** Depth in the bridge tree from the visualization root. */
   depth: number;
 }
 
@@ -121,25 +121,25 @@ export interface VisualMiddleware {
   kind: VisualNodeKind;
   title?: string;
   description?: string;
-  /** id маршрутов, в цепочку которых входит это звено */
+  /** Ids of routes whose chain includes this link. */
   usedBy: string[];
-  /** контроллеры, в которых звено прицеплено */
+  /** Controllers where this link is attached. */
   origins: string[];
-  /** схемы, объявленные декораторами на самом звене */
+  /** Schemas declared by decorators on this link itself. */
   schemas: string[];
   security: string[];
 }
 
 export interface VisualSchemaProperty {
   name: string;
-  /** подпись типа для колонки таблицы */
+  /** Type label for the table column. */
   type: string;
   format?: string;
   description?: string;
   required: boolean;
   isArray: boolean;
   nullable?: boolean;
-  /** имя связанной компонентной схемы — ребро ER-диаграммы */
+  /** Name of the referenced component schema — an edge of the ER diagram. */
   ref?: string;
   enum?: string[];
 }
@@ -148,25 +148,29 @@ export interface VisualSchema {
   id: string;
   description?: string;
   properties: VisualSchemaProperty[];
-  /** исходящие связи: свойство → схема */
+  /** Outgoing links: property → schema. */
   refs: Array<{ property: string; target: string }>;
-  /** схемы, ссылающиеся на эту */
+  /** Schemas that reference this one. */
   referencedBy: string[];
-  /** маршруты, в которых схема встречается */
+  /** Routes where this schema is used. */
   usedBy: string[];
 }
 
+/**
+ * Serializable snapshot of an API's structure: routes, chain links and component schemas with
+ * their cross-references. Built by `buildVisualGraph`, rendered to HTML by `renderVisualGraph`.
+ */
 export interface VisualGraph {
-  /** класс, от которого построен граф */
+  /** Class the graph was built from. */
   root: string;
   title: string;
-  /** момент сборки в ISO — заполняется на стороне сборщика */
+  /** ISO timestamp of when the graph was assembled, filled in by the builder. */
   builtAt: string;
   controllers: VisualController[];
   routes: VisualRoute[];
   middlewares: VisualMiddleware[];
   schemas: VisualSchema[];
-  /** имена всех контроллеров, пригодные как значение `root` для пересборки */
+  /** Names of every controller reachable in this graph, usable as a `root` for rebuilding. */
   roots: string[];
   stats: {
     controllers: number;
@@ -174,22 +178,24 @@ export interface VisualGraph {
     websockets: number;
     middlewares: number;
     schemas: number;
-    /** звенья, встречающиеся более чем в одном маршруте */
+    /** Links that appear in more than one route. */
     shared: number;
   };
   warnings: string[];
 }
 
+/** Options accepted by `buildVisualGraph`. */
 export interface BuildGraphOptions {
-  /** заголовок документа; по умолчанию — имя корневого класса */
+  /** Document title; defaults to the root class name. */
   title?: string;
-  /** базовый OpenAPI-документ для сборщика схем */
+  /** Base OpenAPI document info passed to the internal schema collector. */
   info?: { title?: string; version?: string };
-  /** не разбирать маркеры маршрутов (они могут быть тяжёлыми) */
+  /** Skip parsing route markers — they can be expensive to serialize. */
   skipMarkers?: boolean;
 }
 
+/** Options accepted by `renderVisualGraph`. */
 export interface RenderOptions {
-  /** сколько маршрутов должно использовать звено, чтобы считаться общим */
+  /** How many routes a link must be used by to be considered shared. */
   sharedThreshold?: number;
 }

@@ -1,15 +1,15 @@
 /**
- * Клиентский сценарий страницы визуализатора.
+ * Client-side script for the visualizer page, inlined into the rendered HTML by `renderVisualGraph`.
  *
- * Пишется без шаблонных литералов: файл сам является шаблонной строкой, и
- * экранирование `\`` / `\${` в нём читается хуже, чем конкатенация.
+ * Written without nested template literals: the whole file is itself a template string, and
+ * escaping `` ` `` / `${` inside it would read worse than plain string concatenation.
  */
 export const script = String.raw`
 (function () {
   "use strict";
 
-  // В документе лежит весь граф; graph — текущий вид, срез от выбранного корня.
-  // Корень живёт в hash и разбирается здесь: сервер о нём ничего не знает.
+  // The document holds the whole graph; graph is the current view, a slice from the chosen root.
+  // The root lives in the hash and is parsed right here: the server knows nothing about it.
   var full = JSON.parse(document.getElementById("aom-graph").textContent);
   var opts = JSON.parse(document.getElementById("aom-opts").textContent);
 
@@ -31,7 +31,7 @@ export const script = String.raw`
     graph.middlewares.forEach(function (item) { middlewareIndex.set(item.id, item); });
   }
 
-  /** Контроллеры, достижимые от узла по бриджам — граница среза */
+  /** Controllers reachable from a node via bridges — the boundary of the slice */
   function reachable(rootId) {
     var index = new Map();
     full.controllers.forEach(function (item) { index.set(item.id, item); });
@@ -47,8 +47,8 @@ export const script = String.raw`
   }
 
   /**
-   * Срез графа от произвольного узла. Пути остаются абсолютными — это реальные
-   * адреса модуля, а не пересборка дерева с нуля; сужается только состав.
+   * A slice of the graph from an arbitrary node. Paths stay absolute — they are real
+   * module addresses, not a tree rebuilt from scratch; only the membership is narrowed.
    */
   function subgraph(rootId) {
     if (!rootId || rootId === full.root || !full.roots.includes(rootId)) {
@@ -118,7 +118,7 @@ export const script = String.raw`
     return match ? decodeURIComponent(match[1]) : full.root;
   }
 
-  // ------------------------------------------------------------- вёрстка
+  // ------------------------------------------------------------- markup
 
   function el(tag, attrs) {
     var node = document.createElement(tag);
@@ -148,7 +148,7 @@ export const script = String.raw`
     return "";
   }
 
-  /** Чип звена цепочки: цвет отражает, во скольких маршрутах звено переиспользовано */
+  /** Chain-link chip: the color reflects how many routes the link is reused in */
   function middlewareChip(id) {
     var node = middlewareIndex.get(id);
     var count = node ? node.usedBy.length : 0;
@@ -169,9 +169,9 @@ export const script = String.raw`
     return chip;
   }
 
-  // Две разные операции на шапке карточки, разведённые по элементам:
-  // шеврон сворачивает и разворачивает, всё остальное — выделяет. Клик по шеврону
-  // не всплывает, поэтому свернуть блок можно, не сбив текущее выделение.
+  // Two distinct operations on the card header, split across elements:
+  // the chevron collapses/expands, everything else selects. The chevron's click
+  // does not bubble, so a block can be collapsed without disturbing the current selection.
   function card(key, head, body, openByDefault) {
     var chevron = el("i", {
       "class": "chev",
@@ -195,7 +195,7 @@ export const script = String.raw`
     return el("div", null, el("div", { "class": "sub-title", text: title }), content);
   }
 
-  // -------------------------------------------------------- контроллеры
+  // -------------------------------------------------------- controllers
 
   function controllerCard(item, prefix) {
     var head = el("div", { "class": "grow" },
@@ -238,8 +238,8 @@ export const script = String.raw`
   }
 
   /**
-   * Декорированные члены класса, не показанные в остальных секциях: middleware,
-   * объявленные, но никуда не прицепленные, видно только здесь.
+   * Decorated class members not shown in the other sections: middleware
+   * declared but not attached anywhere is visible only here.
    */
   function otherMembers(item) {
     var shown = new Set(item.pre.concat(item.post, item.hooks, item.markers));
@@ -251,9 +251,9 @@ export const script = String.raw`
   }
 
   /**
-   * Раскладка по уровням вложенности: столбец — это глубина от корня, внутри
-   * столбца одноранговые контроллеры идут сверху вниз. Обход в глубину, поэтому
-   * потомки одного родителя оказываются в столбце рядом друг с другом.
+   * Layout by nesting level: a column is the depth from the root; within a
+   * column, sibling controllers are stacked top to bottom. The traversal is depth-first, so
+   * one parent's children end up next to each other in the same column.
    */
   function layoutLevels() {
     var levels = [];
@@ -269,8 +269,8 @@ export const script = String.raw`
       item.bridges.forEach(function (bridge) { walk(bridge.target, depth + 1); });
     })(graph.root, 0);
 
-    // контроллеры, до которых от корня не ведёт ни один бридж (например, объявившие
-    // endpoint через наследование) — отдельным столбцом в конце, а не вперемешку
+    // controllers that no bridge from the root leads to (e.g. ones that declared an
+    // endpoint through inheritance) — their own column at the end, not mixed in
     var orphans = graph.controllers
       .filter(function (item) { return !placed.has(item.id); })
       .map(function (item) { return item.id; });
@@ -279,7 +279,7 @@ export const script = String.raw`
     return levels;
   }
 
-  /** Контроллер вместе со своими методами — они живут прямо под ним */
+  /** A controller together with its methods — they live directly below it */
   function controllerGroup(item) {
     var group = el("div", { "class": "group" }, controllerCard(item, item.prefixes[0] || "/"));
     var methods = el("div", { "class": "methods" });
@@ -294,7 +294,7 @@ export const script = String.raw`
     return group;
   }
 
-  // ------------------------------------------------------------ маршруты
+  // ------------------------------------------------------------ routes
 
   function statusClass(status) {
     var head = String(status).charAt(0);
@@ -397,15 +397,15 @@ export const script = String.raw`
     return node;
   }
 
-  // ------------------------------------------------- структуры данных
+  // ------------------------------------------------- data structures
 
   /**
-   * Структура данных внутри метода: общего списка схем на странице нет, каждая
-   * показывается там, где используется. Шеврон раскрывает состав, «подсветить»
-   * находит эту же структуру во всех остальных методах.
+   * A data structure inside a method: there is no single schema list on the page, each
+   * occurrence is shown where it's used. The chevron reveals its contents, the "подсветить"
+   * (highlight) button finds this same structure in all the other methods.
    *
-   * data-key у всех вхождений одной схемы одинаков — на нём держится подсветка;
-   * data-occ уникален и нужен, чтобы связать вхождения линиями.
+   * data-key is the same across every occurrence of one schema — that's what the highlight
+   * relies on; data-occ is unique and is needed to connect occurrences with wires.
    */
   function schemaBlock(route, name) {
     var schema = schemaIndex.get(name);
@@ -438,7 +438,7 @@ export const script = String.raw`
             el("span", { "class": "pname", text: property.name }),
             property.required ? el("span", { "class": "req", text: "*" }) : null,
             el("span", { "class": "ptype", text: property.type + (property.nullable ? " | null" : "") }));
-          // вложенная структура выбирается так же, как и через «подсветить»
+          // a nested structure is selected the same way the "подсветить" (highlight) button does it
           if (property.ref) {
             row.addEventListener("click", function (event) {
               event.stopPropagation();
@@ -462,7 +462,7 @@ export const script = String.raw`
     return node;
   }
 
-  // ------------------------------------------------------------- монтаж
+  // ------------------------------------------------------------- mounting
 
   var lanes = document.getElementById("lanes");
   var sharedList = document.getElementById("shared");
@@ -476,7 +476,7 @@ export const script = String.raw`
     ["shared", "общих звеньев"]
   ];
 
-  /** Пересобрать всё, что зависит от текущего среза */
+  /** Rebuild everything that depends on the current slice */
   function renderView() {
     selection = null;
 
@@ -536,7 +536,7 @@ export const script = String.raw`
     if (select.value !== graph.root) select.value = graph.root;
   }
 
-  // -------------------------------------------------------------- выбор
+  // -------------------------------------------------------------- selection
 
   function schemaClosure(name, out) {
     if (out.has(name)) return out;
@@ -610,7 +610,7 @@ export const script = String.raw`
       node.classList.toggle("is-hit", hit);
       if (node.classList.contains("card")) {
         node.classList.toggle("is-dim", !!hits && !hit);
-        // раскрываем подсвеченное окружение, но не спорим с собственным кликом пользователя
+        // expand the highlighted surroundings, but don't fight the user's own click
         if (hit && !node.classList.contains("open")) {
           node.classList.add("open");
         }
@@ -621,8 +621,8 @@ export const script = String.raw`
       var target = document.querySelector(
         '[data-key="' + cssEscape(selection.type + ":" + selection.id) + '"].card'
       );
-      // подводим к выбранному, только если его не видно: иначе полотно уезжало
-      // из-под курсора прямо по клику, и следующий клик попадал уже мимо карточки
+      // pan to the selection only if it's not visible: otherwise the canvas would slide
+      // out from under the cursor right on click, and the next click would miss the card
       if (target && !inView(target)) focusOn(target);
     }
     schedule();
@@ -630,7 +630,7 @@ export const script = String.raw`
 
   function cssEscape(value) { return value.replace(/["\\]/g, "\\$&"); }
 
-  // -------------------------------------------------------------- поиск
+  // -------------------------------------------------------------- search
 
   var searchInput = document.getElementById("search");
   searchInput.addEventListener("input", function () {
@@ -658,10 +658,10 @@ export const script = String.raw`
     applySelection();
   });
 
-  // Esc — тот же сброс, что и кнопкой: выделение и поиск
+  // Esc does the same reset as the button: selection and search
   window.addEventListener("keydown", function (event) {
     if (event.key !== "Escape") return;
-    // из поля поиска Esc сначала должен снять с него фокус
+    // Esc from inside the search field must first blur it
     if (document.activeElement === searchInput) searchInput.blur();
     event.preventDefault();
     document.getElementById("clear").click();
@@ -675,7 +675,7 @@ export const script = String.raw`
     schedule();
   });
 
-  // Корень вида — клиентская величина: меняем hash, страница не перезапрашивается
+  // The view root is a client-side value: we change the hash, the page is never re-requested
   var rootSelect = document.getElementById("root");
   full.roots.forEach(function (name) {
     rootSelect.appendChild(el("option", {
@@ -690,14 +690,14 @@ export const script = String.raw`
     if (String(window.location.hash) === hash || (!hash && !window.location.hash)) {
       setRoot(next);
     } else {
-      // остальное доделает обработчик hashchange — состояние остаётся одно
+      // the hashchange handler finishes the rest — there's still only one source of state
       window.location.hash = hash;
     }
   });
 
   window.addEventListener("hashchange", function () { setRoot(rootFromHash()); });
 
-  // ------------------------------------------------------- панорама и зум
+  // ------------------------------------------------------- pan and zoom
 
   var viewport = document.getElementById("viewport");
   var stage = document.getElementById("stage");
@@ -705,7 +705,7 @@ export const script = String.raw`
 
   var view = { x: 20, y: 20, scale: 1 };
 
-  /** Держим полотно в поле зрения: после сворачивания блоков оно иначе уезжает в пустоту */
+  /** Keep the canvas in view: after collapsing blocks it would otherwise drift off into empty space */
   function clampView() {
     var height = stage.offsetHeight * view.scale;
     var width = stage.offsetWidth * view.scale;
@@ -736,10 +736,10 @@ export const script = String.raw`
     applyView();
   }, { passive: false });
 
-  // Панорама намеренно без setPointerCapture: захват указателя перенацеливает
-  // последующий click на элемент-захватчик, и клики по карточкам не доходили бы
-  // до их обработчиков вовсе. Движение и отпускание слушаем на window — это даёт
-  // тот же эффект (курсор может уйти за пределы полотна), не ломая клики.
+  // Panning deliberately skips setPointerCapture: capturing the pointer would redirect the
+  // subsequent click to the capturing element, and clicks on cards would never reach their
+  // own handlers at all. Move and release are listened for on window instead — that gives
+  // the same effect (the cursor can leave the canvas) without breaking clicks.
   var drag = null;
   viewport.addEventListener("pointerdown", function (event) {
     if (event.button !== 0) return;
@@ -750,7 +750,7 @@ export const script = String.raw`
     if (!drag) return;
     var dx = event.clientX - drag.x;
     var dy = event.clientY - drag.y;
-    // порог: обычный клик почти всегда даёт дрожание в один-два пикселя
+    // threshold: an ordinary click almost always jitters by one or two pixels
     if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 4) {
       drag.moved = true;
       viewport.classList.add("dragging");
@@ -761,9 +761,9 @@ export const script = String.raw`
     applyView();
   });
 
-  // Подавление клика после перетаскивания — флагом, а не одноразовым слушателем:
-  // одноразовый оставался взведённым, если клик после drag так и не приходил,
-  // и съедал следующий настоящий клик по карточке.
+  // Suppressing the click after a drag uses a flag, not a one-shot listener: a one-shot
+  // listener stayed armed when the post-drag click never actually arrived, and then ate
+  // the next real click on a card.
   var suppressClick = false;
   viewport.addEventListener("click", function (event) {
     if (!suppressClick) return;
@@ -792,7 +792,7 @@ export const script = String.raw`
     view.x = 20; view.y = 20; view.scale = 1; applyView();
   });
 
-  /** Вписать всё полотно в окно: на модуле в сотню маршрутов иначе не видно общей картины */
+  /** Fit the whole canvas into the window: on a module with a hundred routes, you'd otherwise never see the big picture */
   document.getElementById("zoom-fit").addEventListener("click", function () {
     var box = viewport.getBoundingClientRect();
     var fit = Math.min(
@@ -806,7 +806,7 @@ export const script = String.raw`
     schedule();
   });
 
-  /** Видна ли карточка в окне полотна хотя бы частично */
+  /** Whether a card is at least partially visible in the canvas viewport */
   function inView(node) {
     var box = viewport.getBoundingClientRect();
     var rect = node.getBoundingClientRect();
@@ -830,7 +830,7 @@ export const script = String.raw`
     applyView();
   }
 
-  // --------------------------------------------------------------- связи
+  // --------------------------------------------------------------- wires
 
   var pending = null;
   var fallback = null;
@@ -844,9 +844,9 @@ export const script = String.raw`
   }
 
   /**
-   * Перерисовка на следующем кадре, но с запасным таймером: в скрытой вкладке
-   * requestAnimationFrame не вызывается вовсе, и слой связей оставался бы
-   * устаревшим до возвращения фокуса. Что сработает первым — то и сбросит второе.
+   * Redraw on the next frame, but with a fallback timer: in a hidden tab
+   * requestAnimationFrame never fires at all, and the wires layer would stay
+   * stale until focus returns. Whichever fires first clears the other.
    */
   function schedule() {
     if (pending) cancelAnimationFrame(pending);
@@ -859,7 +859,7 @@ export const script = String.raw`
     return !!node && !!node.offsetParent && !node.closest(".is-hidden");
   }
 
-  /** Точка привязки узла в координатах полотна */
+  /** A node's anchor point in canvas coordinates */
   function anchorNode(node) {
     if (!visible(node)) return null;
     var stageRect = stage.getBoundingClientRect();
@@ -877,8 +877,8 @@ export const script = String.raw`
   }
 
   /**
-   * Вхождения структуры данных на полотне. Свёрнутый метод свой блок не показывает —
-   * тогда привязываемся к карточке метода, чтобы линия всё равно куда-то вела.
+   * Occurrences of a data structure on the canvas. A collapsed method doesn't show its own
+   * block — in that case, anchor to the method's card instead, so the wire still leads somewhere.
    */
   function occurrences(name) {
     var out = [];
@@ -896,7 +896,7 @@ export const script = String.raw`
     var x1 = from.right, y1 = from.middle, x2 = to.left, y2 = to.middle;
     var span = Math.max(46, Math.abs(x2 - x1) / 2, Math.abs(y2 - y1) / 4);
     if (x2 < x1 + 20) {
-      // цель левее источника — обойдём справа, чтобы линия не шла сквозь карточку
+      // target is left of the source — route around the right, so the line doesn't cut through a card
       var out = Math.max(from.right, to.right) + 34;
       return "M" + x1 + "," + y1 + " C" + out + "," + y1 + " " + out + "," + y2 + " " + x2 + "," + y2;
     }
@@ -919,7 +919,7 @@ export const script = String.raw`
       fragment.appendChild(node);
     }
 
-    // бриджи: постоянный каркас картины, ровно он и задаёт раскладку по уровням
+    // bridges: the picture's permanent skeleton — it's exactly what drives the level layout
     graph.controllers.forEach(function (item) {
       var from = controllerAnchor(item.id);
       if (!from) return;
@@ -929,7 +929,7 @@ export const script = String.raw`
       });
     });
 
-    // повторы структуры данных: по выбранной схеме либо по всем сразу
+    // repeated data structure occurrences: for the selected schema, or for all of them at once
     var names = [];
     if (selection && selection.type === "schema") {
       names = [selection.id];

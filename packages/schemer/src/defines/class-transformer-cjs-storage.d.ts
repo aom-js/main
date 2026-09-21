@@ -1,11 +1,12 @@
-// class-transformer не публикует .d.ts для cjs-подпути, из которого берётся
-// defaultMetadataStorage (обходной путь для class-validator-jsonschema).
+// class-transformer doesn't publish a .d.ts for the cjs subpath that defaultMetadataStorage
+// is imported from (a workaround for class-validator-jsonschema).
 //
-// Расширение .js здесь обязательно и постобработкой не дописывается: это путь в чужой
-// пакет, а не относительный импорт. Без него ESM-вывод падает в рантайме.
+// The .js extension here is mandatory and isn't appended by any post-processing: this is a
+// path into someone else's package, not a relative import. Without it, the ESM build fails
+// at runtime.
 //
-// Тип берём не из class-transformer/types/*, а из опций потребителя: тот подпуть
-// содержит только .d.ts без парных .js и резолвится не во всех режимах.
+// The type is taken not from class-transformer/types/*, but from the consumer's options: that
+// subpath contains only a .d.ts with no matching .js and doesn't resolve in every mode.
 declare module "class-transformer/cjs/storage.js" {
   type ConverterOptions = NonNullable<
     Parameters<typeof import("class-validator-jsonschema").targetConstructorToSchema>[1]

@@ -5,23 +5,34 @@ import { buildVisualGraph } from "./graph";
 import { renderVisualGraph } from "./render";
 import type { BuildGraphOptions, RenderOptions, VisualGraph } from "./types";
 
-/** Что можно взять за корень карты: маршрут, роутер или сам класс контроллера */
+/** What can be taken as the map's root: a route, a router, or the controller class itself. */
 export type VisualizerSource = AomRoute | Router | ClassType;
 
 /**
- * Карта API как значение, а не как контроллер.
+ * The API map as a value, rather than as a controller.
  *
- * Компонента ничего не знает про HTTP: её создают там, где удобно, передав
- * маршрут (`@Route() route`), роутер или класс контроллера. Корнем карты
- * становится корень роутера этого маршрута — то есть модуль, внутри которого
- * компоненту и разместили.
+ * Knows nothing about HTTP: create it wherever convenient, passing a route (`@Route() route`),
+ * a router, or a controller class. The map's root becomes the root of that route's router — the
+ * module the component was placed inside of.
  *
- *     @Get("/visualizer")
- *     static Page(@Route() route: AomRoute): string {
- *       return new Visualizer(route).html;
- *     }
+ * ```ts
+ * @Get("/visualizer")
+ * static Page(@Route() route: AomRoute): string {
+ *   return new Visualizer(route).html;
+ * }
+ * ```
  *
- * Сборка ленивая: пока не спросили `graph` или `html`, ничего не считается.
+ * Building is lazy: nothing is computed until `graph` or `html` is read, and each is computed
+ * only once per instance.
+ *
+ * @example
+ * ```ts
+ * import { Visualizer } from "@aom-js/visualizer";
+ *
+ * const page = new Visualizer(AppRoot, { title: "Public API" });
+ * page.html; // self-contained HTML string
+ * page.graph.stats.routes; // same data, as a plain object
+ * ```
  */
 export class Visualizer {
   readonly source: VisualizerSource;
@@ -37,7 +48,7 @@ export class Visualizer {
     this.options = options;
   }
 
-  /** Класс, от которого строится карта */
+  /** Class the map is built from. */
   get root(): ClassType {
     const { source } = this;
     if (source instanceof AomRoute) return source.router.root;
@@ -45,13 +56,13 @@ export class Visualizer {
     return source;
   }
 
-  /** Данные карты: маршруты, звенья, схемы и связи между ними */
+  /** Map data: routes, links, schemas and the connections between them. Built once, on first access. */
   get graph(): VisualGraph {
     if (!this.builtGraph) this.builtGraph = buildVisualGraph(this.root, this.options);
     return this.builtGraph;
   }
 
-  /** Готовая самодостаточная HTML-страница */
+  /** Ready-to-serve, self-contained HTML page. Rendered once, on first access. */
   get html(): string {
     if (this.rendered === undefined) {
       this.rendered = renderVisualGraph(this.graph, this.options);
@@ -59,15 +70,26 @@ export class Visualizer {
     return this.rendered;
   }
 
-  /** Строковое представление — та же страница: `String(new Visualizer(route))` */
+  /**
+   * String form — the same page as `html`.
+   *
+   * @returns `this.html`.
+   *
+   * @example
+   * ```ts
+   * String(new Visualizer(route)); // same as new Visualizer(route).html
+   * ```
+   */
   toString(): string {
     return this.html;
   }
 
   /**
-   * Данные, а не страница. `Server` сериализует возвращённый объект через
-   * JSON.stringify, поэтому `return new Visualizer(route)` из endpoint-а отдаёт
-   * граф; для страницы нужен `.html`.
+   * Data, not a page. `Server` serializes a returned object with `JSON.stringify`, so
+   * `return new Visualizer(route)` from an endpoint hands back the graph; returning the page
+   * itself requires `.html` explicitly.
+   *
+   * @returns The same value as `this.graph`.
    */
   toJSON(): VisualGraph {
     return this.graph;

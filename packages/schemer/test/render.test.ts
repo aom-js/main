@@ -75,8 +75,8 @@ describe("schemer: рендер JSON Schema", () => {
     expect(JSON.stringify(schema.properties!.pet)).toContain("#/components/schemas/Pet");
   });
 
-  // FINDING: нулевые ограничения игнорируются — truthy-проверки `params.minValue ? Min(...)` в properties.ts
-  it.fails("minValue: 0 должен попадать в схему как minimum: 0 (дефект: truthy-проверка)", () => {
+  // KI-SCHEMER-01: `params.x ? … : undefined` заменено на `params.x != null ? … : undefined`
+  it("minValue: 0 попадает в схему как minimum: 0", () => {
     @ComponentSchema()
     class ZeroMin {
       @PropertySchema.Number({ minValue: 0 })
@@ -103,5 +103,134 @@ describe("schemer: рендер JSON Schema", () => {
     expect(Object.keys(schema.properties ?? {})).toEqual(
       expect.arrayContaining(["id", "extra"]),
     );
+  });
+
+  // KI-SCHEMER-05: readOnly не доходил до JSONSchema у Enum/Date/Type
+  it("readOnly доходит до схемы у Enum, Date и Type", () => {
+    @ComponentSchema()
+    class Nested {
+      @PropertySchema.String({})
+      value!: string;
+    }
+
+    @ComponentSchema()
+    class ReadOnlyDto {
+      @PropertySchema.Enum({ value: Status, readOnly: true })
+      status!: Status;
+
+      @PropertySchema.Date({ readOnly: true })
+      createdAt!: Date;
+
+      @PropertySchema.Type({ value: () => Nested, readOnly: true })
+      nested!: Nested;
+    }
+
+    const schema = schemer.render(ReadOnlyDto);
+    expect((schema.properties!.status as any).readOnly).toBe(true);
+    expect((schema.properties!.createdAt as any).readOnly).toBe(true);
+    expect((schema.properties!.nested as any).readOnly).toBe(true);
+  });
+
+  // KI-SCHEMER-05: pattern был объявлен в типе, но не превращался в валидатор — и не попадал в схему
+  it("pattern у String попадает в схему через Matches", () => {
+    @ComponentSchema()
+    class PatternDto {
+      @PropertySchema.String({ pattern: "^[a-z]+$" })
+      code!: string;
+    }
+
+    const schema = schemer.render(PatternDto);
+    expect((schema.properties!.code as any).pattern).toBe("^[a-z]+$");
+  });
+
+  // KI-SCHEMER-06: decorators утекали в JSONSchema класса
+  it("decorators из ComponentSchema не попадают в схему класса", () => {
+    @ComponentSchema({ description: "С доп. декораторами", decorators: [] })
+    class WithClassDecorators {
+      @PropertySchema.String({})
+      a!: string;
+    }
+
+    const schema = schemer.render(WithClassDecorators);
+    expect(schema).not.toHaveProperty("decorators");
+  });
+
+  // enumName: параметр для будущего codegen — не должен влиять на JSON Schema
+  it("enumName не меняет рендер и сохраняется в schemaParams", () => {
+    @ComponentSchema()
+    class WithoutEnumName {
+      @PropertySchema.Enum({ value: Status })
+      status!: Status;
+    }
+
+    @ComponentSchema()
+    class WithEnumName {
+      @PropertySchema.Enum({ value: Status, enumName: "Status" })
+      status!: Status;
+    }
+
+    expect(schemer.render(WithEnumName)).toEqual(schemer.render(WithoutEnumName));
+    const $status = AomSchemas.checkExists(WithEnumName)!._.properties.get("status");
+    expect($status?.schemaParams).toMatchObject({ enumName: "Status" });
+  });
+
+  // KI-SCHEMER-NN: недекорированный промежуточный класс не наследовал ничего сам, и
+  // targetConstructorToSchema поднимался по прототипам до предка, отдавая его description/свойства
+  it("недекорированный промежуточный класс не подменяет схему потомка предком", () => {
+    @ComponentSchema({ description: "base" })
+    class Base {
+      @PropertySchema.String({ description: "a" })
+      a!: string;
+    }
+
+    class Mid extends Base {}
+
+    @ComponentSchema({ description: "child" })
+    class Child extends Mid {}
+
+    const schema = schemer.render(Child);
+    expect(schema.description).toBe("child");
+    expect(Object.keys(schema.properties ?? {})).toEqual(["a"]);
+    expect(schemer.render(Base).description).toBe("base");
+  });
+
+  it("та же ситуация с двумя недекорированными промежуточными классами подряд", () => {
+    @ComponentSchema({ description: "base" })
+    class Base {
+      @PropertySchema.String({ description: "a" })
+      a!: string;
+    }
+
+    class Mid1 extends Base {}
+    class Mid2 extends Mid1 {}
+
+    @ComponentSchema({ description: "child" })
+    class Child extends Mid2 {}
+
+    const schema = schemer.render(Child);
+    expect(schema.description).toBe("child");
+    expect(Object.keys(schema.properties ?? {})).toEqual(["a"]);
+  });
+
+  // KI-SCHEMER-NN: у самого промежуточного класса тоже может быть своё @PropertySchema-свойство
+  // (без @ComponentSchema) — оно должно дойти до потомка наравне со свойствами дальнего предка
+  it("недекорированный промежуточный класс со своим свойством — оно тоже доходит до потомка", () => {
+    @ComponentSchema({ description: "base" })
+    class Base {
+      @PropertySchema.String({ description: "a" })
+      a!: string;
+    }
+
+    class Mid extends Base {
+      @PropertySchema.Number({ description: "b" })
+      b!: number;
+    }
+
+    @ComponentSchema({ description: "child" })
+    class Child extends Mid {}
+
+    const schema = schemer.render(Child);
+    expect(schema.description).toBe("child");
+    expect(Object.keys(schema.properties ?? {})).toEqual(expect.arrayContaining(["a", "b"]));
   });
 });
