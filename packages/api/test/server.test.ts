@@ -31,6 +31,7 @@ import {
   SeeOtherResponse,
   AuthRequiredResponse,
   BodyOptions,
+  Logger,
 } from "@aom-js/api";
 
 // поток, который падает уже на первом чтении - имитирует, например, отсутствие файла на диске
@@ -997,5 +998,90 @@ describe("Server: ленивое чтение тела и лимит разме�
     } finally {
       unlimited.server.close();
     }
+  });
+});
+
+// уровень записи логгера зависит от класса статуса, а не от точного кода (KI-API-18)
+@Controller()
+class LoggerApi {
+  @Get("/ok")
+  @Before(Logger.Init)
+  static async ok() {
+    return new MessageResponse("ok");
+  }
+
+  @Get("/see-other")
+  @Before(Logger.Init)
+  static async seeOther() {
+    throw new SeeOtherResponse("see other");
+  }
+
+  @Get("/conflict")
+  @Before(Logger.Init)
+  static async conflict() {
+    throw new ConflictResponse("conflict");
+  }
+
+  @Get("/boom")
+  @Before(Logger.Init)
+  static async boom() {
+    throw new Error("boom");
+  }
+}
+
+describe("Logger: уровень записи по классу статуса (KI-API-18)", () => {
+  let server: Server;
+  let base: string;
+  const records: Array<{ level: string; status?: number }> = [];
+  const engine = Logger.ENGINE;
+
+  // движок-перехватчик: запоминаем уровень и статус закрывающей записи, в консоль не пишем
+  const record = (level: string) => (message: any, log?: any) => {
+    records.push({ level, status: log?.status });
+  };
+
+  beforeAll(() => {
+    Logger.ENGINE = {
+      info: record("info"),
+      log: record("log"),
+      warn: record("warn"),
+      error: record("error"),
+      debug: record("debug"),
+    };
+    const docs = new OpenApi({ openapi: "3.1.0", info: { title: "logger", version: "1" } });
+    const router = new Router(LoggerApi, docs);
+    server = new Server({ port: 0, url: "http://localhost" }, router);
+    base = `http://127.0.0.1:${(server.server.address() as AddressInfo).port}`;
+  });
+
+  afterAll(() => {
+    Logger.ENGINE = engine;
+    server.server.close();
+  });
+
+  // закрывающая запись - та, в которой уже проставлен status: открывающая ("Logger initiated")
+  // пишется до ответа и статуса ещё не знает
+  const closing = async (path: string) => {
+    records.length = 0;
+    await fetch(`${base}${path}`);
+    // finish-обработчик вызывается после того, как ответ ушёл клиенту
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    return records.filter((r) => r.status !== undefined).at(-1);
+  };
+
+  it("200 - info", async () => {
+    expect(await closing("/ok")).toEqual({ level: "info", status: 200 });
+  });
+
+  it("303 - info, а не error: успешный, но не 200 ответ больше не считается ошибкой", async () => {
+    expect(await closing("/see-other")).toEqual({ level: "info", status: 303 });
+  });
+
+  it("409 - warn: ошибка на стороне клиента, а не сервиса", async () => {
+    expect(await closing("/conflict")).toEqual({ level: "warn", status: 409 });
+  });
+
+  it("500 - error", async () => {
+    expect(await closing("/boom")).toEqual({ level: "error", status: 500 });
   });
 });

@@ -31,6 +31,9 @@ class LoggerAttachments {
  * compatible `{ info, log, warn, error, debug }` object before the server starts handling
  * requests).
  *
+ * The level of the closing record follows the status class: `info` for 1xx-3xx, `warn` for 4xx
+ * (the client's mistake), `error` for 5xx (this service failed).
+ *
  * @example
  * ```ts
  * import { Logger } from "@aom-js/api";
@@ -103,9 +106,15 @@ export class Logger {
       self.lifetime = +self.currentDate - +self.startDate; // request lifetime
       self.duration = +self.finishDate - +self.startDate; // request duration
 
-      if (self.status !== 200) {
+      // the log level follows the status class, not the exact code: 2xx and 3xx are ordinary
+      // successful answers (201, 204, 303 included), 4xx is the client's mistake, and only 5xx
+      // means this service failed. Logging every non-200 answer as an error made the error rate
+      // in the logs meaningless (`KI-API-18`).
+      if (self.status >= 500) {
         // log.error = ctx.res.body as Error; !! todo figure out how to do this!
         this.ENGINE.error("Request error:", self);
+      } else if (self.status >= 400) {
+        this.ENGINE.warn("Request rejected:", self);
       } else {
         this.ENGINE.info("Request success:", self);
       }

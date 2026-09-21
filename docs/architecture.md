@@ -300,7 +300,7 @@ sequenceDiagram
 
 **Тесты.** `bun run test` → `vitest run`. Конфигурация принудительно отключает `oxc` и транспилирует через `unplugin-swc` с `legacyDecorator` и `decoratorMetadata` — иначе не эмитится `design:type` (`vitest.config.ts` (`oxc`, `plugins`)). Алиасы `@aom-js/* → packages/*/src` заданы для семи пакетов, включая `@aom-js/api` (`vitest.config.ts` (`resolve.alias`); было отсутствие — `KI-API-11` закрыт). Глобальный `reflect-metadata` подключается в `vitest.setup.ts`.
 
-Прогон на 2026-09-02: 21 файл, 120 passed, 3 expected fail (123 всего) — это состояние устарело: волна правок 2026-09-14 (`docs/superpowers/plans/2026-09-13-known-issues-plan.md`) закрыла все три `it.fails` и добавила тесты. Ниже — core/holder/router/transfer/schemer/api/codegen, пересчитано 2026-09-21 (`./node_modules/.bin/vitest run`; `bunx vitest` резолвит собственную непривязанную к проекту копию и даёт ложные расхождения — не использовать); монорепо целиком: 32 файла, 414 тестов.
+Прогон на 2026-09-02: 21 файл, 120 passed, 3 expected fail (123 всего) — это состояние устарело: волна правок 2026-09-14 (`docs/superpowers/plans/2026-09-13-known-issues-plan.md`) закрыла все три `it.fails` и добавила тесты. Ниже — core/holder/router/transfer/schemer/api/codegen, пересчитано 2026-09-21 (`./node_modules/.bin/vitest run`; `bunx vitest` резолвит собственную непривязанную к проекту копию и даёт ложные расхождения — не использовать); монорепо целиком: 32 файла, 418 тестов.
 
 | Пакет        | Файлов тестов | Тестов | `it.fails` |
 | ------------ | ------------- | ------ | ---------- |
@@ -310,7 +310,7 @@ sequenceDiagram
 | `transfer`   | 8             | 57     | —          |
 | `codegen`    | 3             | 61     | —          |
 | `holder`     | 1             | 5      | —          |
-| `api`        | 3             | 83     | —          |
+| `api`        | 3             | 87     | —          |
 | `visualizer` | 1             | 21     | —          |
 
 `it.fails` — приём для намеренно зафиксированных дефектов: тест специально падает «наоборот» (зелёный, пока дефект жив). На 2026-09-14 в core, holder, router, schemer, transfer и api таких тестов не осталось (`grep -rn "it\.fails" main/packages/*/test/*.ts` — пусто): нулевые ограничения схем (`KI-SCHEMER-01`, было `packages/schemer/test/render.test.ts` («minValue: 0 попадает в схему как minimum: 0»)) и гонка `@This` (`KI-ROUTER-01`, было `packages/router/test/router-exec.test.ts` («два @This одного класса в одном методе дают один инстанс и один вызов @OnInstance»)) закрыты вместе с неперенoсом `@Delay` (`KI-HOLDER-01`, было `packages/holder/test/holder.test.ts` («Delay на родителе + Apply на потомке переносит класс-декораторы родителя»)) — все три теста стали обычными проходящими. `api` тестов никогда не имел вообще (`KI-API-11`) — после ревью и трёх раундов аудита безопасности пакет получил `server.test.ts` (585 строк) и `units.test.ts` (107 строк), покрывающие `Server`/`RouteMatcher`, `checkLocales`, `BodyBuilder.JSONSchema`, коды 423/424 и `CheckLayerPass`. Тестовый каркас заложен планом `docs/superpowers/plans/2026-07-20-test-coverage.md` (исторический документ, см. раздел расхождений).
