@@ -49,17 +49,16 @@ export class RxContext {
   /** Constructed-but-unvalidated instances, visible only to the branch creating each one — removed as soon as its hooks finish (success or failure). */
   inflight = new Map<ClassConstructor, any>();
 
-  // who is waiting on whom: the edge lives as long as a branch is waiting on someone else's
+  // who is waiting on whom: an edge lives as long as a branch is waiting on someone else's
   // creation. Needed so that two branches waiting on each other become a clear error instead
-  // of the request silently hanging. One edge per waiter is enough in the common case: a
-  // branch's own cursors run one at a time (concatMap in run()), so it normally waits on a
-  // single target at a time. Known limitation: if the same branch ends up waiting on two
-  // different pending creations concurrently (e.g. two @This(...) constructor arguments
-  // resolved together via Promise.all, both already pending elsewhere), only the most recent
-  // edge is kept — a cycle that closes through the overwritten earlier edge could in theory
-  // hang instead of throwing CIRCULAR_INSTANCE_ERROR. Not reproduced by the package's tests.
-  /** `waiter → target` edges: which class-creating branch is waiting on which other creation, used to turn mutual waiting into `CIRCULAR_INSTANCE_ERROR` instead of a hang. */
-  waits = new Map<ClassConstructor, ClassConstructor>();
+  // of the request silently hanging. Every edge is kept, not just the latest one: a branch
+  // can wait on several creations at once, because both the constructor arguments and the
+  // instance hooks of the class it is building run concurrently (Promise.all in
+  // AomApi.instanceWithHooks). While only one target per waiter was stored, the second wait
+  // overwrote the first and a cycle closing through the forgotten edge hung the request
+  // instead of throwing CIRCULAR_INSTANCE_ERROR (`KI-ROUTER-19`).
+  /** `waiter → targets` edges: which creations each class-creating branch is waiting on, used to turn mutual waiting into `CIRCULAR_INSTANCE_ERROR` instead of a hang. */
+  waits = new Map<ClassConstructor, Set<ClassConstructor>>();
 
   // started computations of lazy context values (see common/lazy.ts): the rejection or the
   // result is remembered until the end of the request — a second access to the same field
@@ -100,21 +99,55 @@ export class RxContext {
     // the branch isn't creating anything — there's nothing to close a cycle with, no edge needed
     if (!waiter) return creation;
 
-    const chain: ClassConstructor[] = [waiter];
-    for (let next = target; next; next = this.waits.get(next)!) {
-      chain.push(next);
-      if (next === waiter) throw circularInstanceError(chain);
-    }
+    const cycle = this.findWaitPath(target, waiter);
+    if (cycle) throw circularInstanceError([waiter, ...cycle]);
 
-    this.waits.set(waiter, target);
+    const targets = this.waits.get(waiter) ?? new Set<ClassConstructor>();
+    targets.add(target);
+    this.waits.set(waiter, targets);
+
     const release = () => {
-      if (this.waits.get(waiter) === target) this.waits.delete(waiter);
+      const current = this.waits.get(waiter);
+      if (!current) return;
+      // only this branch's own edge goes away: the same branch may still be waiting on others
+      current.delete(target);
+      if (!current.size) this.waits.delete(waiter);
     };
     // the creation error goes to whoever awaits creation; here we only remove the edge in
     // both cases and keep the rejection from becoming unhandled
     creation.then(release, release);
 
     return creation;
+  }
+
+  /**
+   * Searches the `waits` graph for a path from `from` to `goal`, returning the classes along
+   * it (`from` first, `goal` last) or `undefined` when `goal` isn't reachable. Used by
+   * {@link RxContext.waitCreation} to decide whether waiting would close a cycle, and the path
+   * it returns is what makes the error message readable.
+   *
+   * Depth-first with a visited set: a branch can wait on several creations at once, so the
+   * graph isn't a chain, and without the visited set a cycle between two other classes would
+   * spin the search forever.
+   */
+  private findWaitPath(
+    from: ClassConstructor,
+    goal: ClassConstructor,
+  ): ClassConstructor[] | undefined {
+    const stack: ClassConstructor[][] = [[from]];
+    const visited = new Set<ClassConstructor>();
+
+    while (stack.length) {
+      const path = stack.pop()!;
+      const node = path[path.length - 1];
+      if (node === goal) return path;
+      if (visited.has(node)) continue;
+      visited.add(node);
+
+      for (const next of this.waits.get(node) ?? []) stack.push([...path, next]);
+    }
+
+    return undefined;
   }
 
   // resolving a lazy context field: a ready value is returned as-is (today's behavior is

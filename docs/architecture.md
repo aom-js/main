@@ -300,13 +300,13 @@ sequenceDiagram
 
 **Тесты.** `bun run test` → `vitest run`. Конфигурация принудительно отключает `oxc` и транспилирует через `unplugin-swc` с `legacyDecorator` и `decoratorMetadata` — иначе не эмитится `design:type` (`vitest.config.ts` (`oxc`, `plugins`)). Алиасы `@aom-js/* → packages/*/src` заданы для семи пакетов, включая `@aom-js/api` (`vitest.config.ts` (`resolve.alias`); было отсутствие — `KI-API-11` закрыт). Глобальный `reflect-metadata` подключается в `vitest.setup.ts`.
 
-Прогон на 2026-09-02: 21 файл, 120 passed, 3 expected fail (123 всего) — это состояние устарело: волна правок 2026-09-14 (`docs/superpowers/plans/2026-09-13-known-issues-plan.md`) закрыла все три `it.fails` и добавила тесты. Ниже — core/holder/router/transfer/schemer/api/codegen, пересчитано 2026-09-21 (`./node_modules/.bin/vitest run`; `bunx vitest` резолвит собственную непривязанную к проекту копию и даёт ложные расхождения — не использовать); монорепо целиком: 32 файла, 418 тестов.
+Прогон на 2026-09-02: 21 файл, 120 passed, 3 expected fail (123 всего) — это состояние устарело: волна правок 2026-09-14 (`docs/superpowers/plans/2026-09-13-known-issues-plan.md`) закрыла все три `it.fails` и добавила тесты. Ниже — core/holder/router/transfer/schemer/api/codegen, пересчитано 2026-09-21 (`./node_modules/.bin/vitest run`; `bunx vitest` резолвит собственную непривязанную к проекту копию и даёт ложные расхождения — не использовать); монорепо целиком: 32 файла, 419 тестов.
 
 | Пакет        | Файлов тестов | Тестов | `it.fails` |
 | ------------ | ------------- | ------ | ---------- |
 | `core`       | 4             | 38     | —          |
 | `schemer`    | 5             | 88     | —          |
-| `router`     | 7             | 61     | —          |
+| `router`     | 7             | 62     | —          |
 | `transfer`   | 8             | 57     | —          |
 | `codegen`    | 3             | 61     | —          |
 | `holder`     | 1             | 5      | —          |

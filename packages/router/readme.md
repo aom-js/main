@@ -384,15 +384,19 @@ Evidence: `packages/router/test/router-exec.test.ts` («миддлварь, ве
     // ветка ничего не создаёт — замкнуть цикл нечем, ребро не нужно
     if (!waiter) return creation;
 
-    const chain: ClassConstructor[] = [waiter];
-    for (let next = target; next; next = this.waits.get(next)!) {
-      chain.push(next);
-      if (next === waiter) throw circularInstanceError(chain);
-    }
+    const cycle = this.findWaitPath(target, waiter);
+    if (cycle) throw circularInstanceError([waiter, ...cycle]);
 
-    this.waits.set(waiter, target);
+    const targets = this.waits.get(waiter) ?? new Set<ClassConstructor>();
+    targets.add(target);
+    this.waits.set(waiter, targets);
+
     const release = () => {
-      if (this.waits.get(waiter) === target) this.waits.delete(waiter);
+      const current = this.waits.get(waiter);
+      if (!current) return;
+      // снимаем только своё ребро: ветка может ждать и других
+      current.delete(target);
+      if (!current.size) this.waits.delete(waiter);
     };
     // ошибку создания получает тот, кто ждёт creation; здесь только снимаем ребро в обе
     // стороны и не даём отказу стать необработанным
@@ -402,9 +406,9 @@ Evidence: `packages/router/test/router-exec.test.ts` («миддлварь, ве
   }
 ```
 
-Граф `waits` (`Map<ClassConstructor, ClassConstructor>` — «кто кого ждёт», ребро живёт, пока ветка ждёт чужое создание) превращает встречное ожидание двух веток в тот же `CIRCULAR_INSTANCE_ERROR`, а не в зависший запрос.
+Граф `waits` (`Map<ClassConstructor, Set<ClassConstructor>>` — «кто кого ждёт», ребро живёт, пока ветка ждёт чужое создание) превращает встречное ожидание двух веток в тот же `CIRCULAR_INSTANCE_ERROR`, а не в зависший запрос.
 
-> **Известное ограничение**: граф `waits` держит одно ребро на ожидающую ветку (`waiter → target`). Если одна и та же ветка успевает встать в ожидание сразу двух чужих созданий, отслеживается только последнее — экзотический цикл через «забытое» первое ребро теоретически может повиснуть вместо понятной ошибки. В тестах пакета такой сценарий не воспроизведён.
+Ветка может ждать нескольких созданий сразу — и аргументы конструктора, и хуки экземпляра исполняются параллельно, — поэтому хранятся все рёбра, а не последнее, и проверка на цикл идёт обходом графа (`RxContext.findWaitPath`, поиск в глубину с пометками посещённых узлов), а не проходом по цепочке. Пока ребро на ветку было одно, второе ожидание затирало первое, и цикл, замыкавшийся через забытое ребро, вешал запрос вместо ошибки (`KI-ROUTER-19`, закрыт 2026-09-21; тест — `packages/router/test/router-instance-safety.test.ts` («цикл распознаётся, даже когда ждущая ветка ждёт ещё одно создание (KI-ROUTER-19)»)).
 
 **Отказ конструктора или хука по-прежнему помнится до конца запроса** (`KI-ROUTER-14`): `pending` не снимается при ошибке, следующие обращения к тому же классу в рамках запроса получают ту же ошибку без повторного создания. Паттерн «попробовать → войти → повторить» в одном запросе не работает — второй `next(Auth.Required)` после перехваченной ошибки первого получает ту же ошибку, не запуская проверку заново. Тесты: `packages/router/test/router-exec.test.ts` («перехваченная ошибка хука-проверки не пускает следующий курсор того же класса без авторизации», «отказ хука-проверки запоминается до конца запроса: соседний хук не пересоздаёт класс в фоне», «повторное обращение к классу после отказа в том же запросе получает ту же ошибку»).
 

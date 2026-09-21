@@ -18,8 +18,16 @@ import {
 const makeDocs = () => new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
 
 const makeContext = (partial: Partial<HttpContextValues> = {}): HttpContextValues => ({
-  ctx: {}, req: {}, res: {}, body: {}, files: {}, query: {},
-  params: {}, cookies: {}, headers: {}, session: {},
+  ctx: {},
+  req: {},
+  res: {},
+  body: {},
+  files: {},
+  query: {},
+  params: {},
+  cookies: {},
+  headers: {},
+  session: {},
   ...partial,
 });
 
@@ -370,6 +378,61 @@ describe("router: циклические зависимости инстансо
     const router = new Router(App, makeDocs());
     const error = await call(router, "get", "/pair-cycle", makeContext()).catch((e: Error) => e);
     expect((error as Error).message).toContain("CIRCULAR_INSTANCE_ERROR");
+  });
+
+  // KI-ROUTER-19: ветка ждёт сразу нескольких созданий - аргументы конструктора и хуки
+  // экземпляра исполняются параллельно. Пока граф помнил по одному ожиданию на ветку, второе
+  // затирало первое, и цикл, замыкавшийся через забытое ребро, вешал запрос вместо ошибки
+  it("цикл распознаётся, даже когда ждущая ветка ждёт ещё одно создание (KI-ROUTER-19)", async () => {
+    // долгая проверка: класс остаётся в процессе создания, когда его попросят вторым
+    @Controller()
+    class Slow {
+      @OnInstance()
+      static async hold() {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+
+    @Controller()
+    class Waiting {
+      @OnInstance()
+      static async needsAsker(@This(FwdRef(() => Asker)) _asker: unknown) {}
+    }
+
+    // конструктор ждёт двоих сразу: обоих создают соседние ветки эндпоинта
+    @Controller()
+    class Asker {
+      constructor(
+        @This(Waiting) public waiting: Waiting,
+        @This(Slow) public slow: Slow,
+      ) {}
+    }
+
+    @Controller()
+    class App {
+      // три ветки стартуют параллельно
+      @Get("/forgotten-edge")
+      static async forgottenEdge(
+        @This(Waiting) _w: Waiting,
+        @This(Slow) _s: Slow,
+        @This(Asker) _a: Asker,
+      ) {
+        return "ok";
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    // гонка со временем: до исправления запрос не завершался вовсе, и тест должен падать
+    // по несовпадению, а не висеть до таймаута vitest
+    const outcome = await Promise.race([
+      call(router, "get", "/forgotten-edge", makeContext()).then(
+        () => "resolved",
+        (e: Error) => e.message,
+      ),
+      new Promise<string>((resolve) => setTimeout(() => resolve("hung"), 1000)),
+    ]);
+    expect(outcome).toContain("CIRCULAR_INSTANCE_ERROR");
+    expect(outcome).toContain("Waiting -> Asker -> Waiting");
   });
 });
 
