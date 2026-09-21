@@ -17,8 +17,8 @@ import { ValidationOptions, ValidateIf } from "class-validator";
  * import { IsString } from "class-validator";
  *
  * class Example {
- *   @IsString()
- *   @IsNullable()
+ *   \@IsString()
+ *   \@IsNullable()
  *   note!: string | null;
  * }
  * ```

@@ -21,8 +21,8 @@ import {
 } from "./types";
 
 /**
- * Binds a class to a transport and closes it: every method decorated with `@ResponseTopic()`/
- * `@CustomTopic()` gets a topic and a replacement body that publishes to the bus instead of
+ * Binds a class to a transport and closes it: every method decorated with `\@ResponseTopic()`/
+ * `\@CustomTopic()` gets a topic and a replacement body that publishes to the bus instead of
  * running the original code.
  *
  * Class decorator, phase INSTANT: it is an aggregator (`$._.apply()` runs its deferred LAST
@@ -42,11 +42,11 @@ import {
  * import { Isolator, ResponseTopic } from "@aom-js/transfer";
  * import transfer from "./transfer";
  *
- * @Isolator(transfer)
+ * \@Isolator(transfer)
  * export class GoodsService {
- *   @ResponseTopic()
+ *   \@ResponseTopic()
  *   static async save(id: string): Promise<void> {
- *     // body is never called — it only describes the interface, see @ResponseTopic
+ *     // body is never called — it only describes the interface, see \@ResponseTopic
  *   }
  * }
  * ```
@@ -75,11 +75,11 @@ export function Isolator(transfer: Transfer, options: IsolatorOptions = {}): Cla
  * import { Isolator, CustomTopic, IsQueue } from "@aom-js/transfer";
  * import transfer from "./transfer";
  *
- * @Isolator(transfer)
+ * \@Isolator(transfer)
  * class QueuedService {
  *   // only one of several running executors handles each call
- *   @CustomTopic()
- *   @IsQueue()
+ *   \@CustomTopic()
+ *   \@IsQueue()
  *   static async work(): Promise<void> {}
  * }
  * ```
@@ -95,7 +95,7 @@ export function IsQueue() {
  * Overrides, for one method, the `responseTimeout` configured on `new Transfer({ responseTimeout })`.
  *
  * The method's value always wins when it is set; the transport's `responseTimeout` is used
- * only when the method has no `@TopicTimeout` at all — see `RxTransfer.request`, which reads
+ * only when the method has no `\@TopicTimeout` at all — see `RxTransfer.request`, which reads
  * `$.responseTimeout ?? transfer.responseTimeout`. `0` means "wait without a limit" for this
  * method specifically, even if the transport has a finite timeout (and a finite value on the
  * method wins even if the transport's timeout is `0`). The value is stored on the method's
@@ -116,11 +116,11 @@ export function IsQueue() {
  * import { Isolator, ResponseTopic, TopicTimeout } from "@aom-js/transfer";
  * import transfer from "./transfer"; // new Transfer({ ..., responseTimeout: 30_000 })
  *
- * @Isolator(transfer)
+ * \@Isolator(transfer)
  * class Orders {
  *   // shorter than the transport default — this call cannot wait as long as the rest
- *   @TopicTimeout(2000)
- *   @ResponseTopic()
+ *   \@TopicTimeout(2000)
+ *   \@ResponseTopic()
  *   static async charge(orderId: string): Promise<void> {}
  * }
  * ```
@@ -141,7 +141,7 @@ export function TopicTimeout(responseTimeout: number): MethodDecorator {
   });
 }
 
-/** Validates one `@TopicSchema` type: a scalar name, a `@ComponentSchema` class, or `[T]`. Throws on mismatch. */
+/** Validates one `\@TopicSchema` type: a scalar name, a `\@ComponentSchema` class, or `[T]`. Throws on mismatch. */
 // type check for @TopicSchema: a scalar name, a @ComponentSchema class, or [T]
 function assertTopicSchemaType(type: TopicSchemaType, context: string): void {
   if (typeof type === "string") {
@@ -170,22 +170,22 @@ function assertTopicSchemaType(type: TopicSchemaType, context: string): void {
 
 /**
  * Describes the argument and return signature of an isolated method for the service
- * descriptor built by `@Isolator(transfer, { distributed: true })`.
+ * descriptor built by `\@Isolator(transfer, { distributed: true })`.
  *
  * `args` is an array of `{ name: type }` pairs, exactly one per argument, in signature
  * order and with unique names — code generation rebuilds the parameter list from these
  * names. A type is a scalar name (`"string" | "number" | "integer" | "boolean" | "date"`),
- * a `@ComponentSchema`-decorated class, or `[T]` for a single-element array type.
+ * a `\@ComponentSchema`-decorated class, or `[T]` for a single-element array type.
  *
  * There are three distinguishable method states: described (`args` is an array), explicitly
- * "no arguments" (`@TopicSchema({})` → `args: []` in the descriptor), and "not described" (no
+ * "no arguments" (`\@TopicSchema({})` → `args: []` in the descriptor), and "not described" (no
  * decorator at all → no `args` field in the descriptor whatsoever — a `console.warn` is
  * printed when the service is distributed). Consumers of the descriptor must treat these as
  * distinct states.
  *
  * All validation happens at decoration time, not later: an undecorated class, an unknown
  * scalar name, a duplicate argument name, or more than one pair per `args` entry throws
- * immediately with a `@TopicSchema Class.method:` prefix.
+ * immediately with a `\@TopicSchema Class.method:` prefix.
  *
  * Deliberately a method decorator, not a per-parameter one, for compatibility with stage-3
  * decorators (which have no parameter decorators).
@@ -201,16 +201,16 @@ function assertTopicSchemaType(type: TopicSchemaType, context: string): void {
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  * import transfer from "./transfer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class GoodDto {
- *   @PropertySchema.String({})
+ *   \@PropertySchema.String({})
  *   name!: string;
  * }
  *
- * @Isolator(transfer, { distributed: true })
+ * \@Isolator(transfer, { distributed: true })
  * class GoodsService {
- *   @ResponseTopic()
- *   @TopicSchema({ args: [{ good: GoodDto }], returns: GoodDto })
+ *   \@ResponseTopic()
+ *   \@TopicSchema({ args: [{ good: GoodDto }], returns: GoodDto })
  *   static async save(good: GoodDto): Promise<GoodDto> {
  *     return undefined as never;
  *   }
@@ -249,11 +249,11 @@ export function TopicSchema(schema: {
 
 /**
  * Builds the serializable service descriptor for a distributed isolator
- * (`@Isolator(transfer, { distributed: true })`) and stores it in `transfer.registryMap`.
+ * (`\@Isolator(transfer, { distributed: true })`) and stores it in `transfer.registryMap`.
  *
  * Called synchronously by `Isolator`'s INSTANT handler, right after `$._.apply()` — by that
  * point `$.isolatedMethods` is populated by the deferred `DefineTopics` decorators. Component
- * schemas are rendered by `SchemasCollector`; a method without `@TopicSchema` gets a
+ * schemas are rendered by `SchemasCollector`; a method without `\@TopicSchema` gets a
  * `console.warn` and no `args` field. `hash` is a sha256 of `{ methods, components, schemas }`.
  */
 function distribute($: AomIsolator) {
@@ -340,9 +340,9 @@ function distribute($: AomIsolator) {
  * import { Isolator, CustomTopic } from "@aom-js/transfer";
  * import transfer from "./transfer";
  *
- * @Isolator(transfer)
+ * \@Isolator(transfer)
  * export class IsolatedPusher {
- *   @CustomTopic()
+ *   \@CustomTopic()
  *   static async SendMessage(loginId: string, message: string): Promise<void> {}
  * }
  * ```
@@ -371,16 +371,16 @@ export function CustomTopic(singletone?: boolean): MethodDecorator {
  * import { Isolator, ResponseTopic, Executor } from "@aom-js/transfer";
  * import transfer from "./transfer";
  *
- * @Isolator(transfer)
+ * \@Isolator(transfer)
  * export class GoodsService {
- *   @ResponseTopic()
+ *   \@ResponseTopic()
  *   static async save(id: string): Promise<void> {}
  * }
  *
- * @Executor()
+ * \@Executor()
  * class GoodsExecutor extends GoodsService {
  *   static async save(id: string) {
- *     // real implementation — runs on the node(s) subscribed via @Executor
+ *     // real implementation — runs on the node(s) subscribed via \@Executor
  *   }
  * }
  *
@@ -395,7 +395,7 @@ export function ResponseTopic(singletone?: boolean): MethodDecorator {
  * Deferred (LAST phase) part of `AutoTopic`: computes the method's `topic`/`replyTopic`
  * (`${Class}.${method}` and `reply_${topic}_${instanceKey}_${instanceName}`), registers the
  * method in `$._.root.isolatedMethods`, and caches the pair in `topicsMap`/`instancesMap`
- * keyed by the (already replaced) method function. Runs once `@Isolator` calls `$._.apply()`.
+ * keyed by the (already replaced) method function. Runs once `\@Isolator` calls `$._.apply()`.
  */
 function DefineTopics() {
   return AomIsolator.methodDecorator(($, _descriptor) => {
@@ -435,14 +435,14 @@ function DefineTopics() {
 }
 
 /**
- * Shared implementation behind `@ResponseTopic`/`@CustomTopic`. Method decorator, phase
+ * Shared implementation behind `\@ResponseTopic`/`\@CustomTopic`. Method decorator, phase
  * FIRST: sets `$.singletone`/`$.waitForResponse`, schedules the deferred `DefineTopics()` via
  * `Reflect.decorate`, and replaces `descriptor.value` with a stub that forwards every call to
  * `rx.request(args, $)` — the original method body is never invoked again, at call time or
  * after the response arrives.
  *
- * @param waitForResponse - True for `@ResponseTopic` (caller awaits the executor's result),
- *   false for `@CustomTopic` (caller does not).
+ * @param waitForResponse - True for `\@ResponseTopic` (caller awaits the executor's result),
+ *   false for `\@CustomTopic` (caller does not).
  * @param singletone - Deduplicate concurrent calls with identical arguments to the same address.
  * @returns Method decorator.
  */
@@ -467,12 +467,12 @@ function AutoTopic(waitForResponse: boolean, singletone = false): MethodDecorato
 
 /**
  * Marks a subclass of an isolator as its executor: for every method the parent declared with
- * `@ResponseTopic`/`@CustomTopic`, subscribes this class's own implementation to the matching
+ * `\@ResponseTopic`/`\@CustomTopic`, subscribes this class's own implementation to the matching
  * topic (via `attachIsolation`). A method the parent isolated but this subclass does not
  * override is skipped with a `console.warn` — it stays without an executor.
  *
  * Class decorator, phase INSTANT: subscriptions are created once, at decoration time, and are
- * **not** replayed on further inheritance (same as `@Isolator`). Only static methods can be
+ * **not** replayed on further inheritance (same as `\@Isolator`). Only static methods can be
  * isolated, so only static overrides on the executor are picked up.
  *
  * Messages an executor's handler is invoked with come straight off the bus and are applied to
@@ -488,13 +488,13 @@ function AutoTopic(waitForResponse: boolean, singletone = false): MethodDecorato
  * import { Isolator, CustomTopic, Executor } from "@aom-js/transfer";
  * import transfer from "./transfer";
  *
- * @Isolator(transfer)
+ * \@Isolator(transfer)
  * export class IsolatedPusher {
- *   @CustomTopic()
+ *   \@CustomTopic()
  *   static async SendMessage(loginId: string, message: string): Promise<void> {}
  * }
  *
- * @Executor()
+ * \@Executor()
  * class PusherExecutor extends IsolatedPusher {
  *   static async SendMessage(loginId: string, message: string): Promise<void> {
  *     // real work happens here

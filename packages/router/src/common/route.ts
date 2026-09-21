@@ -11,7 +11,7 @@ import { RxContext } from "./context";
 /** Shape of `AomRoute.markers` — one entry per marker name, value set by the marker's handler. */
 export declare type MarkerType = Record<string, any>;
 
-/** Signature of a method decorated with `@Marker()`, invoked once per cursor by `AomRoute`'s constructor. */
+/** Signature of a method decorated with `\@Marker()`, invoked once per cursor by `AomRoute`'s constructor. */
 export declare type MarkerHandler = (route: AomRoute, cursor: AomCursor) => void | unknown;
 
 /**
@@ -35,13 +35,13 @@ export class AomRoute {
   method: HTTPMethods;
 
   /**
-   * Values written by this route's `@Marker()`-decorated cursors, keyed by whatever
+   * Values written by this route's `\@Marker()`-decorated cursors, keyed by whatever
    * the marker handler chooses to set — build-time only, not touched during request
-   * execution. See `@Marker`/`@UseMarker`.
+   * execution. See `\@Marker`/`\@UseMarker`.
    */
   markers: MarkerType = {};
 
-  /** Flat, ordered list of cursors this route runs: `classBefore → classAfter → methodBefore → endpoint → methodAfter → @Next chain`. */
+  /** Flat, ordered list of cursors this route runs: `classBefore → classAfter → methodBefore → endpoint → methodAfter → \@Next chain`. */
   cursors: AomCursor[] = [];
 
   constructor(router: Router, prefix: string, endpoint: AomEndpoint, cursors: AomCursor[]) {
@@ -75,7 +75,7 @@ export class AomRoute {
   /**
    * Recursively flattens cursors into `this.cursors`, interleaving each cursor's own
    * pre-middlewares, the cursor itself, its post-middlewares, and — if it has one — its
-   * nextpoint (processed the same way, so a chain of `@Next` calls unrolls fully).
+   * nextpoint (processed the same way, so a chain of `\@Next` calls unrolls fully).
    */
   private plain(cursors: AomCursor[]) {
     cursors.forEach((cursor) => {

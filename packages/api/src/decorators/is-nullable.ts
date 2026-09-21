@@ -14,8 +14,8 @@ import { type ValidationOptions, ValidateIf } from "class-validator";
  * import { IsString } from "class-validator";
  *
  * class Profile {
- *   @IsNullable()
- *   @IsString()
+ *   \@IsNullable()
+ *   \@IsString()
  *   nickname!: string | null; // null passes, a non-string value doesn't
  * }
  * ```

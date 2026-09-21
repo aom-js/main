@@ -22,11 +22,11 @@ export function SafeQuery<T extends ClassConstructor>(constructor: T): Parameter
  * `Schemer.validate`, throwing on failure. This is the validation primitive every builder in
  * this package (`BodyBuilder`, `QueryStringBuilder`, `HeadersBuilder`, `CookieBuilder`,
  * `ParamsBuilder`) uses internally — reach for it directly only when writing a custom parameter
- * decorator that needs the same validation (e.g. via `@Body(SafeData(Schema))`, which is exactly
+ * decorator that needs the same validation (e.g. via `\@Body(SafeData(Schema))`, which is exactly
  * what `SafeBody`/`SafeQuery` do).
  *
- * @param constructor - component schema (`@ComponentSchema`) to validate against
- * @returns an async function `(data) => values` suitable for `@Body`/`@Query`/etc.'s transform argument
+ * @param constructor - component schema (`\@ComponentSchema`) to validate against
+ * @returns an async function `(data) => values` suitable for `\@Body`/`\@Query`/etc.'s transform argument
  * @throws {WrongDataResponse} 400, with the `Schemer` validation errors attached as `data`
  */
 export function SafeData<T extends ClassConstructor>(constructor: T): Function {

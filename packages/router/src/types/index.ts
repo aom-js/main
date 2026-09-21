@@ -1,7 +1,7 @@
 import { HandlerFunction } from "../common/types";
 import { Lazy } from "../common/lazy";
 
-/** Type of the function `@Run()` injects — runs extra cursors and returns whatever the chain resolves to. */
+/** Type of the function `\@Run()` injects — runs extra cursors and returns whatever the chain resolves to. */
 export declare type RunFunction = (...middlewares: HandlerFunction[]) => Promise<any>;
 
 /**

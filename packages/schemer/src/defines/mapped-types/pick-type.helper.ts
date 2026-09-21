@@ -15,17 +15,17 @@ import { PropertySchema } from "../properties";
  * in its own right (`ComponentSchema()` applied), but under the fixed class name `PickTypeClass`
  * (`KI-SCHEMER-07`) — wrap it in a named subclass before using it as a `$ref` target.
  *
- * @param classRef - a class decorated with `@ComponentSchema()`
+ * @param classRef - a class decorated with `\@ComponentSchema()`
  * @param keys - property names to keep
  * @returns a new anonymous component class with only `keys`
- * @throws {Error} if `classRef` is not a `@ComponentSchema` class
+ * @throws {Error} if `classRef` is not a `\@ComponentSchema` class
  *
  * @example
  * ```ts
  * import { ComponentSchema, PickType } from "@aom-js/schemer";
  * import { entities } from "./entities";
  *
- * @ComponentSchema({ description: "Profile update" })
+ * \@ComponentSchema({ description: "Profile update" })
  * export class ProfileUpdateDTO extends PickType(entities.Users, ["name", "surname", "birthDate"]) {}
  * ```
  */

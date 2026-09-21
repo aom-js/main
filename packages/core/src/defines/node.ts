@@ -110,7 +110,7 @@ export class AomNode<T extends AomCore> {
    * const Late = () => Meta.methodDecorator(($) => console.log("ran"), ExecutionPhase.LAST);
    *
    * class Service {
-   *   @Late()
+   *   \@Late()
    *   static run() {}
    * }
    *
@@ -172,7 +172,7 @@ export class AomNode<T extends AomCore> {
    * class Meta extends AomCore {}
    * const Mark = (label: string) => Meta.classDecorator(($) => console.log(label));
    *
-   * @Mark("parent")
+   * \@Mark("parent")
    * class Base {}
    * class Controller extends Base {}
    *

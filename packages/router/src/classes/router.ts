@@ -15,8 +15,8 @@ import { OpenApi } from "./openapi";
  * ```ts
  * import { Controller, Bridge, Router, OpenApi } from "@aom-js/router";
  *
- * @Controller()
- * @Bridge("/api", ApiRoutes)
+ * \@Controller()
+ * \@Bridge("/api", ApiRoutes)
  * class Index {}
  *
  * const docs = new OpenApi({ openapi: "3.1.0", info: { title: "app", version: "1" } });
@@ -28,7 +28,7 @@ export class Router {
   /** Flat list of every HTTP route built from the controller tree, in traversal order. */
   routes: AomRoute[] = [];
 
-  /** Flat list of every `@WebSocketPoint` route — kept separate from `routes` and not registered in the OpenAPI document. */
+  /** Flat list of every `\@WebSocketPoint` route — kept separate from `routes` and not registered in the OpenAPI document. */
   sockets: AomRoute[] = [];
 
   // the class the tree was built from: a route knows its router but not the root,
@@ -43,7 +43,7 @@ export class Router {
    * registers each route with `docs` (`docs.registerPath(route)`) so the OpenAPI
    * document reflects exactly what was built.
    *
-   * @param root - root controller class, decorated with `@Controller()`
+   * @param root - root controller class, decorated with `\@Controller()`
    * @param docs - `OpenApi` instance to accumulate the generated document into
    */
   constructor(root: ClassType, docs: OpenApi) {
@@ -58,14 +58,14 @@ export class Router {
    * Recursively assembles routes for one controller level and its bridges.
    *
    * On each level: copies the inherited cursor list, appends cursors for this class's
-   * `@Before` middlewares, and passes **that combined list** down into every
-   * `@Bridge` — so class-level `@Before` propagates into child controllers. Only after
-   * recursing into bridges does it build this level's `@After` cursors (which do
-   * *not* propagate) and create one `AomRoute` per `@Get`/`@Post`/... endpoint and one
-   * per `@WebSocketPoint`, combining pre- and post-middlewares with the endpoint.
+   * `\@Before` middlewares, and passes **that combined list** down into every
+   * `\@Bridge` — so class-level `\@Before` propagates into child controllers. Only after
+   * recursing into bridges does it build this level's `\@After` cursors (which do
+   * *not* propagate) and create one `AomRoute` per `\@Get`/`\@Post`/... endpoint and one
+   * per `\@WebSocketPoint`, combining pre- and post-middlewares with the endpoint.
    *
    * @param root - meta-instance of the controller class at this level
-   * @param cursors - cursors inherited from parent levels (class-level `@Before` only)
+   * @param cursors - cursors inherited from parent levels (class-level `\@Before` only)
    * @param prefix - path prefix accumulated so far
    */
   private build(root: AomApi, cursors: AomCursor[] = [], prefix: string = "/") {

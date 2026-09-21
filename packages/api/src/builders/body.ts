@@ -59,11 +59,11 @@ class BodyBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>> {
  * Builds a controller that validates the request JSON body against a component schema and
  * describes it in OpenAPI as `RequestBody`.
  *
- * Attach the returned class's `Body` middleware to a route (typically via `@Before`), then read
+ * Attach the returned class's `Body` middleware to a route (typically via `\@Before`), then read
  * the validated result off `this.body` in the endpoint. Validation reuses `SafeData`, so a failed
  * body throws `WrongDataResponse` (400) with the validation errors attached.
  *
- * @param schema - component schema (`@ComponentSchema`) describing the expected body shape
+ * @param schema - component schema (`\@ComponentSchema`) describing the expected body shape
  * @param description - OpenAPI description for the request body; falls back to a `static description`
  * set on a subclass, then to an empty string
  * @returns an anonymous controller class with a `Body` middleware, a `body` instance field, and a
@@ -75,20 +75,20 @@ class BodyBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>> {
  * import { Controller, Post, Before, This } from "@aom-js/router";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class OrgDataDTO {
- *   @PropertySchema.String()
+ *   \@PropertySchema.String()
  *   name!: string;
  * }
  *
- * @Controller()
+ * \@Controller()
  * class CreateOrgBody extends BodyBuilder(OrgDataDTO) {}
  *
- * @Controller()
+ * \@Controller()
  * class OrgsController {
- *   @Post("/orgs")
- *   @Before(CreateOrgBody.Body)
- *   static async create(@This(CreateOrgBody) { body }: CreateOrgBody) {
+ *   \@Post("/orgs")
+ *   \@Before(CreateOrgBody.Body)
+ *   static async create(\@This(CreateOrgBody) { body }: CreateOrgBody) {
  *     // body is OrgDataDTO, already validated
  *   }
  * }

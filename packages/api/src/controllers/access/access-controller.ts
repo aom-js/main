@@ -33,7 +33,7 @@ const SafeAccessMarker = ThisRef((<T extends typeof BaseAccessController>(constr
 ]) as RefFunction);
 
 /**
- * Access control built on route markers: every `@Before`/method in a chain that is decorated
+ * Access control built on route markers: every `\@Before`/method in a chain that is decorated
  * (directly or transitively) leaves a marker describing which access types can reach it; at
  * request time `Required` checks the caller's granted access map against that marker.
  *
@@ -48,7 +48,7 @@ const SafeAccessMarker = ThisRef((<T extends typeof BaseAccessController>(constr
  *
  * enum PermissionsTypes { ADMIN = "admin", ORG = "org" }
  *
- * @Controller()
+ * \@Controller()
  * class AccessController extends BaseAccessController {
  *   static readonly markerName = "app:access";
  *   static readonly allowedAccessTypes = Object.values(PermissionsTypes);
@@ -56,11 +56,11 @@ const SafeAccessMarker = ThisRef((<T extends typeof BaseAccessController>(constr
  *   static readonly AccessCore = AomAccessCore;
  * }
  *
- * @Controller()
- * @Before(AccessController.Init) // enable the check for this module
+ * \@Controller()
+ * \@Before(AccessController.Init) // enable the check for this module
  * class OrdersController {
- *   @Get("/orders")
- *   @AccessController.TypesRequired(PermissionsTypes.ADMIN) // marks the endpoint, adds Required
+ *   \@Get("/orders")
+ *   \@AccessController.TypesRequired(PermissionsTypes.ADMIN) // marks the endpoint, adds Required
  *   static async list() {
  *     // ...
  *   }
@@ -181,7 +181,7 @@ export class BaseAccessController {
 
   /**
    * Method decorator: restricts an endpoint/middleware to the given access types and attaches
-   * `Required` as a `@Before` on it, so the restriction is actually enforced. The access types
+   * `Required` as a `\@Before` on it, so the restriction is actually enforced. The access types
    * accumulate as markers walk up the cursor chain (see `setAccessMark`) and show up in
    * `BaseRootController.Index` via `markersToRoute`.
    *
@@ -215,7 +215,7 @@ export class BaseAccessController {
   // mark a middleware as an access layer
   /**
    * Method decorator: marks a middleware as an "extra access layer" that `ExtraAccess` can
-   * reference, and attaches `CheckLayerPass` as a `@Before` on it so passing the layer is
+   * reference, and attaches `CheckLayerPass` as a `\@Before` on it so passing the layer is
    * recorded on `layerPassed`.
    *
    * @param accessTypes - one or more of `allowedAccessTypes` that may grant this layer
@@ -307,7 +307,7 @@ export class BaseAccessController {
   // use access layers
   /**
    * Method decorator: requires one or more `SetExtraAccess`-marked middlewares to be attached
-   * as `@Before` on the same endpoint/middleware, in addition to any `TypesRequired` check.
+   * as `\@Before` on the same endpoint/middleware, in addition to any `TypesRequired` check.
    *
    * @param middlewares - middlewares previously decorated with `SetExtraAccess`
    * @throws {Error} when called with no middlewares, or with one that isn't marked via `SetExtraAccess`
@@ -340,7 +340,7 @@ export class BaseAccessController {
 
   /**
    * Middleware: the actual access gate. Also registers `setAccessMark` as a route marker (via
-   * `@DelayRefStack`) so every point this decorator reaches gets recorded on the route's access
+   * `\@DelayRefStack`) so every point this decorator reaches gets recorded on the route's access
    * marker, which is what `checkAccessPoint`/`BaseRootController.Index` read.
    *
    * @throws {AccessDenyResponse} 403, when `checkAccessPoint` denies access to this point

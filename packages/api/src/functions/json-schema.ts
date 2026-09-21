@@ -12,7 +12,7 @@ export type pathVariants = "path" | "query" | "header" | "cookie";
  * location. Used internally by the parameter builders (`HeadersBuilder`, `QueryStringBuilder`,
  * `CookieBuilder`, `ParamsBuilder`) to build their `JSONSchema()`.
  *
- * @param source - component schema (`@ComponentSchema`) whose properties become parameters
+ * @param source - component schema (`\@ComponentSchema`) whose properties become parameters
  * @param path - where these parameters live: `"path" | "query" | "header" | "cookie"`
  * @returns one `OpenApiParameterObject` per property of `source`
  */
@@ -43,7 +43,7 @@ export function plainJsonSchema<T extends ClassConstructor>(
  * Describes a component schema as an OpenAPI response entry. Used internally by
  * `ResponseBuilder`/`ErrorMessage`/every `*Response` class's `JSONSchema()`.
  *
- * @param schema - component schema (`@ComponentSchema`) describing the response body
+ * @param schema - component schema (`\@ComponentSchema`) describing the response body
  * @param description - response description; an array of lines is joined via `Array.toString()` (comma-separated), `""` when omitted
  * @param status - HTTP status this response is documented under; defaults to `200`
  */

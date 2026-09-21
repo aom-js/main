@@ -22,9 +22,9 @@ export class LazyValue<T = any> {
  * of eagerly, on every request. Use this in an HTTP adapter when a field is expensive
  * to produce (parsing a request body stream, decoding cookies) and the route might
  * reject the request before ever reading it — for example, an access check that runs
- * before `@Body()` in the cursor chain.
+ * before `\@Body()` in the cursor chain.
  *
- * The factory runs once per request no matter how many `@Body`/`@Query`/... parameters
+ * The factory runs once per request no matter how many `\@Body`/`\@Query`/... parameters
  * or middlewares read the same field; concurrent reads share one promise. A field that
  * doesn't need this stays a plain value — `Lazy<T>` accepts both.
  *

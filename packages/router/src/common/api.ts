@@ -18,14 +18,14 @@ import type { AomRoute } from "./route";
 
 /**
  * How `OpenApi.registerPath` merges OpenAPI tags collected while walking a route's
- * cursors. The active rule changes only on a cursor that carries `@UseTag`; it stays
+ * cursors. The active rule changes only on a cursor that carries `\@UseTag`; it stays
  * in effect for every cursor after that until changed again.
  *
  * - `REPLACE` (default) — the new tag replaces the last one collected.
  * - `MERGE` — the new tag is appended, producing a joined string like `"A > B"`.
  * - `IGNORE` — the tag on this cursor is dropped entirely.
  *
- * Set with `@ReplaceNextTags()` / `@MergeNextTags()` / `@IgnoreNextTags()`.
+ * Set with `\@ReplaceNextTags()` / `\@MergeNextTags()` / `\@IgnoreNextTags()`.
  */
 export enum TagsRules {
   IGNORE = "ignore",
@@ -43,7 +43,7 @@ export declare type ArgumentsHandlerParameters = {
 /** Function stored by `Args(...)` (and every parameter decorator built on top of it) for one parameter. */
 export declare type ArgumentsDecoratorHandler = (args: ArgumentsHandlerParameters) => any;
 
-/** One `@Bridge(prefix, next)` registration: `next` is mounted under `prefix` relative to the declaring class. */
+/** One `\@Bridge(prefix, next)` registration: `next` is mounted under `prefix` relative to the declaring class. */
 export declare interface AomBridge {
   prefix: string;
   next: AomApi;
@@ -62,15 +62,15 @@ export declare interface AomEndpoint {
   $: AomApi;
 }
 
-/** Tag state accumulated on one `AomApi.openApi.tag` — the class set by `@UseTag` and the active `TagsRules`. */
+/** Tag state accumulated on one `AomApi.openApi.tag` — the class set by `\@UseTag` and the active `TagsRules`. */
 class AomHttpOpenApiTags {
   $!: AomApi;
   rule!: TagsRules;
 }
 
 /**
- * OpenAPI declarations accumulated on one `AomApi` by the `@Title`/`@Responses`/
- * `@RequestBody`/`@PathParameters`/`@Parameters`/`@Security`/`@UseTag`/tag-rule
+ * OpenAPI declarations accumulated on one `AomApi` by the `\@Title`/`\@Responses`/
+ * `\@RequestBody`/`\@PathParameters`/`\@Parameters`/`\@Security`/`\@UseTag`/tag-rule
  * decorators. `OpenApi.registerPath` reads these fields off every cursor of a route
  * to build one operation. Not exported — accessed through `AomApi.openApi`.
  */
@@ -98,7 +98,7 @@ class AomHttpOpenApi {
 
 /**
  * Per-parameter argument handlers of one method, indexed by parameter position.
- * `@Args(handler)` (and everything built on it — `@Query`, `@Body`, `@This`, ...)
+ * `\@Args(handler)` (and everything built on it — `\@Query`, `\@Body`, `\@This`, ...)
  * writes into `handlers[i]`; `apply()` runs every handler concurrently and returns
  * the array of results (still promises — the caller in `RxContext.run` awaits them
  * with `Promise.all`). Not exported — accessed through `AomApi.element.parameters`.
@@ -121,10 +121,10 @@ class AomHttpParameters {
 
 /**
  * Structural role of one method (or class) in the route tree: what it is (endpoint,
- * middleware, nextpoint, websocket, `@OnInstance` hook, marker) and what it's
+ * middleware, nextpoint, websocket, `\@OnInstance` hook, marker) and what it's
  * connected to (bridges, other endpoints, pre/post middlewares, nextpoint, markers,
- * instance hooks). Structural decorators (`@Get`, `@Middleware`, `@Before`, `@Bridge`,
- * `@OnInstance`, `@Marker`, ...) are thin wrappers that set these fields; conflicting
+ * instance hooks). Structural decorators (`\@Get`, `\@Middleware`, `\@Before`, `\@Bridge`,
+ * `\@OnInstance`, `\@Marker`, ...) are thin wrappers that set these fields; conflicting
  * roles on the same method throw the `*_DEFINE_ERROR` codes at decoration time. Not
  * exported — accessed through `AomApi.element`.
  */
@@ -190,7 +190,7 @@ class AomApiElement {
  * and write into its `element` (structural role and connections) and `openApi`
  * (accumulated OpenAPI declarations) fields.
  *
- * Application code rarely touches `AomApi` directly except through `@Cursor().$`
+ * Application code rarely touches `AomApi` directly except through `\@Cursor().$`
  * or when building tooling (markers, custom OpenAPI post-processing); everyday
  * routing is done with decorators.
  */
@@ -218,12 +218,12 @@ export class AomApi extends AomCore {
   /**
    * Returns the instance of `target` for the current request, creating and validating
    * it if needed. This is the single place that implements the two-stage instance
-   * lifecycle described in the package readme (§"Instances, `state` and `@OnInstance`"):
+   * lifecycle described in the package readme (§"Instances, `state` and `\@OnInstance`"):
    *
    * 1. **Already validated** — `context.state` has it: return immediately.
    * 2. **Being created by this same branch** (`target` is in `cursor.creating`):
-   *    - if the calling code belongs to `target` itself (its own `@OnInstance` hook,
-   *      or its own middleware raised through `@Run()`-`next()`), return the
+   *    - if the calling code belongs to `target` itself (its own `\@OnInstance` hook,
+   *      or its own middleware raised through `\@Run()`-`next()`), return the
    *      unvalidated object from `context.inflight` — this branch *is* the creation,
    *      there's nothing to wait for. If `inflight` has nothing yet, this is a
    *      genuine cycle (`target`'s own constructor referencing itself) —
@@ -238,15 +238,15 @@ export class AomApi extends AomCore {
    * 4. **Not started**: construct `target` (its constructor's own arguments are
    *    resolved from a cursor that carries the same ownership chain), publish it to
    *    `context.inflight` for its own code to use immediately, run every
-   *    `@OnInstance` hook of `target` in parallel, and only on success publish the
+   *    `\@OnInstance` hook of `target` in parallel, and only on success publish the
    *    instance into `context.state` — this is the moment it becomes visible to
-   *    `@This`/`@State` calls from other classes and other branches. A rejected
+   *    `\@This`/`\@State` calls from other classes and other branches. A rejected
    *    hook or constructor leaves nothing in `state`; the rejection itself stays in
    *    `context.pending` for the rest of the request, so a second attempt to use the
    *    same class gets the same error instead of retrying construction.
    *
    * `RxContext.run` calls this unconditionally for the owner class of every cursor,
-   * even when `@This()` is never used on it; `@This` itself has no separate `state`
+   * even when `\@This()` is never used on it; `\@This` itself has no separate `state`
    * read path — it always goes through here.
    *
    * @param target - class to get (or create) an instance of
@@ -262,22 +262,22 @@ export class AomApi extends AomCore {
    * ```ts
    * import { Controller, OnInstance, This } from "@aom-js/router";
    *
-   * @Controller()
+   * \@Controller()
    * class Auth {
    *   verified = false;
    *
-   *   @OnInstance()
-   *   static async verify(@This() self: Auth) {
+   *   \@OnInstance()
+   *   static async verify(\@This() self: Auth) {
    *     // self is unvalidated here — this hook's own code, allowed by rule 2
    *     await checkToken();
    *     self.verified = true;
    *   }
    * }
    *
-   * @Controller()
+   * \@Controller()
    * class Dependent {
    *   // waits for Auth's hooks to finish; sees the validated object (rule 3/4)
-   *   constructor(@This(Auth) public auth: Auth) {}
+   *   constructor(\@This(Auth) public auth: Auth) {}
    * }
    * ```
    */

@@ -37,7 +37,7 @@ export class OpenApi {
   /** Prefix used for component schema `$ref`s, e.g. `"#/components/schemas/ItemDto"`. */
   static readonly refPointerPrefix = "#/components/schemas/";
 
-  /** String joining merged tag names when `@MergeNextTags` accumulates more than one, e.g. `"Section > Tag"`. */
+  /** String joining merged tag names when `\@MergeNextTags` accumulates more than one, e.g. `"Section > Tag"`. */
   static tagsSeparator = " > ";
 
   private data: OpenAPIObject;
@@ -67,18 +67,18 @@ export class OpenApi {
    * constructor — application code normally doesn't call this directly.
    *
    * Walks the route's cursors in order and accumulates, across all of them:
-   * - **tags** — the active `TagsRules` (set by `@UseTag` + `@ReplaceNextTags`/
-   *   `@MergeNextTags`/`@IgnoreNextTags`) decides whether each tagged cursor replaces,
+   * - **tags** — the active `TagsRules` (set by `\@UseTag` + `\@ReplaceNextTags`/
+   *   `\@MergeNextTags`/`\@IgnoreNextTags`) decides whether each tagged cursor replaces,
    *   merges into, or is dropped from the running tag list; the final list is joined
    *   with `OpenApi.tagsSeparator`;
-   * - **path parameters** (`@PathParameters`) — the literal path segment key is
+   * - **path parameters** (`\@PathParameters`) — the literal path segment key is
    *   replaced with `{name}` in the operation's path;
-   * - **other parameters** (`@QueryParameters`/`@CookieParameters`/`@Parameters`);
-   * - **responses** (`@Responses`) — keyed by HTTP status, so the last cursor with a
+   * - **other parameters** (`\@QueryParameters`/`\@CookieParameters`/`\@Parameters`);
+   * - **responses** (`\@Responses`) — keyed by HTTP status, so the last cursor with a
    *   given status wins; `isArray: true` wraps the schema as `{type: "array", items}`;
-   * - **security** (`@Security`) — registered once per class name via
+   * - **security** (`\@Security`) — registered once per class name via
    *   `storeSecurityScheme`;
-   * - **request body** (`@RequestBody`) — last cursor wins.
+   * - **request body** (`\@RequestBody`) — last cursor wins.
    *
    * Every schema passes through `schemaExtract`, which resolves `ThisRef`/`RouteRef`
    * containers and renders component classes to `{$ref}`.
@@ -222,7 +222,7 @@ export class OpenApi {
     Object.assign(this.paths[path], { [method]: currentMethod });
   }
 
-  /** Registers `cursor`'s `@Security` schema once per class name and returns that name for use as the security requirement key. */
+  /** Registers `cursor`'s `\@Security` schema once per class name and returns that name for use as the security requirement key. */
   private storeSecurityScheme(cursor: AomCursor): string {
     const { name } = cursor.$._.target;
     if (!this.securityMap.get(name)) {

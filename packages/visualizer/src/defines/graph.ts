@@ -138,7 +138,7 @@ function declaredMembers($: AomApi): VisualMember[] {
 }
 
 /**
- * Every controller reachable from `target` by following `@Bridge` links.
+ * Every controller reachable from `target` by following `\@Bridge` links.
  *
  * Same traversal `Router.build` performs, but without building any routes — cheap enough to
  * call just to resolve a root name or populate a root-selector UI.

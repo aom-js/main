@@ -356,7 +356,7 @@ declare interface TypeDescriptionsProperties extends CommonDescriptionsPropertie
 }
 
 /**
- * Reference to another `@ComponentSchema` class: `Type(params.value)` (class-transformer) plus
+ * Reference to another `\@ComponentSchema` class: `Type(params.value)` (class-transformer) plus
  * `ValidateNested` and the usual optional/nullable/hidden set — but no `default`/`examples` in the
  * rendered JSON Schema (`TypeDescriptionsProperties` declares neither field). Also registers the
  * property in `AomSchemas.connections`, which is how `SchemasCollector` and `foldSchemas` discover
@@ -403,7 +403,7 @@ const _Type = (params: TypeDescriptionsProperties) => {
  * `String`/`Number`/`Boolean`/`Date`/`Enum`/`Any`/`Type`.
  *
  * Each factory queues a class-validator/class-transformer/`JSONSchema` decorator set at
- * `ExecutionPhase.LAST` — nothing runs until the owning class is decorated with `@ComponentSchema()`,
+ * `ExecutionPhase.LAST` — nothing runs until the owning class is decorated with `\@ComponentSchema()`,
  * which flushes the queue (see `ComponentSchema`). Until then `PropertySchema.*` on a class is inert:
  * no validator is attached, nothing renders, and the property is invisible to `Schemer`.
  *
@@ -421,24 +421,24 @@ const _Type = (params: TypeDescriptionsProperties) => {
  *   Blocked = "blocked",
  * }
  *
- * @ComponentSchema({ description: "User" })
+ * \@ComponentSchema({ description: "User" })
  * class UserDto {
- *   @PropertySchema.String({ minLength: 2, maxLength: 50, description: "Name" })
+ *   \@PropertySchema.String({ minLength: 2, maxLength: 50, description: "Name" })
  *   name!: string;
  *
- *   @PropertySchema.Number({ isOptional: true, minValue: 1 })
+ *   \@PropertySchema.Number({ isOptional: true, minValue: 1 })
  *   age?: number;
  *
- *   @PropertySchema.Enum({ value: Status, isOptional: true })
+ *   \@PropertySchema.Enum({ value: Status, isOptional: true })
  *   status?: Status;
  *
- *   @PropertySchema.Type({ value: () => AddressDto, isOptional: true })
+ *   \@PropertySchema.Type({ value: () => AddressDto, isOptional: true })
  *   address?: AddressDto;
  * }
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class AddressDto {
- *   @PropertySchema.String({})
+ *   \@PropertySchema.String({})
  *   city!: string;
  * }
  * ```

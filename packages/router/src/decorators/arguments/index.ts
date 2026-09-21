@@ -32,10 +32,10 @@ function defaultHandler(args: ArgumentsHandlerParameters | any) {
  * ```ts
  * import { Controller, Get, Args } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/whoami")
- *   static async whoami(@Args(({ cursor }) => cursor.$._.target.name) className: string) {
+ *   \@Get("/whoami")
+ *   static async whoami(\@Args(({ cursor }) => cursor.$._.target.name) className: string) {
  *     return className;
  *   }
  * }
@@ -71,10 +71,10 @@ export function Args(
  * ```ts
  * import { Controller, Get, Query } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/search")
- *   static async search(@Query("term") term: string, @Query() all: Record<string, string>) {
+ *   \@Get("/search")
+ *   static async search(\@Query("term") term: string, \@Query() all: Record<string, string>) {
  *     return { term, all };
  *   }
  * }
@@ -105,7 +105,7 @@ export function Query(
  * {@link Query} (omitted / string key / function / `ThisRef` / `RouteRef`), read
  * through `context.value("body")` — if the adapter supplied `lazy(() => parseBody())`,
  * the factory runs on first access here and its result (or rejection) is shared by
- * every `@Body()` parameter and middleware in the request.
+ * every `\@Body()` parameter and middleware in the request.
  *
  * @param bodyHandler - see {@link Query} for the accepted forms
  * @returns a parameter decorator
@@ -114,10 +114,10 @@ export function Query(
  * ```ts
  * import { Controller, Post, Body } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Post("/items")
- *   static async create(@Body() body: unknown) {
+ *   \@Post("/items")
+ *   static async create(\@Body() body: unknown) {
  *     return body;
  *   }
  * }
@@ -154,10 +154,10 @@ export function Body(
  * ```ts
  * import { Controller, Get, Params } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/item/item_id")
- *   static async one(@Params("item_id") id: string) {
+ *   \@Get("/item/item_id")
+ *   static async one(\@Params("item_id") id: string) {
  *     return { id };
  *   }
  * }
@@ -193,10 +193,10 @@ export function Params(
  * ```ts
  * import { Controller, Get, Cookies } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/session-id")
- *   static async id(@Cookies("sid") sid: string) {
+ *   \@Get("/session-id")
+ *   static async id(\@Cookies("sid") sid: string) {
  *     return sid;
  *   }
  * }
@@ -233,10 +233,10 @@ export function Cookies(
  * ```ts
  * import { Controller, Get, Session } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/me")
- *   static async me(@Session("userId") userId: string) {
+ *   \@Get("/me")
+ *   static async me(\@Session("userId") userId: string) {
  *     return userId;
  *   }
  * }
@@ -264,10 +264,10 @@ export function Session(sessionName?: string): ReturnType<typeof Args> {
  * ```ts
  * import { Controller, Post, Files } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Post("/upload")
- *   static async upload(@Files("avatar") avatar: unknown) {
+ *   \@Post("/upload")
+ *   static async upload(\@Files("avatar") avatar: unknown) {
  *     return avatar;
  *   }
  * }
@@ -294,10 +294,10 @@ export function Files(fileName?: string): ReturnType<typeof Args> {
  * ```ts
  * import { Controller, Get, Headers } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/whoami")
- *   static async whoami(@Headers("authorization") token: string) {
+ *   \@Get("/whoami")
+ *   static async whoami(\@Headers("authorization") token: string) {
  *     return token;
  *   }
  * }
@@ -326,12 +326,12 @@ export function Headers(
 // ---
 /**
  * Injects a function that runs extra cursors (built from arbitrary
- * `@Middleware()`/`@Nextpoint()`/handler functions) inside the current request
+ * `\@Middleware()`/`\@Nextpoint()`/handler functions) inside the current request
  * context, as if they were part of the route's own chain.
  *
  * The new cursors inherit the calling cursor's ownership chain (`creating`) — so a
- * middleware raised this way from inside a class's own `@OnInstance` hook is treated
- * as that class's own code (see `@OnInstance`'s reentrancy rules), while `next()`
+ * middleware raised this way from inside a class's own `\@OnInstance` hook is treated
+ * as that class's own code (see `\@OnInstance`'s reentrancy rules), while `next()`
  * called from a route's own middleware behaves like any other cursor in the chain: a
  * non-`undefined` result short-circuits the whole request, not just the `next()` call.
  *
@@ -342,14 +342,14 @@ export function Headers(
  * import { Controller, Middleware, OnInstance, Run, HandlerFunction } from "@aom-js/router";
  *
  * class Auth {
- *   @Middleware()
+ *   \@Middleware()
  *   static async Required() {}
  * }
  *
- * @Controller()
+ * \@Controller()
  * class Optional {
- *   @Middleware()
- *   static async check(@Run() next: (...handlers: HandlerFunction[]) => Promise<unknown>) {
+ *   \@Middleware()
+ *   static async check(\@Run() next: (...handlers: HandlerFunction[]) => Promise<unknown>) {
  *     try {
  *       await next(Auth.Required);
  *     } catch {
@@ -394,10 +394,10 @@ export function Run(): ReturnType<typeof Args> {
  * ```ts
  * import { Controller, Get, Ctx } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/raw")
- *   static async raw(@Ctx() ctx: unknown) {
+ *   \@Get("/raw")
+ *   static async raw(\@Ctx() ctx: unknown) {
  *     return typeof ctx;
  *   }
  * }
@@ -426,10 +426,10 @@ export function Ctx() {
  * ```ts
  * import { Controller, Get, Err } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/fail")
- *   static async fail(@Err() err: (message: string, status?: number) => Error) {
+ *   \@Get("/fail")
+ *   static async fail(\@Err() err: (message: string, status?: number) => Error) {
  *     return err("boom", 418); // returning an Error rejects the request with it
  *   }
  * }
@@ -459,10 +459,10 @@ export function Err(ErrorConstructor: ClassConstructor = Error): ReturnType<type
  * ```ts
  * import { Controller, Get, Req } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/raw")
- *   static async raw(@Req() req: unknown) {
+ *   \@Get("/raw")
+ *   static async raw(\@Req() req: unknown) {
  *     return typeof req;
  *   }
  * }
@@ -486,10 +486,10 @@ export function Req() {
  * ```ts
  * import { Controller, Get, Res } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/raw")
- *   static async raw(@Res() res: unknown) {
+ *   \@Get("/raw")
+ *   static async raw(\@Res() res: unknown) {
  *     return typeof res;
  *   }
  * }
@@ -515,10 +515,10 @@ export function Res() {
  * ```ts
  * import { Controller, Get, Cursor, AomCursor } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/whereami")
- *   static async whereami(@Cursor() cursor: AomCursor) {
+ *   \@Get("/whereami")
+ *   static async whereami(\@Cursor() cursor: AomCursor) {
  *     return cursor.$._.target.name;
  *   }
  * }
@@ -542,10 +542,10 @@ export function Cursor(): ReturnType<typeof Args> {
  * ```ts
  * import { Controller, Get, Route, AomRoute } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/route-info")
- *   static async info(@Route() route: AomRoute) {
+ *   \@Get("/route-info")
+ *   static async info(\@Route() route: AomRoute) {
  *     return { method: route.method, path: route.path };
  *   }
  * }
@@ -561,13 +561,13 @@ export function Route(): ReturnType<typeof Args> {
 // ---
 /**
  * Injects an already-validated instance from `state`, or the whole `state` map.
- * Unlike `@This`, this **never creates** an instance and never waits — if `constructor`
- * hasn't finished its `@OnInstance` hooks yet (or hasn't even started), you get
+ * Unlike `\@This`, this **never creates** an instance and never waits — if `constructor`
+ * hasn't finished its `\@OnInstance` hooks yet (or hasn't even started), you get
  * `undefined` from `state.get(constructor)`, not the object being built.
  *
- * This makes `@State` safe to use for "peek without triggering creation" checks, but
+ * This makes `\@State` safe to use for "peek without triggering creation" checks, but
  * also means its result can be `undefined` even for a class that *will* be created
- * later in the same request — order matters. `@This(constructor)` is what you want
+ * later in the same request — order matters. `\@This(constructor)` is what you want
  * when you need the instance to exist.
  *
  * @param constructor - class to look up; omitted returns the whole `state` map
@@ -579,13 +579,13 @@ export function Route(): ReturnType<typeof Args> {
  *
  * class Slow {}
  *
- * @Controller()
+ * \@Controller()
  * class App {
- *   @Get("/state")
- *   static async state(@This(Slow) created: Slow, @State(Slow) fromState: Slow | undefined) {
+ *   \@Get("/state")
+ *   static async state(\@This(Slow) created: Slow, \@State(Slow) fromState: Slow | undefined) {
  *     // fromState is undefined here: both parameters resolve concurrently, and
- *     // @This(Slow)'s creation (async even with no @OnInstance hooks) hasn't reached
- *     // its state.set(Slow, ...) yet by the time @State's synchronous lookup runs
+ *     // \@This(Slow)'s creation (async even with no \@OnInstance hooks) hasn't reached
+ *     // its state.set(Slow, ...) yet by the time \@State's synchronous lookup runs
  *     return { created, fromState };
  *   }
  * }
@@ -606,32 +606,32 @@ export function State(constructor?: ClassConstructor): ReturnType<typeof Args> {
 /**
  * Injects an instance of a class, creating it if this is the first request for it and
  * waiting for its validation if someone else is already creating it. This is the
- * router's DI mechanism — every dependency between controllers goes through `@This`.
+ * router's DI mechanism — every dependency between controllers goes through `\@This`.
  *
  * **Target resolution**, in order: `FwdRef(fn)` → `fn()`; `RouteRef(fn)` →
  * `fn(route.endpoint's class)`; a class → used as-is; omitted → the class of the
- * current cursor (so `@This()` inside a class's own method/hook means "this class").
+ * current cursor (so `\@This()` inside a class's own method/hook means "this class").
  *
- * **Visibility follows the two-stage instance lifecycle** (see `@OnInstance`):
+ * **Visibility follows the two-stage instance lifecycle** (see `\@OnInstance`):
  *
- * - From **inside the target class's own code** (its own `@OnInstance` hook, or its
- *   own middleware raised through `@Run()`-`next()` from that hook) — the instance is
+ * - From **inside the target class's own code** (its own `\@OnInstance` hook, or its
+ *   own middleware raised through `\@Run()`-`next()` from that hook) — the instance is
  *   returned immediately, even if its hooks are still running and it hasn't been
  *   validated yet. There's nothing to wait for: this code *is* the validation.
  * - From **anywhere else** — a constructor, a middleware, another class's hook, a
- *   different execution branch — `@This` waits for the target's hooks to finish and
+ *   different execution branch — `\@This` waits for the target's hooks to finish and
  *   returns the validated instance, or rejects with whatever error the target's
  *   construction or hooks produced.
  * - A **cycle** in this waiting graph (two classes mutually depending on each other
- *   through `@This`, a class referencing itself from inside its own constructor before
+ *   through `\@This`, a class referencing itself from inside its own constructor before
  *   it exists, two branches waiting on each other) never hangs — it throws
  *   `CIRCULAR_INSTANCE_ERROR` naming every class in the chain, joined by `->`.
  *
- * Two `@This(X)` parameters of the same method, or a class needed both directly and
+ * Two `\@This(X)` parameters of the same method, or a class needed both directly and
  * through another class's constructor, share one instance and run `X`'s hooks exactly
  * once — concurrent requests for the same class within a request are deduplicated.
  * A failed construction or hook is remembered for the rest of the request: a second
- * `@This(X)` later in the same request gets the same rejection, not a retry.
+ * `\@This(X)` later in the same request gets the same rejection, not a retry.
  *
  * @param constructor - class to get an instance of, a `FwdRef`/`RouteRef` wrapping a
  *   class resolver, or omitted for the current cursor's own class
@@ -644,21 +644,21 @@ export function State(constructor?: ClassConstructor): ReturnType<typeof Args> {
  * ```ts
  * import { Controller, OnInstance, This } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class Auth {
  *   verified = false;
  *
- *   @OnInstance()
- *   static async verify(@This() self: Auth) {
+ *   \@OnInstance()
+ *   static async verify(\@This() self: Auth) {
  *     await checkToken();
  *     self.verified = true; // own hook: sees the unvalidated object, fine
  *   }
  * }
  *
- * @Controller()
+ * \@Controller()
  * class Dependent {
  *   // waits for Auth's hooks, gets the validated instance (or the same rejection)
- *   constructor(@This(Auth) public auth: Auth) {}
+ *   constructor(\@This(Auth) public auth: Auth) {}
  * }
  * ```
  */

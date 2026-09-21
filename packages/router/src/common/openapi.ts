@@ -4,8 +4,8 @@ import { ParameterLocation, SchemaObject, SecuritySchemeObject } from "openapi3-
 import { RouteRefContainer, ThisRefContainer } from "./references";
 
 /**
- * Any schema `@Responses`/`@RequestBody`/parameter decorators accept: a raw OpenAPI
- * schema object, a `@ComponentSchema()`-decorated class (rendered as `{$ref}` by
+ * Any schema `\@Responses`/`\@RequestBody`/parameter decorators accept: a raw OpenAPI
+ * schema object, a `\@ComponentSchema()`-decorated class (rendered as `{$ref}` by
  * `SchemasCollector` from `@aom-js/schemer`), or a `ThisRef`/`RouteRef` container that
  * resolves to either at build time (see `OpenApi.schemaExtract`).
  */
@@ -18,12 +18,12 @@ export declare type OpenApiSchemaObject = Omit<SchemaObject, "type"> & {
   type?: SchemaObject["type"] | string;
 };
 
-/** `openapi3-ts` `SecuritySchemeObject` with `type` widened to `string`, passed to `@Security`. */
+/** `openapi3-ts` `SecuritySchemeObject` with `type` widened to `string`, passed to `\@Security`. */
 export declare type OpenApiSecuritySchema = Omit<SecuritySchemeObject, "type"> & {
   type?: SecuritySchemeObject["type"] | string;
 };
 
-/** One parameter declaration, as accepted by `@QueryParameters`/`@CookieParameters`/`@Parameters`. */
+/** One parameter declaration, as accepted by `\@QueryParameters`/`\@CookieParameters`/`\@Parameters`. */
 export declare interface OpenApiParameterObject {
   name: string;
   description?: string;
@@ -33,7 +33,7 @@ export declare interface OpenApiParameterObject {
 }
 
 /**
- * One response declaration for `@Responses(...)`. `status` is the key used to merge
+ * One response declaration for `\@Responses(...)`. `status` is the key used to merge
  * responses accumulated from every cursor of the route — the last cursor with the same
  * `status` wins. `isArray: true` wraps `schema` as `{type: "array", items: schema}`.
  */
@@ -45,7 +45,7 @@ export declare interface OpenApiResponse {
   isArray?: boolean;
 }
 
-/** Request body declaration for `@RequestBody(...)`. */
+/** Request body declaration for `\@RequestBody(...)`. */
 export declare interface OpenApiRequestBody {
   description?: string;
   contentType?: string;
@@ -53,13 +53,13 @@ export declare interface OpenApiRequestBody {
 }
 
 // make the `in` value optional for the argument passed to the PathParameters decorator
-/** Same as {@link OpenApiParameterObject} but `in` is optional — `@PathParameters` always sets it to `"path"`. */
+/** Same as {@link OpenApiParameterObject} but `in` is optional — `\@PathParameters` always sets it to `"path"`. */
 export declare type OpenApiPathParameterObject = Omit<OpenApiParameterObject, "in"> & {
   in?: OpenApiParameterObject["in"];
 };
 
 /**
- * Argument shape for `@PathParameters(...)`. Each key is the literal path segment to
+ * Argument shape for `\@PathParameters(...)`. Each key is the literal path segment to
  * replace (for example `item_id` in `/item/item_id`); the decorator turns it into
  * `{name}` in the final OpenAPI path and marks the parameter `in: "path", required: true`.
  */

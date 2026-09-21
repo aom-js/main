@@ -15,7 +15,7 @@ export class PlainBuildersBase {
    *
    * @throws {Error} when `static schema` is missing — this happens when a `ThisRef`/reference
    * capture ends up pointing at this base class instead of the actual builder subclass (e.g. a
-   * subclass forgot its own `@Controller()`), rather than at a real component schema
+   * subclass forgot its own `\@Controller()`), rather than at a real component schema
    */
   static JSONSchema(path: pathVariants): OpenApiParameterObject[] {
     if (!this.schema) {

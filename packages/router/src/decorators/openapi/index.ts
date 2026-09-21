@@ -17,7 +17,7 @@ export * from "./tags";
 
 /**
  * Attaches an OpenAPI security scheme to an endpoint operation. Every cursor of a
- * route that carries `@Security` adds its scheme to the operation's `security` list,
+ * route that carries `\@Security` adds its scheme to the operation's `security` list,
  * and the scheme itself is registered once per declaring class name under
  * `components.securitySchemes`.
  *
@@ -28,11 +28,11 @@ export * from "./tags";
  * ```ts
  * import { Controller, Post, Security, Body } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class Items {
- *   @Post("/items")
- *   @Security({ type: "http", scheme: "bearer" })
- *   static async create(@Body() body: unknown) {
+ *   \@Post("/items")
+ *   \@Security({ type: "http", scheme: "bearer" })
+ *   static async create(\@Body() body: unknown) {
  *     return body;
  *   }
  * }
@@ -51,7 +51,7 @@ export function Security(
  * declare one, the last cursor's declaration wins.
  *
  * @param schema - request body declaration; `schema.schema` accepts a raw OpenAPI
- *   schema, a `@ComponentSchema()` class, or a `ThisRef`/`RouteRef` resolving to either
+ *   schema, a `\@ComponentSchema()` class, or a `ThisRef`/`RouteRef` resolving to either
  * @returns a method decorator
  *
  * @example
@@ -59,17 +59,17 @@ export function Security(
  * import { Controller, Post, RequestBody, Body } from "@aom-js/router";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class ItemDto {
- *   @PropertySchema.String({})
+ *   \@PropertySchema.String({})
  *   title!: string;
  * }
  *
- * @Controller()
+ * \@Controller()
  * class Items {
- *   @Post("/items")
- *   @RequestBody({ schema: ItemDto })
- *   static async create(@Body() body: unknown) {
+ *   \@Post("/items")
+ *   \@RequestBody({ schema: ItemDto })
+ *   static async create(\@Body() body: unknown) {
  *     return body;
  *   }
  * }
@@ -95,16 +95,16 @@ export function RequestBody(schema: OpenApiRequestBody): ReturnType<typeof AomAp
  * import { Controller, Get, Responses } from "@aom-js/router";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class ItemDto {
- *   @PropertySchema.String({})
+ *   \@PropertySchema.String({})
  *   title!: string;
  * }
  *
- * @Controller()
+ * \@Controller()
  * class Items {
- *   @Get("/items")
- *   @Responses({ status: 200, schema: ItemDto, description: "ok", isArray: true })
+ *   \@Get("/items")
+ *   \@Responses({ status: 200, schema: ItemDto, description: "ok", isArray: true })
  *   static async list() {
  *     return [];
  *   }
@@ -132,11 +132,11 @@ export function Responses(
  * ```ts
  * import { Controller, Get, PathParameters, Params } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class Items {
- *   @Get("/item/item_id")
- *   @PathParameters({ item_id: { name: "id", schema: { type: "string" } } })
- *   static async one(@Params("id") id: string) {
+ *   \@Get("/item/item_id")
+ *   \@PathParameters({ item_id: { name: "id", schema: { type: "string" } } })
+ *   static async one(\@Params("id") id: string) {
  *     return { id };
  *   }
  * }
@@ -160,11 +160,11 @@ export function PathParameters(
  * ```ts
  * import { Controller, Get, QueryParameters, Query } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class Items {
- *   @Get("/items")
- *   @QueryParameters({ name: "page", schema: { type: "string" } })
- *   static async list(@Query("page") page: string) {
+ *   \@Get("/items")
+ *   \@QueryParameters({ name: "page", schema: { type: "string" } })
+ *   static async list(\@Query("page") page: string) {
  *     return { page };
  *   }
  * }
@@ -188,11 +188,11 @@ export function QueryParameters(
  * ```ts
  * import { Controller, Get, CookieParameters, Cookies } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class Items {
- *   @Get("/items")
- *   @CookieParameters({ name: "sid", schema: { type: "string" } })
- *   static async list(@Cookies("sid") sid: string) {
+ *   \@Get("/items")
+ *   \@CookieParameters({ name: "sid", schema: { type: "string" } })
+ *   static async list(\@Cookies("sid") sid: string) {
  *     return { sid };
  *   }
  * }
@@ -208,7 +208,7 @@ export function CookieParameters(
 
 /**
  * Declares arbitrary OpenAPI parameters of an endpoint, with `in` set explicitly on
- * each one (unlike `@QueryParameters`/`@CookieParameters`, which set it for you).
+ * each one (unlike `\@QueryParameters`/`\@CookieParameters`, which set it for you).
  *
  * @param schemas - full parameter declarations, including `in`
  * @returns a method decorator
@@ -217,11 +217,11 @@ export function CookieParameters(
  * ```ts
  * import { Controller, Get, Parameters, Headers } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class Items {
- *   @Get("/items")
- *   @Parameters({ name: "x-request-id", in: "header", schema: { type: "string" } })
- *   static async list(@Headers("x-request-id") id: string) {
+ *   \@Get("/items")
+ *   \@Parameters({ name: "x-request-id", in: "header", schema: { type: "string" } })
+ *   static async list(\@Headers("x-request-id") id: string) {
  *     return { id };
  *   }
  * }
@@ -257,12 +257,12 @@ export function Parameters(
  * ```ts
  * import { Controller, Middleware, DelayRefStack, QueryParameters, ThisRef } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class BuilderBase {
  *   static readonly marker: string;
  *
- *   @Middleware()
- *   @DelayRefStack(
+ *   \@Middleware()
+ *   \@DelayRefStack(
  *     ThisRef(({ marker }: typeof BuilderBase) => [
  *       QueryParameters({ name: marker, schema: { type: "string" } }),
  *     ]),

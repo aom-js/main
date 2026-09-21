@@ -5,7 +5,7 @@ import { AomApi } from "../../common";
 // CombinedDecorator and fails with TS2883 (the type would arrive transitively from @aom-js/core).
 /**
  * Sets the OpenAPI `summary` of an endpoint operation. On a class, also becomes the
- * default tag title for that class when used with `@UseTag`. There is no separate
+ * default tag title for that class when used with `\@UseTag`. There is no separate
  * `Summary` decorator — this is the one that fills that field.
  *
  * @param value - text for `summary` (and the tag title, on a class)
@@ -15,11 +15,11 @@ import { AomApi } from "../../common";
  * ```ts
  * import { Controller, Get, Title, Description } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class Orgs {
- *   @Get("/")
- *   @Title("List organizations")
- *   @Description("Returns every organization the current user has access to")
+ *   \@Get("/")
+ *   \@Title("List organizations")
+ *   \@Description("Returns every organization the current user has access to")
  *   static async index() {
  *     return [];
  *   }

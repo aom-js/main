@@ -98,7 +98,7 @@ class ParamsBuilderConstructor<T extends ClassConstructor<any>, R = InstanceType
  * path parameter's name
  * @returns an anonymous controller class with a `Params` middleware, `params`/`value` instance
  * fields, and `static toString()`/`JSONSchema()` for building routes and OpenAPI docs
- * @throws {Error} when `schema` isn't a `@ComponentSchema`, or doesn't declare exactly one property
+ * @throws {Error} when `schema` isn't a `\@ComponentSchema`, or doesn't declare exactly one property
  *
  * @example
  * ```ts
@@ -106,20 +106,20 @@ class ParamsBuilderConstructor<T extends ClassConstructor<any>, R = InstanceType
  * import { Controller, Get, Before, This } from "@aom-js/router";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class SlugParam {
- *   @PropertySchema.String({ pattern: "[a-z0-9-]+" })
+ *   \@PropertySchema.String({ pattern: "[a-z0-9-]+" })
  *   slug!: string;
  * }
  *
- * @Controller()
+ * \@Controller()
  * class SlugValue extends ParamsBuilder(SlugParam) {}
  *
- * @Controller()
+ * \@Controller()
  * class PagesController {
- *   @Get(`/pages/${SlugValue}`) // ":slug([a-z0-9-]+)"
- *   @Before(SlugValue.Params)
- *   static async page(@This(SlugValue) { value }: SlugValue) {
+ *   \@Get(`/pages/${SlugValue}`) // ":slug([a-z0-9-]+)"
+ *   \@Before(SlugValue.Params)
+ *   static async page(\@This(SlugValue) { value }: SlugValue) {
  *     // value is the validated slug string
  *   }
  * }

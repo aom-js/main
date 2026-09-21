@@ -13,7 +13,7 @@ import { assertIdentifier, assertDeclarableName, propertyKey } from "./safe";
 
 /**
  * Reconstructs `schemas.ts` source from `descriptor.schemas` (a `FoldedSchemas`, produced by
- * `@aom-js/schemer`'s `foldSchemas`): `@ComponentSchema`/`@PropertySchema.*` classes, `enum`s, and a
+ * `@aom-js/schemer`'s `foldSchemas`): `\@ComponentSchema`/`\@PropertySchema.*` classes, `enum`s, and a
  * `type Ref<T> = T` alias for lazy references to other components. Declares enums first (by name),
  * then classes in topological order by `extends` (a parent, direct or through a mapped-type chain,
  * is always declared before its child) — `Type` references stay lazy (`() => X`) regardless of
@@ -44,9 +44,9 @@ import { assertIdentifier, assertDeclarableName, propertyKey } from "./safe";
  *
  * const source = emitSchemas(descriptor);
  * // source is TypeScript, e.g.:
- * // @ComponentSchema()
+ * // \@ComponentSchema()
  * // export class GoodDto {
- * //   @PropertySchema.String({})
+ * //   \@PropertySchema.String({})
  * //   title!: string;
  * // }
  * ```

@@ -68,7 +68,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
  * Recognizes a scalar type by its JSON Schema shape — an exact deep match against
  * `SCALAR_TYPE_SCHEMAS` from `@aom-js/schemer`, including nested forms like `date`'s `oneOf`.
  *
- * @param schema - a JSON Schema object, e.g. a `@TopicSchema` argument type
+ * @param schema - a JSON Schema object, e.g. a `\@TopicSchema` argument type
  * @returns the scalar name (`"string"`, `"number"`, `"integer"`, `"boolean"`, `"date"`), or
  * `undefined` if `schema` does not match any known scalar exactly
  */
@@ -78,7 +78,7 @@ export function scalarNameOf(schema: Record<string, any>): string | undefined {
   );
 }
 
-/** TS type for each scalar name used in `@TopicSchema`. */
+/** TS type for each scalar name used in `\@TopicSchema`. */
 const SCALAR_TS: Record<string, string> = {
   string: "string",
   number: "number",
@@ -89,10 +89,10 @@ const SCALAR_TS: Record<string, string> = {
 
 /**
  * Reconstructs `isolator.ts` source from `descriptor.methods`: a class named after the service,
- * decorated with `@Isolator(transfer)`, one static method per entry with the original
- * `@ResponseTopic`/`@CustomTopic`/`@IsQueue`/`@TopicSchema` decorators and a matching TS signature.
+ * decorated with `\@Isolator(transfer)`, one static method per entry with the original
+ * `\@ResponseTopic`/`\@CustomTopic`/`\@IsQueue`/`\@TopicSchema` decorators and a matching TS signature.
  * Method bodies are always a stub (`return undefined as never`) — this is a typed client shape, not a
- * working implementation. The `{ distributed: true }` option of `@Isolator` is intentionally not
+ * working implementation. The `{ distributed: true }` option of `\@Isolator` is intentionally not
  * carried over: the generated isolator only *calls* the service, it must not also register itself as
  * a distributor of it.
  *
@@ -115,9 +115,9 @@ const SCALAR_TS: Record<string, string> = {
  *
  * const source = emitIsolator(descriptor, { transferImport: "@/config/aom/transfer" });
  * // source declares, e.g.:
- * // @Isolator(transfer)
+ * // \@Isolator(transfer)
  * // export class GoodsService {
- * //   @ResponseTopic(true)
+ * //   \@ResponseTopic(true)
  * //   static async save(good: GoodDto): Promise<GoodDto> { return undefined as never; }
  * // }
  * ```
@@ -232,7 +232,7 @@ function emitMethod(
   return lines.join("\n");
 }
 
-/** Argument schema → `@TopicSchema` type value: `$ref` → class reference, scalar → name string, array → `[T]`. */
+/** Argument schema → `\@TopicSchema` type value: `$ref` → class reference, scalar → name string, array → `[T]`. */
 function typeSource(schema: Record<string, any>, knownComponents: ReadonlySet<string>): string {
   if (schema.$ref) return refName(schema.$ref, knownComponents);
   if (schema.type === "array" && schema.items)

@@ -21,33 +21,33 @@ import { RxTransfer } from "./rx-transfer";
 /**
  * Meta-instance node for the transfer package: the class-level node holds the isolator's
  * transport and RPC layer plus its registered topics; each method-level node holds the flags
- * and schema set by `@ResponseTopic`/`@CustomTopic`/`@TopicSchema`/`@TopicTimeout`/`@IsQueue`.
+ * and schema set by `\@ResponseTopic`/`\@CustomTopic`/`\@TopicSchema`/`\@TopicTimeout`/`\@IsQueue`.
  * Not constructed directly — reached through `AomCore.instance`/`$._` from a decorated class
  * or method (see `@aom-js/core`).
  */
 export class AomIsolator extends AomCore {
-  /** Transport this isolator publishes to and (via its executors) listens through. Set by `@Isolator`. */
+  /** Transport this isolator publishes to and (via its executors) listens through. Set by `\@Isolator`. */
   transfer: Transfer;
 
-  /** RPC layer used to publish requests and route responses. Set by `@Isolator`. */
+  /** RPC layer used to publish requests and route responses. Set by `\@Isolator`. */
   rx: RxTransfer;
 
   /** True when the method deduplicates concurrent calls with identical arguments to the same address. */
   singletone: boolean;
 
-  /** True for `@ResponseTopic` (caller awaits a result), false for `@CustomTopic`. */
+  /** True for `\@ResponseTopic` (caller awaits a result), false for `\@CustomTopic`. */
   waitForResponse: boolean;
 
-  /** Response timeout override set by `@TopicTimeout`; `undefined` = fall back to `Transfer.responseTimeout`. */
+  /** Response timeout override set by `\@TopicTimeout`; `undefined` = fall back to `Transfer.responseTimeout`. */
   responseTimeout?: number;
 
-  /** Argument schemas (`{ name: type }` per argument) set by `@TopicSchema`; `undefined` = method not described. */
+  /** Argument schemas (`{ name: type }` per argument) set by `\@TopicSchema`; `undefined` = method not described. */
   argsSchemas?: TopicSchemaArg[];
 
-  /** Return-value schema set by `@TopicSchema`. */
+  /** Return-value schema set by `\@TopicSchema`. */
   returnsSchema?: TopicSchemaType;
 
-  /** True when `@IsQueue()` marked the method for single-consumer delivery. */
+  /** True when `\@IsQueue()` marked the method for single-consumer delivery. */
   queue: boolean;
 
   registry: boolean;
@@ -94,10 +94,10 @@ export class AomIsolator extends AomCore {
 /**
  * Thrown when an executor's response does not arrive within `responseTimeout`.
  *
- * For `@ResponseTopic` this rejects the caller's `Promise` directly; for `@CustomTopic` (which
+ * For `\@ResponseTopic` this rejects the caller's `Promise` directly; for `\@CustomTopic` (which
  * has no caller waiting on a result) the same error is routed to `transfer.defaultErrorHandler`
  * instead. It only fires when a timer was actually created — `responseTimeout: 0` (on the
- * method via `@TopicTimeout` or on the transport) never creates one, so it never fires.
+ * method via `\@TopicTimeout` or on the transport) never creates one, so it never fires.
  *
  * @example
  * ```ts
@@ -127,7 +127,7 @@ export class TransferTimeoutError extends Error {
  * Bus-agnostic transport configuration shared by every isolator and executor attached to it.
  *
  * `Transfer` knows nothing about the underlying broker beyond a `publisher`/`subscriber` pair
- * and a node identity (`instanceName`/`instanceKey`); `@Isolator(transfer)` wires classes to a
+ * and a node identity (`instanceName`/`instanceKey`); `\@Isolator(transfer)` wires classes to a
  * specific instance. One process can hold several `Transfer` instances, e.g. one per broker.
  *
  * @example
@@ -176,11 +176,11 @@ export class Transfer implements TransferConfig {
   // map of callbacks for handling responses
   callbackMap: Map<string, TransferCallbackHandler>;
 
-  /** Default response timeout in ms for methods without `@TopicTimeout`; `0` = wait without a limit. See `TransferConfig.responseTimeout`. */
+  /** Default response timeout in ms for methods without `\@TopicTimeout`; `0` = wait without a limit. See `TransferConfig.responseTimeout`. */
   // executor response wait time, ms; 0 — no limit
   responseTimeout: number;
 
-  /** Where errors with no caller to reject go: executor/timeout/delivery failures for `@CustomTopic`, response-send failures for executors, registry send failures. */
+  /** Where errors with no caller to reject go: executor/timeout/delivery failures for `\@CustomTopic`, response-send failures for executors, registry send failures. */
   // handler for errors that have no caller to return to: @CustomTopic, executor response, registry
   defaultErrorHandler: TransferErrorHandler;
 
@@ -274,7 +274,7 @@ export class Transfer implements TransferConfig {
    * later, unrelated call.
    *
    * @param constructor - Isolator class to address.
-   * @param instanceId - Suffix matching the `instanceId` an `@Executor(instanceId)` was
+   * @param instanceId - Suffix matching the `instanceId` an `\@Executor(instanceId)` was
    *   decorated with.
    * @returns `constructor`, unchanged, for chaining the method call.
    *
@@ -282,7 +282,7 @@ export class Transfer implements TransferConfig {
    * ```ts
    * import { Transfer } from "@aom-js/transfer";
    *
-   * // routed to the executor subscribed with @Executor("w1")
+   * // routed to the executor subscribed with \@Executor("w1")
    * const result = await Transfer.toInstance(Worker, "w1").whoami();
    * ```
    */
@@ -311,13 +311,13 @@ export class Transfer implements TransferConfig {
    * the original isolator class. Each method on the proxy publishes to the descriptor's topic
    * and, for methods with `waitForResponse: true`, awaits a reply on **this** node's own reply
    * topic through the normal `RxTransfer` RPC machinery — singleton deduplication and
-   * `@TopicTimeout`-style behaviour all apply the same way they would to a hand-written isolator.
+   * `\@TopicTimeout`-style behaviour all apply the same way they would to a hand-written isolator.
    *
    * Repeated calls with the same `(descriptor.name, descriptor.hash, instanceId)` return the
    * cached proxy instead of creating new reply subscriptions.
    *
    * @param descriptor - Service descriptor, typically received via `collectDistributions` (see
-   *   `@Isolator(transfer, { distributed: true })` for how it's produced).
+   *   `\@Isolator(transfer, { distributed: true })` for how it's produced).
    * @param instanceId - Address a specific executor instance, like `Transfer.toInstance`.
    * @returns A proxy object with one async function per descriptor method. Untyped by default —
    *   pass `T` for a typed shape, or generate one with `@aom-js/codegen`.

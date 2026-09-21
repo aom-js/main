@@ -26,7 +26,7 @@ export class AomSchemas extends AomCore {
   /** Names of properties on this class that have a `PropertySchema.*` factory applied. */
   properties: Set<Property> = new Set();
 
-  /** True once `@ComponentSchema()` has decorated the class this node belongs to. */
+  /** True once `\@ComponentSchema()` has decorated the class this node belongs to. */
   isComponentSchema: boolean;
 
   /**
@@ -48,8 +48,8 @@ export class AomSchemas extends AomCore {
   // params passed to @ComponentSchema(...) — only when an argument was actually given;
   // needed by foldSchemas (currently only part of them goes into the JSON Schema via JSONSchema())
   /**
-   * Raw params passed to `@ComponentSchema(params)`, present only when an argument was actually
-   * given — read by `foldSchemas` to restore `@ComponentSchema(params)` in generated code.
+   * Raw params passed to `\@ComponentSchema(params)`, present only when an argument was actually
+   * given — read by `foldSchemas` to restore `\@ComponentSchema(params)` in generated code.
    */
   componentParams?: ClassDescriptionsProperties;
 
@@ -72,7 +72,7 @@ export class AomSchemas extends AomCore {
 // mapped classes (Pick/Omit/Partial/Intersection) get their own @ComponentSchema(), so isComponentSchema
 // is already true for them too — no separate $.mapped check is needed here
 /**
- * True when `$` belongs to a class already decorated with `@ComponentSchema()`. Shared stopping
+ * True when `$` belongs to a class already decorated with `\@ComponentSchema()`. Shared stopping
  * condition for both `ComponentSchema`'s own prototype-chain walk (inherit undecorated intermediate
  * classes, stop at the nearest component ancestor) and `foldSchemas`'s `extends` resolution.
  *
@@ -84,7 +84,7 @@ export function isComponentAncestor($: AomSchemas | undefined): boolean {
 }
 
 /**
- * Renders `@ComponentSchema` classes to JSON Schema and validates plain data against them. A thin
+ * Renders `\@ComponentSchema` classes to JSON Schema and validates plain data against them. A thin
  * wrapper over `class-validator-jsonschema`/`class-validator`/`class-transformer` — schemer has no
  * renderer of its own. `refPointerPrefix` lives on the instance, not the class, so the same DTO can
  * render under different `$ref` roots for different consumers (`@aom-js/router`, `@aom-js/api` and
@@ -108,16 +108,16 @@ export class Schemer {
    * does this for `$ref` graphs). `required` lists properties without `isOptional`/`ValidateIf`:
    * class-validator-jsonschema treats conditional validation as a sign of optionality.
    *
-   * @param target - a class decorated with `@ComponentSchema()`
+   * @param target - a class decorated with `\@ComponentSchema()`
    * @returns a JSON Schema object for `target`
    *
    * @example
    * ```ts
    * import { ComponentSchema, PropertySchema, Schemer } from "@aom-js/schemer";
    *
-   * @ComponentSchema({ description: "User" })
+   * \@ComponentSchema({ description: "User" })
    * class UserDto {
-   *   @PropertySchema.String({ minLength: 2 })
+   *   \@PropertySchema.String({ minLength: 2 })
    *   name!: string;
    * }
    *
@@ -140,7 +140,7 @@ export class Schemer {
    * and then `validateSync` with `whitelist: true` — properties without any validator are stripped
    * from `values`, so unknown/extra input fields are silently dropped rather than rejected.
    *
-   * @param constructor - a class decorated with `@ComponentSchema()`
+   * @param constructor - a class decorated with `\@ComponentSchema()`
    * @param data - plain object, e.g. a parsed request body
    * @returns `values` (the coerced instance, with unvalidated properties stripped) and `errors`
    * (empty when valid)
@@ -149,9 +149,9 @@ export class Schemer {
    * ```ts
    * import { ComponentSchema, PropertySchema, Schemer } from "@aom-js/schemer";
    *
-   * @ComponentSchema()
+   * \@ComponentSchema()
    * class LoginDto {
-   *   @PropertySchema.String({ minLength: 1 })
+   *   \@PropertySchema.String({ minLength: 1 })
    *   login!: string;
    * }
    *

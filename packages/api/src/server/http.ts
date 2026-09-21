@@ -119,11 +119,11 @@ class RouteMatcher {
  * Request handling behaviour worth knowing:
  * - **Body is lazy.** The `body` value passed into the route is not a parsed object but a
  *   `lazy(...)` wrapper around {@link parseJsonBody}; the actual parse runs at most once per
- *   request, the first time something in the route chain reads `@Body`. A route that never reads
+ *   request, the first time something in the route chain reads `\@Body`. A route that never reads
  *   the body never touches the request stream at all — so an access check earlier in the chain
  *   can reject a request without waiting for (or reading) a body the client claimed but never
  *   needs to fully send. The effective size limit is resolved per request, in this priority
- *   order: the route's `@BodyOptions` marker, then `AomServerSettings.bodyLimit`, then the
+ *   order: the route's `\@BodyOptions` marker, then `AomServerSettings.bodyLimit`, then the
  *   package default `DEFAULT_BODY_LIMIT` (1 MiB). See {@link parseJsonBody} and `BODY_UNREAD`
  *   for what happens on a size/parse failure and why the connection sometimes has to close.
  * - **String results are `text/plain`, not `text/html`.** A handler that returns a plain string

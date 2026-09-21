@@ -31,9 +31,9 @@ export function TransformEmpty(): PropertyDecorator {
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  * import { IsUUID } from "class-validator";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class IDFilter {
- *   @PropertySchema.String({
+ *   \@PropertySchema.String({
  *     isOptional: true,
  *     decorators: [TransformToArray(), IsUUID("all", { each: true })],
  *   })
@@ -97,9 +97,9 @@ declare interface attrs {
  * import { TransformToDate } from "@aom-js/api";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class DateRangeFilter {
- *   @PropertySchema.String({
+ *   \@PropertySchema.String({
  *     isOptional: true,
  *     decorators: [TransformToDate({ startOf: "day" })],
  *   })

@@ -5,7 +5,7 @@ import { PayloadTooLargeResponse, WrongDataResponse } from "../responses";
 import { messages } from "../constants";
 
 /**
- * Options for {@link parseJsonBody}, and the shape stored under the `@BodyOptions` route marker.
+ * Options for {@link parseJsonBody}, and the shape stored under the `\@BodyOptions` route marker.
  */
 export interface BodyParseOptions {
   /** Body size limit in bytes. `0` means no limit. Defaults to {@link DEFAULT_BODY_LIMIT}. */
@@ -14,7 +14,7 @@ export interface BodyParseOptions {
 }
 
 /**
- * Default JSON body size limit in bytes (1 MiB), used when neither `@BodyOptions` on the route
+ * Default JSON body size limit in bytes (1 MiB), used when neither `\@BodyOptions` on the route
  * nor `AomServerSettings.bodyLimit` specify one.
  */
 // 1 MiB - a sane default for a JSON request body (approved by the author)
@@ -85,7 +85,7 @@ export const BODY_UNREAD: unique symbol = Symbol("body-unread");
  *   session: {}, files: {},
  * };
  *
- * // adapter that only hands out the raw stream: defer parsing until the first @Body access
+ * // adapter that only hands out the raw stream: defer parsing until the first \@Body access
  * const lazyValues: HttpContextValues = {
  *   ctx: { req, res }, req, res,
  *   body: lazy(async () => {

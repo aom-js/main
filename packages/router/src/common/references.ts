@@ -26,8 +26,8 @@ class RefContainer {
 /**
  * Reference resolved with no context — the wrapped function takes no argument. Used to
  * break circular imports (`FwdRef(() => SomeClass.method)`) where the target isn't
- * defined yet at decoration time. Accepted by `@Before`/`@After`/`@Next`/`@UseMarker`/
- * `@This`/`@DelayRefStack`.
+ * defined yet at decoration time. Accepted by `\@Before`/`\@After`/`\@Next`/`\@UseMarker`/
+ * `\@This`/`\@DelayRefStack`.
  *
  * Not exported from the package — obtain an instance through `FwdRef(...)`.
  */

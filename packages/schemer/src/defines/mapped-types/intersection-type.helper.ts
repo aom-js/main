@@ -39,25 +39,25 @@ type Intersection<T extends Type[]> = MappedType<
  * (`KI-SCHEMER-07`) — wrap it in a named subclass before using it as a `$ref` target. Composes with
  * the other mapped-types, including recursively (`IntersectionType(A, PartialType(B))`).
  *
- * @param classRefs - classes decorated with `@ComponentSchema()`; later entries win on name conflicts
+ * @param classRefs - classes decorated with `\@ComponentSchema()`; later entries win on name conflicts
  * @returns a new anonymous component class with the combined properties of `classRefs`
- * @throws {Error} if any of `classRefs` is not a `@ComponentSchema` class
+ * @throws {Error} if any of `classRefs` is not a `\@ComponentSchema` class
  *
  * @example
  * ```ts
  * import { ComponentSchema, PropertySchema, IntersectionType, PickType } from "@aom-js/schemer";
  * import { entities } from "./entities";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class OrgIdDTO {
- *   @PropertySchema.String({})
+ *   \@PropertySchema.String({})
  *   orgId!: string;
  * }
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class TicketBodyDTO extends PickType(entities.Tickets, ["title", "text"]) {}
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class OrgTicketDTO extends IntersectionType(OrgIdDTO, TicketBodyDTO) {}
  * ```
  */

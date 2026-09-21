@@ -62,7 +62,7 @@ class CookieBuilderConstructor<
 /**
  * Builds a controller that validates request cookies against a component schema.
  *
- * @param schema - component schema (`@ComponentSchema`) describing the expected cookies
+ * @param schema - component schema (`\@ComponentSchema`) describing the expected cookies
  * @returns an anonymous controller class with `Cookie`/`NotEmpty` middlewares, a `cookies`
  * instance field, and `static JSONSchema()` for OpenAPI (inherited from `CookieBuildersBase`)
  *
@@ -72,20 +72,20 @@ class CookieBuilderConstructor<
  * import { Controller, Get, Before, This } from "@aom-js/router";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class SessionCookie {
- *   @PropertySchema.String()
+ *   \@PropertySchema.String()
  *   sessionId!: string;
  * }
  *
- * @Controller()
+ * \@Controller()
  * class SessionCookieValue extends CookieBuilder(SessionCookie) {}
  *
- * @Controller()
+ * \@Controller()
  * class SomeController {
- *   @Get("/profile")
- *   @Before(SessionCookieValue.Cookie)
- *   static async profile(@This(SessionCookieValue) { cookies }: SessionCookieValue) {
+ *   \@Get("/profile")
+ *   \@Before(SessionCookieValue.Cookie)
+ *   static async profile(\@This(SessionCookieValue) { cookies }: SessionCookieValue) {
  *     // cookies.sessionId is validated
  *   }
  * }

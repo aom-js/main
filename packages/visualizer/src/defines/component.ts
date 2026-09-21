@@ -11,13 +11,13 @@ export type VisualizerSource = AomRoute | Router | ClassType;
 /**
  * The API map as a value, rather than as a controller.
  *
- * Knows nothing about HTTP: create it wherever convenient, passing a route (`@Route() route`),
+ * Knows nothing about HTTP: create it wherever convenient, passing a route (`\@Route() route`),
  * a router, or a controller class. The map's root becomes the root of that route's router — the
  * module the component was placed inside of.
  *
  * ```ts
- * @Get("/visualizer")
- * static Page(@Route() route: AomRoute): string {
+ * \@Get("/visualizer")
+ * static Page(\@Route() route: AomRoute): string {
  *   return new Visualizer(route).html;
  * }
  * ```

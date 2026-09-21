@@ -11,7 +11,7 @@ const SCALAR_SCHEMAS = new Map<unknown, Record<string, any>>([
 
 /**
  * Scalar type names → JSON Schema, keyed by string (`"string"`, `"number"`, `"integer"`,
- * `"boolean"`, `"date"`) rather than by constructor — the dictionary `@TopicSchema` (`@aom-js/transfer`)
+ * `"boolean"`, `"date"`) rather than by constructor — the dictionary `\@TopicSchema` (`@aom-js/transfer`)
  * and `@aom-js/codegen` use to describe/recognize scalars. `date` matches the exact shape rendered by
  * `PropertySchema.Date` (`oneOf` of `date`/`date-time` string formats); the private, constructor-keyed
  * `SCALAR_SCHEMAS` used internally by `SchemasCollector.extract` still renders `Date` in the older
@@ -34,7 +34,7 @@ export const SCALAR_TYPE_SCHEMAS: Record<string, Record<string, any>> = {
 };
 
 /**
- * Turns `@ComponentSchema` classes into `$ref` links, recursively collecting the whole cascade of
+ * Turns `\@ComponentSchema` classes into `$ref` links, recursively collecting the whole cascade of
  * related schemas (via `AomSchemas.connections`, i.e. `PropertySchema.Type`) into a flat
  * `components` map. Scalars are accepted by name (`"string"`) or by constructor (`String`), `[T]`
  * unwraps into a JSON Schema array (`{type: "array", items: ...}`), and already-built JSON Schema
@@ -63,30 +63,30 @@ export class SchemasCollector {
    * Dispatches on the runtime shape of `schema`, in order: a string looks up `SCALAR_TYPE_SCHEMAS`;
    * an array must hold exactly one element type (`["string"]`) and becomes `{type: "array", items}`;
    * a scalar constructor (`String`/`Number`/`Boolean`/`Date`) looks up the internal `SCALAR_SCHEMAS`;
-   * a `@ComponentSchema` class is registered (schema fixed *before* walking its connections, so a
+   * a `\@ComponentSchema` class is registered (schema fixed *before* walking its connections, so a
    * self-referencing component like `Orgs.parentOrg → Orgs` cannot recurse forever) and returned as
    * `{$ref}`; any other function is an error; anything else (an already-built JSON Schema object) is
    * returned unchanged. Registration is idempotent — extracting the same component twice renders it
    * only once.
    *
-   * @param schema - a scalar name/constructor, `[T]`, a `@ComponentSchema` class, or a JSON Schema object
+   * @param schema - a scalar name/constructor, `[T]`, a `\@ComponentSchema` class, or a JSON Schema object
    * @returns the `$ref`/array/scalar/literal form of `schema`
    * @throws {Error} for an unknown scalar name, a malformed `[T]` array, or a function that is
-   * neither a scalar constructor nor a `@ComponentSchema` class
+   * neither a scalar constructor nor a `\@ComponentSchema` class
    *
    * @example
    * ```ts
    * import { ComponentSchema, PropertySchema, Schemer, SchemasCollector } from "@aom-js/schemer";
    *
-   * @ComponentSchema()
+   * \@ComponentSchema()
    * class Toy {
-   *   @PropertySchema.String({})
+   *   \@PropertySchema.String({})
    *   label!: string;
    * }
    *
-   * @ComponentSchema()
+   * \@ComponentSchema()
    * class Pet {
-   *   @PropertySchema.Type({ value: () => Toy })
+   *   \@PropertySchema.Type({ value: () => Toy })
    *   toy!: Toy;
    * }
    *

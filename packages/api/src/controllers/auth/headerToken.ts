@@ -12,7 +12,7 @@ export const HeaderTokenSecuritySchema = {
 /**
  * Extracts a `<TOKEN_NAME> <value>` token from one of `HEADERS_KEYS` (default: just
  * `authorization`). This class only splits and validates the token's shape — resolving it to a
- * user/session is the application's job, typically in a `@This(AuthHeaderToken)`-consuming
+ * user/session is the application's job, typically in a `\@This(AuthHeaderToken)`-consuming
  * middleware chained after `Required`.
  *
  * `HEADERS_KEYS` can list more than one header to support carrying the token through headers
@@ -24,13 +24,13 @@ export const HeaderTokenSecuritySchema = {
  * import { AuthHeaderToken } from "@aom-js/api";
  * import { Controller, Before, After, Get, This } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class CurrentUser {
- *   @Before(AuthHeaderToken.Required)
- *   @After(CurrentUser.Init)
+ *   \@Before(AuthHeaderToken.Required)
+ *   \@After(CurrentUser.Init)
  *   static async Required() {}
  *
- *   static async Init(@This(AuthHeaderToken) token: AuthHeaderToken) {
+ *   static async Init(\@This(AuthHeaderToken) token: AuthHeaderToken) {
  *     // token.value is the raw bearer token, ready to be looked up
  *   }
  * }

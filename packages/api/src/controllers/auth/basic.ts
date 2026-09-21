@@ -26,10 +26,10 @@ export const BasicSecuritySchema = {
  *
  * AuthBasic.BASIC_AUTH = "user:secret"; // "Authorization: Basic " + base64("user:secret")
  *
- * @Controller()
+ * \@Controller()
  * class AdminController {
- *   @Get("/admin")
- *   @Before(AuthBasic.Required)
+ *   \@Get("/admin")
+ *   \@Before(AuthBasic.Required)
  *   static async index() { return "ok"; }
  * }
  * ```

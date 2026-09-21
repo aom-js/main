@@ -12,9 +12,9 @@ import { IsBoolean } from "class-validator";
  * import { QueryBoolean } from "@aom-js/api";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class ListFilter {
- *   @PropertySchema.Boolean({ isOptional: true, decorators: [QueryBoolean()] })
+ *   \@PropertySchema.Boolean({ isOptional: true, decorators: [QueryBoolean()] })
  *   enabled?: boolean; // "?enabled=true" -> true
  * }
  * ```

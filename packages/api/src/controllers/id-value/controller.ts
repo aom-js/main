@@ -116,7 +116,7 @@ export class IDController {
  * import { IDValue, UUIDSchema } from "@aom-js/api";
  * import { Controller } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class OrgID extends IDValue("orgId", UUIDSchema) {}
  * ```
  */
@@ -135,14 +135,14 @@ export function IDValue<T extends typeof ParamIDSchema>(attr: string, IDPattern:
  * import { UUIDParam } from "@aom-js/api";
  * import { Controller, Get, Before, This } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class TicketID extends UUIDParam("ticketId") {}
  *
- * @Controller()
+ * \@Controller()
  * class TicketsController {
- *   @Get(`/tickets/${TicketID}`) // ":ticketId([0-9a-f-]{36})"
- *   @Before(TicketID.PathID)
- *   static async get(@This(TicketID) { value }: TicketID) {
+ *   \@Get(`/tickets/${TicketID}`) // ":ticketId([0-9a-f-]{36})"
+ *   \@Before(TicketID.PathID)
+ *   static async get(\@This(TicketID) { value }: TicketID) {
  *     // value is the validated UUID string
  *   }
  * }

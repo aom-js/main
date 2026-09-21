@@ -24,19 +24,19 @@ export function circularInstanceError(chain: ClassConstructor[]) {
 
 /**
  * Per-request execution context: request values, the map of validated instances, and
- * the bookkeeping that makes `@This`/`@State`/`lazy(...)` safe under concurrency. One
+ * the bookkeeping that makes `\@This`/`\@State`/`lazy(...)` safe under concurrency. One
  * `RxContext` is created per `AomRoute.apply()` call and discarded at the end of the
  * request — nothing here is shared across requests.
  *
  * Not exported from the package; application code reaches it only through
- * `ArgumentsHandlerParameters.context` inside an `Args(...)` handler (`@Cursor()`,
- * `@Run()`, custom argument decorators).
+ * `ArgumentsHandlerParameters.context` inside an `Args(...)` handler (`\@Cursor()`,
+ * `\@Run()`, custom argument decorators).
  */
 export class RxContext {
   /** Request values passed to `AomRoute.apply()`; read `value(key)` instead of this directly to resolve `lazy(...)` fields. */
   values: HttpContextValues;
 
-  /** Instances that finished all their `@OnInstance` hooks — the only ones `@This`/`@State` from other classes/branches can see. */
+  /** Instances that finished all their `\@OnInstance` hooks — the only ones `\@This`/`\@State` from other classes/branches can see. */
   state: ClassInstanceMap;
 
   // creations currently in flight or rejected (a rejection is remembered until the end of
@@ -122,8 +122,8 @@ export class RxContext {
   // per request
   /**
    * Resolves one field of `values` (`context.values`), transparently unwrapping a
-   * `lazy(...)` field on first use. This is what `@Body`, `@Query`, `@Params`,
-   * `@Cookies`, `@Headers`, `@Session`, `@Files` call instead of reading `values[key]`
+   * `lazy(...)` field on first use. This is what `\@Body`, `\@Query`, `\@Params`,
+   * `\@Cookies`, `\@Headers`, `\@Session`, `\@Files` call instead of reading `values[key]`
    * directly — so the "compute at most once, share the same result/rejection with
    * every reader" rule applies uniformly to every context field.
    *
@@ -159,7 +159,7 @@ export class RxContext {
    * Runs `cursors` strictly one after another (`concatMap` — no cursor starts before
    * the previous one settles). For each cursor: ensures its owner class has a
    * validated instance (`AomApi.instanceWithHooks`, called unconditionally even if the
-   * method never uses `@This`), resolves its parameters concurrently
+   * method never uses `\@This`), resolves its parameters concurrently
    * (`Promise.all`), then invokes the method with `this` bound to the class itself
    * (every handler is static).
    *
@@ -168,7 +168,7 @@ export class RxContext {
    * resolves to `undefined`. A thrown error, or a returned `Error` instance, rejects
    * the promise instead of resolving it.
    *
-   * This is also what `@Run()`'s returned function calls to execute extra cursors
+   * This is also what `\@Run()`'s returned function calls to execute extra cursors
    * built from arbitrary handlers, inside the same context.
    *
    * @param cursors - cursors to execute, in order

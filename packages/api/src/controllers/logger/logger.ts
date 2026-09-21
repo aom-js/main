@@ -39,8 +39,8 @@ class LoggerAttachments {
  * Logger.ENGINE = pino({ timestamp: true });
  *
  * // in a controller:
- * // @Before(Logger.Init)
- * // static async handler(@This(Logger) log: Logger) { ... }
+ * // \@Before(Logger.Init)
+ * // static async handler(\@This(Logger) log: Logger) { ... }
  * ```
  */
 @Controller()

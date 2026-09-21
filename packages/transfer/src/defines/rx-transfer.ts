@@ -15,10 +15,10 @@ import {
  * RPC core layered on top of a `Transfer`'s `publisher`/`subscriber` pair.
  *
  * Not exported from the package barrel — reachable only as the value of the public
- * `AomIsolator.rx` field (set by `@Isolator`) or through `Transfer.prototype.restore`, which
- * creates its own instance to talk to a descriptor without a decorated class. `@ResponseTopic`/
- * `@CustomTopic` forward every call to `request`; executors are wired to `execHandler` by
- * `@Executor`.
+ * `AomIsolator.rx` field (set by `\@Isolator`) or through `Transfer.prototype.restore`, which
+ * creates its own instance to talk to a descriptor without a decorated class. `\@ResponseTopic`/
+ * `\@CustomTopic` forward every call to `request`; executors are wired to `execHandler` by
+ * `\@Executor`.
  */
 export class RxTransfer {
   private transfer: Transfer;
@@ -59,7 +59,7 @@ export class RxTransfer {
    * unrelated later call.
    *
    * **Timeout.** `$.responseTimeout ?? transfer.responseTimeout` decides how long to wait — a
-   * method's `@TopicTimeout` always wins when set. When that value is `0`, no `setTimeout` is
+   * method's `\@TopicTimeout` always wins when set. When that value is `0`, no `setTimeout` is
    * created at all: the wait is unbounded, not just long. When it is truthy, the timer is
    * `unref()`-ed wherever the runtime supports it (Node), so it never keeps the process alive by
    * itself. The timer — and the pending `transfer.callbackMap` entry — are cleared on whichever
@@ -206,10 +206,10 @@ export class RxTransfer {
    * `attachIsolation`). Runs `handler` with the message's `value` spread as arguments and
    * always publishes a response to `headers.replyTopic`, success or failure — that response is
    * what lets the caller's `request` clean up its timer/callback/dedup entry, which is why a
-   * `@CustomTopic` with an active executor does not leak even at `responseTimeout: 0`.
+   * `\@CustomTopic` with an active executor does not leak even at `responseTimeout: 0`.
    *
    * **Trust boundary.** `value` comes straight off the bus message and is applied to `handler`
-   * without checking who published it or whether it matches the method's `@TopicSchema` (if
+   * without checking who published it or whether it matches the method's `\@TopicSchema` (if
    * any) — verifying a message's origin at the transport level is a known gap, not a guarantee
    * this package makes; see `https://github.com/aom-js/main/issues/1`.
    *
@@ -222,8 +222,8 @@ export class RxTransfer {
    * published as a plain object `{ name, message, status, data }` (non-`Error` throws become
    * `{ message: String(error) }`) with `headers.error: true`. `RxTransfer`'s `callbackObserver`
    * rebuilds an `Error` from this envelope on the calling side, carrying `name`/`status`/`data`
-   * along — that's what lands in the `reject` of a `@ResponseTopic` call or in
-   * `defaultErrorHandler` for `@CustomTopic`.
+   * along — that's what lands in the `reject` of a `\@ResponseTopic` call or in
+   * `defaultErrorHandler` for `\@CustomTopic`.
    *
    * If publishing the response itself fails, the failure goes to `transfer.reportError` instead
    * of being thrown; if the executor had also failed, its original error is attached as `cause`

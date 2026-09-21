@@ -22,7 +22,7 @@ class ResponseBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>
   response!: R;
 
   /**
-   * Describes this response for OpenAPI. Typically used directly in `@Responses(...)` rather
+   * Describes this response for OpenAPI. Typically used directly in `\@Responses(...)` rather
    * than via the `Response` middleware.
    *
    * @param description - response description, or an array of lines
@@ -36,7 +36,7 @@ class ResponseBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>
   }
 
   // this middleware also serves to investigate the hypothesis about a cascading inheritance bug
-  /** Middleware that only registers `JSONSchema()` in OpenAPI via `@Responses`; does nothing else. */
+  /** Middleware that only registers `JSONSchema()` in OpenAPI via `\@Responses`; does nothing else. */
   @Middleware()
   @DelayRefStack(SafeOriginParameters)
   static async Response() {}
@@ -47,7 +47,7 @@ class ResponseBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>
  * status code. Unlike the other builders, it does not validate anything at runtime — it only
  * carries `static JSONSchema()`/`Response` for OpenAPI generation.
  *
- * @param schema - component schema (`@ComponentSchema`) describing the response shape
+ * @param schema - component schema (`\@ComponentSchema`) describing the response shape
  * @param status - HTTP status this response is documented under; defaults to `200`
  * @returns an anonymous class with `static JSONSchema(description?, status?)` and a `Response` middleware
  *
@@ -57,19 +57,19 @@ class ResponseBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>
  * import { Controller, Get, Responses } from "@aom-js/router";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class OrgCountriesDTO {
- *   @PropertySchema.String({ isArray: true })
+ *   \@PropertySchema.String({ isArray: true })
  *   countries!: string[];
  * }
  *
- * @Controller()
+ * \@Controller()
  * class OrgCountriesResponse extends ResponseBuilder(OrgCountriesDTO) {}
  *
- * @Controller()
+ * \@Controller()
  * class CountriesController {
- *   @Get("/countries")
- *   @Responses(OrgCountriesResponse.JSONSchema("Organization countries"))
+ *   \@Get("/countries")
+ *   \@Responses(OrgCountriesResponse.JSONSchema("Organization countries"))
  *   static async list(): Promise<OrgCountriesDTO> {
  *     return { countries: ["US", "DE"] };
  *   }

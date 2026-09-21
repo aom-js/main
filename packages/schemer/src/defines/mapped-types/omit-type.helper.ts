@@ -15,25 +15,25 @@ import { PropertySchema } from "../properties";
  * is not in `keys`. The result is a component under the fixed class name `OmitTypeClass`
  * (`KI-SCHEMER-07`) — wrap it in a named subclass before using it as a `$ref` target.
  *
- * @param classRef - a class decorated with `@ComponentSchema()`
+ * @param classRef - a class decorated with `\@ComponentSchema()`
  * @param keys - property names to drop
  * @returns a new anonymous component class without `keys`
- * @throws {Error} if `classRef` is not a `@ComponentSchema` class
+ * @throws {Error} if `classRef` is not a `\@ComponentSchema` class
  *
  * @example
  * ```ts
  * import { ComponentSchema, PropertySchema, OmitType } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class UserDto {
- *   @PropertySchema.String({})
+ *   \@PropertySchema.String({})
  *   id!: string;
  *
- *   @PropertySchema.String({})
+ *   \@PropertySchema.String({})
  *   password!: string;
  * }
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class PublicUserDto extends OmitType(UserDto, ["password"]) {}
  * ```
  */

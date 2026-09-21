@@ -8,14 +8,14 @@ import { ValidationArguments } from "class-validator";
  */
 export declare type ConnectionSchema = () => ClassConstructor;
 
-/** Fields shared by every `@ComponentSchema`/`PropertySchema.*` params object. */
+/** Fields shared by every `\@ComponentSchema`/`PropertySchema.*` params object. */
 export declare interface BaseDescriptionsProperties {
   description?: string;
   deprecated?: boolean;
 }
 
 /**
- * Parameters accepted by `@ComponentSchema(params)`. `decorators` are applied last, after every
+ * Parameters accepted by `\@ComponentSchema(params)`. `decorators` are applied last, after every
  * property has been decorated — they are not merged into the class's rendered JSON Schema, unlike
  * `description`/`deprecated`. There is no field to rename the component: its name is always
  * `target.name`.

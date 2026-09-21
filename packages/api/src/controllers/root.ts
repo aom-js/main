@@ -65,16 +65,16 @@ export class RoutesStructure<RE extends RouteElement> extends CommonResponse {
  * import { Controller, MarkerType } from "@aom-js/router";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class ModuleRouteElement extends RouteElement {
- *   @PropertySchema.String({ isOptional: true })
+ *   \@PropertySchema.String({ isOptional: true })
  *   access?: string;
  * }
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class ModuleRoutesStructure extends RoutesStructure<ModuleRouteElement> {}
  *
- * @Controller()
+ * \@Controller()
  * export class ModuleRootController extends BaseRootController {
  *   static readonly RoutesStructure = ModuleRoutesStructure;
  *   readonly RouteElement = ModuleRouteElement;
@@ -126,7 +126,7 @@ export class BaseRootController {
   constructor(..._args: any) {}
 
   /**
-   * `GET` endpoint (and `@Nextpoint`, so subclasses can extend it): lists every route registered
+   * `GET` endpoint (and `\@Nextpoint`, so subclasses can extend it): lists every route registered
    * on this controller's router as `RoutesStructure`, running `markersToRoute` on each one.
    */
   @Get()

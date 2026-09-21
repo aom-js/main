@@ -8,7 +8,7 @@ import { type HttpCtx } from "../types";
 /**
  * API map for a module: an HTML page and the same data as JSON.
  *
- * Mount it via a bridge (`@Bridge("/", BaseVisualizerController)`) or by subclassing where the
+ * Mount it via a bridge (`\@Bridge("/", BaseVisualizerController)`) or by subclassing where the
  * module needs its own access restrictions. The map's root is the router that served the
  * request — i.e. the module the controller is mounted in.
  *
@@ -21,8 +21,8 @@ import { type HttpCtx } from "../types";
  * import { BaseVisualizerController } from "@aom-js/api";
  * import { Bridge, Controller } from "@aom-js/router";
  *
- * @Controller()
- * @Bridge("/", BaseVisualizerController) // exposes GET /visualizer and /visualizer.json
+ * \@Controller()
+ * \@Bridge("/", BaseVisualizerController) // exposes GET /visualizer and /visualizer.json
  * class ModuleRootController {}
  * ```
  */

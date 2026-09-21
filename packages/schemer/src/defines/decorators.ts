@@ -8,12 +8,12 @@ import { ClassDescriptionsProperties } from "./types";
 /**
  * Marks a class as a component schema — the entry point of the flat-decorator model. Every
  * `PropertySchema.*` factory queues its work at `ExecutionPhase.LAST` and does nothing on its own;
- * `@ComponentSchema` is the class-level `ExecutionPhase.INSTANT` decorator that flushes that queue.
- * A class with `PropertySchema.*` properties but never decorated with `@ComponentSchema()` is a
+ * `\@ComponentSchema` is the class-level `ExecutionPhase.INSTANT` decorator that flushes that queue.
+ * A class with `PropertySchema.*` properties but never decorated with `\@ComponentSchema()` is a
  * complete no-op: nothing renders and nothing validates.
  *
  * On each application it, in order:
- * 1. walks up the prototype chain to the nearest `@ComponentSchema`-decorated ancestor (inclusive),
+ * 1. walks up the prototype chain to the nearest `\@ComponentSchema`-decorated ancestor (inclusive),
  *    calling `inherit()` on every class in between — including undecorated intermediate classes, so
  *    an undecorated `class Mid extends Base {}` with its own `PropertySchema` properties still
  *    contributes them once a decorated `class Child extends Mid {}` is processed;
@@ -30,9 +30,9 @@ import { ClassDescriptionsProperties } from "./types";
  * ```ts
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema({ description: "A user account" })
+ * \@ComponentSchema({ description: "A user account" })
  * export class UserDto {
- *   @PropertySchema.String({ minLength: 1, maxLength: 64 })
+ *   \@PropertySchema.String({ minLength: 1, maxLength: 64 })
  *   name!: string;
  * }
  * ```

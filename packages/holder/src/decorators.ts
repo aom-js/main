@@ -3,9 +3,9 @@ import { AomHolder } from "./init";
 
 /**
  * Defers a set of property decorators instead of applying them on the class
- * where `@Hold(...)` is written. Declared as an `AomCore.propertyDecorator`
+ * where `\@Hold(...)` is written. Declared as an `AomCore.propertyDecorator`
  * in the `LAST` phase, so `queue` is only pushed onto the field's holder
- * meta-instance — nothing runs here. On the base class where `@Hold` is the
+ * meta-instance — nothing runs here. On the base class where `\@Hold` is the
  * only decorator, this queue is never applied: `apply()` is never called on
  * that class, so the decorators stay inert until a subclass runs `Apply`.
  *
@@ -27,11 +27,11 @@ import { AomHolder } from "./init";
  * };
  *
  * class HeldBase {
- *   @Hold(Spy("a"))
+ *   \@Hold(Spy("a"))
  *   field!: string;
  * }
  *
- * @Apply()
+ * \@Apply()
  * class HeldChild extends HeldBase {}
  * // Spy runs exactly once, with target = HeldChild.field
  * ```
@@ -74,12 +74,12 @@ const queueInherited = new WeakSet<AomHolder>();
  *
  * `Delay` never decorates the class itself with `queue`'s entries — only
  * `Apply` does that, via `Reflect.decorate($.queue, ...)`. A class marked
- * `@Delay(X())` with no `@Apply()` anywhere in its subclass chain never gets
+ * `\@Delay(X())` with no `\@Apply()` anywhere in its subclass chain never gets
  * `X()` applied.
  *
  * Only the *direct* parent is inherited from (`Object.getPrototypeOf($._.target)`),
  * so multi-level class-decorator inheritance requires every intermediate
- * class to also carry `@Delay` (or `@Apply`) — a plain class in the middle
+ * class to also carry `\@Delay` (or `\@Apply`) — a plain class in the middle
  * of the chain breaks the transfer silently for the properties it doesn't
  * re-declare.
  *
@@ -94,10 +94,10 @@ const queueInherited = new WeakSet<AomHolder>();
  *   console.log(`${label}: ${target.name}`);
  * };
  *
- * @Delay(ClassSpy("base"))
+ * \@Delay(ClassSpy("base"))
  * class DelayedBase {}
  *
- * @Apply()
+ * \@Apply()
  * class DelayedChild extends DelayedBase {}
  * // ClassSpy runs once, with target = DelayedChild
  * ```
@@ -121,7 +121,7 @@ export function Delay(...queue: ClassDecorator[]): ClassDecorator {
 }
 
 /**
- * Runs everything `Hold`/`Delay` deferred, on the class where `@Apply()` is
+ * Runs everything `Hold`/`Delay` deferred, on the class where `\@Apply()` is
  * written. Declared as an `AomCore.classDecorator` in the `INSTANT` phase,
  * same as `Delay`. It does three things in order:
  *
@@ -136,8 +136,8 @@ export function Delay(...queue: ClassDecorator[]): ClassDecorator {
  *    pulled in from `Delay`d ancestors) to the class via `Reflect.decorate`.
  *
  * Because `inherit()`/`transferTo` don't clear the source when copying calls
- * to a subclass, re-applying `@Apply` on a further subclass of an
- * already-`@Apply`-processed class re-runs the same `Hold` queues again —
+ * to a subclass, re-applying `\@Apply` on a further subclass of an
+ * already-`\@Apply`-processed class re-runs the same `Hold` queues again —
  * this combination isn't guarded against and isn't covered by tests.
  *
  * @param queue - class decorators to apply to this class, after everything transferred from ancestors
@@ -152,11 +152,11 @@ export function Delay(...queue: ClassDecorator[]): ClassDecorator {
  * };
  *
  * class HeldBase {
- *   @Hold(Spy("a"))
+ *   \@Hold(Spy("a"))
  *   field!: string;
  * }
  *
- * @Apply()
+ * \@Apply()
  * class HeldChild extends HeldBase {}
  * // Spy("a") is applied to HeldChild.field, not HeldBase.field
  * ```

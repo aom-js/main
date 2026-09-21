@@ -44,7 +44,7 @@ import type {
  *     $.label = label;
  *   });
  *
- * @Label("service")
+ * \@Label("service")
  * class UserService {}
  *
  * Meta.instance(UserService).label; // "service"
@@ -264,8 +264,8 @@ export class AomCore {
 
   /**
    * Late-binds a meta-instance reference to a subclass context. A reference
-   * like `@Before(Self.Method)` is evaluated at decoration time, before the
-   * subclass's own aggregator decorator (e.g. `@Controller()`) has run, so
+   * like `\@Before(Self.Method)` is evaluated at decoration time, before the
+   * subclass's own aggregator decorator (e.g. `\@Controller()`) has run, so
    * it captures the *parent's* meta-instance for `Method`. After
    * `inherit()` runs, the subclass owns a curried copy of `Method` with its
    * own meta-instance; `resolveFor($, context)` redirects the original
@@ -336,7 +336,7 @@ export class AomCore {
    *     $.tag = tag;
    *   });
    *
-   * @Tag("service")
+   * \@Tag("service")
    * class UserService {}
    *
    * Meta.instance(UserService).tag; // "service"
@@ -382,9 +382,9 @@ export class AomCore {
    *     console.log(descriptor ? "method" : "class");
    *   });
    *
-   * @Both()
+   * \@Both()
    * class Service {
-   *   @Both()
+   *   \@Both()
    *   static run() {}
    * }
    * ```
@@ -434,7 +434,7 @@ export class AomCore {
    *   });
    *
    * class Service {
-   *   @LogCall()
+   *   \@LogCall()
    *   static run() {}
    * }
    * ```
@@ -478,7 +478,7 @@ export class AomCore {
    *   }, ExecutionPhase.LAST);
    *
    * class UserDto {
-   *   @Required()
+   *   \@Required()
    *   email!: string;
    * }
    * ```
@@ -530,7 +530,7 @@ export class AomCore {
    *   });
    *
    * class Service {
-   *   static run(@Inject() a: string, @Inject() b: string) {}
+   *   static run(\@Inject() a: string, \@Inject() b: string) {}
    * }
    * ```
    */

@@ -27,18 +27,18 @@ export const CookieTokenSecuritySchema = {
 /**
  * Extracts an opaque session token from a cookie (`static COOKIE_NAME`, default `"sessionId"`).
  * This class only reads the cookie's presence — validating the token itself (session lookup) is
- * the application's job, typically in a `@This(AuthCookieToken)`-consuming middleware.
+ * the application's job, typically in a `\@This(AuthCookieToken)`-consuming middleware.
  *
  * @example
  * ```ts
  * import { AuthCookieToken } from "@aom-js/api";
  * import { Controller, Before, Get, This } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class ProfileController {
- *   @Get("/profile")
- *   @Before(AuthCookieToken.Required)
- *   static async profile(@This(AuthCookieToken) { value }: AuthCookieToken) {
+ *   \@Get("/profile")
+ *   \@Before(AuthCookieToken.Required)
+ *   static async profile(\@This(AuthCookieToken) { value }: AuthCookieToken) {
  *     // value is the raw sessionId cookie value
  *   }
  * }

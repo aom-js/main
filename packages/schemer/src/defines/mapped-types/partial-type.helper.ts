@@ -19,21 +19,21 @@ import { RemoveFieldsWithType } from "./types/remove-fields-with-type.type";
  * subclass before using it as a `$ref` target (via `SchemasCollector` or `foldSchemas`) — used
  * unwrapped it is only safe where the schema gets flattened into plain parameters (e.g. query builders).
  *
- * @param classRef - a class decorated with `@ComponentSchema()`
+ * @param classRef - a class decorated with `\@ComponentSchema()`
  * @returns a new anonymous component class with all of `classRef`'s properties made optional
- * @throws {Error} if `classRef` is not a `@ComponentSchema` class
+ * @throws {Error} if `classRef` is not a `\@ComponentSchema` class
  *
  * @example
  * ```ts
  * import { ComponentSchema, PropertySchema, PartialType } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class UserDto {
- *   @PropertySchema.String({})
+ *   \@PropertySchema.String({})
  *   name!: string;
  * }
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class UserPatchDto extends PartialType(UserDto) {}
  * // UserPatchDto.name is now optional
  * ```

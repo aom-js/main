@@ -79,7 +79,7 @@ export interface VisualRoute {
 export interface VisualBridge {
   prefix: string;
   target: string;
-  /** Middleware wrapping the bridge (`@Bridge` on a method), if any. */
+  /** Middleware wrapping the bridge (`\@Bridge` on a method), if any. */
   via?: string;
 }
 

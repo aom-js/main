@@ -60,7 +60,7 @@ class HeadersBuilderConstructor<
 /**
  * Builds a controller that validates request headers against a component schema.
  *
- * @param schema - component schema (`@ComponentSchema`) describing the expected headers
+ * @param schema - component schema (`\@ComponentSchema`) describing the expected headers
  * @returns an anonymous controller class with `Headers`/`ImplicitHeaders` middlewares, a
  * `headers` instance field, and `static JSONSchema()` for OpenAPI (inherited from `HeaderBuildersBase`)
  *
@@ -70,20 +70,20 @@ class HeadersBuilderConstructor<
  * import { Controller, Get, Before, This } from "@aom-js/router";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class OrgHeaders {
- *   @PropertySchema.String({ isOptional: true })
+ *   \@PropertySchema.String({ isOptional: true })
  *   "data-org-id"?: string;
  * }
  *
- * @Controller()
+ * \@Controller()
  * class CurrentOrgHeader extends HeadersBuilder(OrgHeaders) {}
  *
- * @Controller()
+ * \@Controller()
  * class SomeController {
- *   @Get("/items")
- *   @Before(CurrentOrgHeader.Headers)
- *   static async list(@This(CurrentOrgHeader) { headers }: CurrentOrgHeader) {
+ *   \@Get("/items")
+ *   \@Before(CurrentOrgHeader.Headers)
+ *   static async list(\@This(CurrentOrgHeader) { headers }: CurrentOrgHeader) {
  *     // headers is validated OrgHeaders
  *   }
  * }

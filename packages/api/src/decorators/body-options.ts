@@ -13,11 +13,11 @@ export const BODY_OPTIONS_MARKER = "aom:bodyOptions";
 /**
  * Method decorator: overrides the body size limit for a specific route. Can be placed on an
  * endpoint or on a middleware; markers apply in cursor order and the endpoint's cursor runs
- * last, so an endpoint's `@BodyOptions` overrides whatever a middleware in the same chain set —
+ * last, so an endpoint's `\@BodyOptions` overrides whatever a middleware in the same chain set —
  * in either direction, up or down.
  *
  * The effective limit `Server` uses is resolved at the moment the body is actually read (the
- * first `@Body` in the chain): this route's `@BodyOptions`, then `AomServerSettings.bodyLimit`,
+ * first `\@Body` in the chain): this route's `\@BodyOptions`, then `AomServerSettings.bodyLimit`,
  * then the package default `DEFAULT_BODY_LIMIT` (1 MiB).
  *
  * @param options - `{ limit }` in bytes for this route; `0` disables the limit for it
@@ -27,11 +27,11 @@ export const BODY_OPTIONS_MARKER = "aom:bodyOptions";
  * import { BodyOptions } from "@aom-js/api";
  * import { Controller, Post, Before, Body } from "@aom-js/router";
  *
- * @Controller()
+ * \@Controller()
  * class ImportController {
- *   @Post("/import")
- *   @BodyOptions({ limit: 10 * 1024 * 1024 }) // this endpoint needs more than the default
- *   static async import(@Body() body: unknown) {
+ *   \@Post("/import")
+ *   \@BodyOptions({ limit: 10 * 1024 * 1024 }) // this endpoint needs more than the default
+ *   static async import(\@Body() body: unknown) {
  *     // ...
  *   }
  * }

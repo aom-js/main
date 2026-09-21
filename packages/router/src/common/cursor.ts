@@ -6,13 +6,13 @@ import { AomApi, type AomEndpoint } from "./api";
 
 /**
  * One step of a route's execution chain: a middleware, an endpoint, a nextpoint, or an
- * `@OnInstance` hook, bound to the class (`$`) that owns it. `Router.build` and
+ * `\@OnInstance` hook, bound to the class (`$`) that owns it. `Router.build` and
  * `AomRoute`'s constructor create cursors while assembling a route; `RxContext.run`
  * executes them one by one.
  *
  * Creating a cursor has a side effect: it re-binds `$` to the correct subclass
  * (`AomApi.resolveFor`, needed when a decorator captured a parent class's static
- * reference before `@Controller()` ran on the child) and realizes the method's
+ * reference before `\@Controller()` ran on the child) and realizes the method's
  * `delayStack` — see `realizeDelay`.
  */
 export class AomCursor {
@@ -21,7 +21,7 @@ export class AomCursor {
   endpoint?: AomEndpoint;
 
   // place where the cursor is attached
-  /** The `AomApi` this cursor was attached from (the class that declared `@Before`/`@Bridge`/etc.), used to resolve `Self.Method`-style references against the right subclass. */
+  /** The `AomApi` this cursor was attached from (the class that declared `\@Before`/`\@Bridge`/etc.), used to resolve `Self.Method`-style references against the right subclass. */
   origin: AomApi;
 
   // path prefix
@@ -63,7 +63,7 @@ export class AomCursor {
   }
 
   /**
-   * Runs the method's `@DelayRefStack` handlers once, applying the decorators they
+   * Runs the method's `\@DelayRefStack` handlers once, applying the decorators they
    * return via `Reflect.decorate` in the context of the correct subclass. Guarded by
    * `$.delayRealized` so a meta-instance shared by several cursors (class-level
    * middleware reused across routes) only realizes its stack the first time.

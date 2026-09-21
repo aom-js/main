@@ -66,7 +66,7 @@ class QueryStringBuilderConstructor<
  * Builds a controller that validates the request query string against a component schema and
  * describes it in OpenAPI as `QueryParameters`.
  *
- * @param schema - component schema (`@ComponentSchema`) describing the expected query shape
+ * @param schema - component schema (`\@ComponentSchema`) describing the expected query shape
  * @returns an anonymous controller class with `Query`/`NotEmpty` middlewares, a `query` instance
  * field, and a `static JSONSchema()` for OpenAPI (inherited from `QueryStringBuildersBase`)
  *
@@ -76,20 +76,20 @@ class QueryStringBuilderConstructor<
  * import { Controller, Get, Before, This } from "@aom-js/router";
  * import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class Pager {
- *   @PropertySchema.Number({ default: 100 })
+ *   \@PropertySchema.Number({ default: 100 })
  *   limit = 100;
  * }
  *
- * @Controller()
+ * \@Controller()
  * class QueryStringPager extends QueryStringBuilder(Pager) {}
  *
- * @Controller()
+ * \@Controller()
  * class ListController {
- *   @Get("/items")
- *   @Before(QueryStringPager.Query)
- *   static async list(@This(QueryStringPager) { query }: QueryStringPager) {
+ *   \@Get("/items")
+ *   \@Before(QueryStringPager.Query)
+ *   static async list(\@This(QueryStringPager) { query }: QueryStringPager) {
  *     // query.limit is validated and typed as number
  *   }
  * }

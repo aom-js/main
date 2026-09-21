@@ -63,7 +63,7 @@ export declare type CombinedDecorator = <T>(
  *
  * `INSTANT` calls are never stored anywhere, so `inherit()` has nothing to
  * replay on a subclass. This is deliberate, not an oversight: aggregator
- * decorators such as `@Controller()` or `@ComponentSchema()` call
+ * decorators such as `\@Controller()` or `\@ComponentSchema()` call
  * `$._.inherit()`/`$._.apply()` themselves and are declared with `INSTANT`
  * precisely so that transferring them to a subclass doesn't re-trigger the
  * aggregator and recurse.
@@ -77,7 +77,7 @@ export declare type CombinedDecorator = <T>(
  * const RunLast = () =>
  *   Meta.classDecorator(($) => console.log("ran"), ExecutionPhase.LAST);
  *
- * @RunLast()
+ * \@RunLast()
  * class Service {}
  *
  * Meta.instance(Service)._.apply(); // "ran" is printed only now
@@ -108,7 +108,7 @@ export enum ExecutionPhase {
  *     InheritPlacement.PREPEND,
  *   );
  *
- * @Before()
+ * \@Before()
  * class Base {}
  * class Controller extends Base {}
  *

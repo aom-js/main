@@ -51,7 +51,7 @@ export type FoldedParent =
   | { $mapped: "Partial"; of: FoldedParent }
   | { $mapped: "Intersection"; of: FoldedParent[] };
 
-/** One folded `@ComponentSchema` class: its own (not inherited) properties, plus parent/params. */
+/** One folded `\@ComponentSchema` class: its own (not inherited) properties, plus parent/params. */
 export interface FoldedComponent {
   params?: { description?: string; deprecated?: boolean }; // only when an argument was actually given
   extends?: FoldedParent;
@@ -59,7 +59,7 @@ export interface FoldedComponent {
 }
 
 /**
- * Result of `foldSchemas`: a self-contained, JSON-serializable snapshot of a set of `@ComponentSchema`
+ * Result of `foldSchemas`: a self-contained, JSON-serializable snapshot of a set of `\@ComponentSchema`
  * classes, sufficient to reconstruct them without access to the original source (this is what
  * `@aom-js/transfer` puts on the wire and `@aom-js/codegen`'s `emitSchemas` turns back into TS).
  */
@@ -271,7 +271,7 @@ function describeMapped(mapped: NonNullable<AomSchemas["mapped"]>): string {
 /**
  * Schemer's own schema-folding format for distribution/codegen: each property is stored as
  * "`PropertySchema.*` factory + its params, as originally passed" rather than as JSON Schema —
- * lossless enough to reconstruct the exact original `@PropertySchema.*` calls on the other end
+ * lossless enough to reconstruct the exact original `\@PropertySchema.*` calls on the other end
  * (`@aom-js/codegen`'s `emitSchemas`), which plain JSON Schema cannot round-trip.
  *
  * Walks `roots` plus everything they reach through `PropertySchema.Type` and `extends` (including
@@ -282,20 +282,20 @@ function describeMapped(mapped: NonNullable<AomSchemas["mapped"]>): string {
  * `properties` (only the child's own properties are listed). The result is deterministic: the same
  * roots always fold to the same JSON, regardless of call order.
  *
- * @param roots - classes decorated with `@ComponentSchema()` to start the walk from; classes reached
+ * @param roots - classes decorated with `\@ComponentSchema()` to start the walk from; classes reached
  * through `Type`/`extends` are added automatically
  * @returns a self-contained, JSON-serializable snapshot of `roots` and everything they reference
  * @throws {Error} if a class reached through `Type` or `extends` is an anonymous mapped-type class
- * used directly (not wrapped in a named `@ComponentSchema` subclass), if two different classes end up
+ * used directly (not wrapped in a named `\@ComponentSchema` subclass), if two different classes end up
  * sharing a component name, or if an `enum` name is reused with different values
  *
  * @example
  * ```ts
  * import { ComponentSchema, PropertySchema, foldSchemas } from "@aom-js/schemer";
  *
- * @ComponentSchema()
+ * \@ComponentSchema()
  * class UserDto {
- *   @PropertySchema.String({ minLength: 1 })
+ *   \@PropertySchema.String({ minLength: 1 })
  *   name!: string;
  * }
  *
