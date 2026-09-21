@@ -175,6 +175,12 @@ class TestApi {
     return new DataResponse("item", { id });
   }
 
+  // точка в статической части пути - обычный символ, а не "любой символ" (KI-API-19)
+  @Get("/file.json")
+  static async fileJson() {
+    return new MessageResponse("file");
+  }
+
   @Post("/echo")
   static async echo(@Body() body: any) {
     return new DataResponse("echo", body);
@@ -326,6 +332,16 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
 
   it("параметр с валидатором: значение не по шаблону -> 404, а не маршрут без параметра", async () => {
     const res = await fetch(`${base}/items/abc`);
+    expect(res.status).toBe(404);
+  });
+
+  it("точка в пути маршрута - обычный символ: /file.json совпадает", async () => {
+    const res = await fetch(`${base}/file.json`);
+    expect(res.status).toBe(200);
+  });
+
+  it("точка в пути маршрута не подменяет собой любой символ: /fileXjson -> 404 (KI-API-19)", async () => {
+    const res = await fetch(`${base}/fileXjson`);
     expect(res.status).toBe(404);
   });
 
