@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
-import { MarkerType, OpenAPIObject, RefFunction, Route } from "@aom-js/router";
+import { MarkerType, OnInstance, OpenAPIObject, RefFunction, Route } from "@aom-js/router";
 import { Responses, This, Before, AomRoute, Nextpoint, ThisRef, Ctx } from "@aom-js/router";
 import { DelayRefStack, Title, Controller, Get, OpenApi } from "@aom-js/router";
 //
@@ -102,6 +102,13 @@ export class BaseRootController {
   /** The `OpenApi` document builder for this controller's router, used by `JSONDocs`. */
   readonly docs: OpenApi;
 
+  /**
+   * Routes `Index` lists for the current request: a copy of the router's routes made by
+   * `InitRoutes`. A step before `Index` may narrow it (e.g. by the caller's access) without
+   * touching the router, which every request shares.
+   */
+  routes: AomRoute[];
+
   // url!: string;
 
   // static current_build: string;
@@ -126,8 +133,18 @@ export class BaseRootController {
   constructor(..._args: any) {}
 
   /**
-   * `GET` endpoint (and `\@Nextpoint`, so subclasses can extend it): lists every route registered
-   * on this controller's router as `RoutesStructure`, running `markersToRoute` on each one.
+   * `\@OnInstance` hook: copies the router's routes into `routes`. The instance lives in one
+   * request's state, so every request gets its own copy.
+   */
+  @OnInstance()
+  static async InitRoutes(@This() self: BaseRootController, @Route() { router }: AomRoute) {
+    self.routes = [...router.routes];
+  }
+
+  /**
+   * `GET` endpoint (and `\@Nextpoint`, so subclasses can extend it): lists `routes` — this
+   * request's copy of the router's routes (see `InitRoutes`), possibly narrowed by an earlier
+   * step — as `RoutesStructure`, running `markersToRoute` on each one.
    */
   @Get()
   @Nextpoint()
@@ -135,10 +152,8 @@ export class BaseRootController {
   @DelayRefStack(SafeOriginResponse)
   static Index<RE extends RouteElement, RS extends RoutesStructure<RE>>(
     @This() self: BaseRootController,
-    @Route() route: AomRoute,
   ): RS {
-    const { routes } = route.router;
-    const { ident } = self;
+    const { ident, routes } = self;
     const result = new this.RoutesStructure(ident);
     routes.forEach((route) => {
       const { method, path } = route;

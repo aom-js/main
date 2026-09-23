@@ -12,10 +12,19 @@ import {
   BODY_UNREAD,
   PayloadTooLargeResponse,
   WrongDataResponse,
+  BaseRootController,
+  RouteElement,
+  RoutesStructure,
 } from "@aom-js/api";
+import { Bridge, Controller, Get, Next, OpenApi, Router, This, type HttpContextValues } from "@aom-js/router";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
 // код ошибки не экспортируется из пакета (constants не входят в публичный API) - берём напрямую из src
 import { API_ERROR_423_DATA_LOCKED } from "../src/constants/messages/errors";
+
+const context = (): HttpContextValues => ({
+  ctx: {}, req: {}, res: {}, body: {}, files: {}, query: {},
+  params: {}, cookies: {}, headers: {}, session: {},
+});
 
 // подделка IncomingMessage: Readable с headers, ничего больше parseJsonBody не использует
 function fakeRequest(
@@ -165,5 +174,43 @@ describe("parseJsonBody (KI-API-16)", () => {
 
   it("DEFAULT_BODY_LIMIT - 1 МиБ", () => {
     expect(DEFAULT_BODY_LIMIT).toBe(1_048_576);
+  });
+});
+
+describe("BaseRootController.Index: копия маршрутов на запрос (KI-COMMON-04)", () => {
+  it("шаг перед Index сужает копию своего запроса, а не общий роутер", async () => {
+    @Controller()
+    class Root extends BaseRootController {
+      static readonly RoutesStructure = RoutesStructure;
+      readonly RouteElement = RouteElement;
+      readonly ident = "test";
+      markersToRoute() {}
+    }
+
+    @Controller()
+    class Narrow {
+      @Get("/narrow")
+      @Next(Root.Index)
+      static async Index(@This(Root) root: Root) {
+        root.routes = root.routes.filter((route) => route.path !== "/narrow");
+      }
+    }
+
+    @Controller()
+    @Bridge("/", Root)
+    @Bridge("/", Narrow)
+    class App {}
+
+    const router = new Router(App, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
+    const listed = async (path: string) => {
+      const route = router.routes.find((r) => r.method === "get" && r.path === path)!;
+      const result = (await route.apply(context())) as RoutesStructure<RouteElement>;
+      return result.routes.map((element) => element.path);
+    };
+
+    expect(await listed("/narrow")).not.toContain("/narrow");
+    // роутер один на все запросы: сужение одного запроса не должно в нём остаться
+    expect(router.routes.map((route) => route.path)).toContain("/narrow");
+    expect(await listed("/")).toContain("/narrow");
   });
 });
