@@ -11,8 +11,19 @@ import {
   QueryParameters,
   ThisRef,
   FwdRef,
+  Bridge,
+  Get,
+  This,
+  Router,
+  OpenApi,
   type RefFunction,
+  type HttpContextValues,
 } from "@aom-js/router";
+
+const context = (): HttpContextValues => ({
+  ctx: {}, req: {}, res: {}, body: {}, files: {}, query: {},
+  params: {}, cookies: {}, headers: {}, session: {},
+});
 
 // воспроизводит паттерн билдеров из @aom-js/api: базовый класс с отложенным
 // ThisRef-стеком + фабрика анонимного потомка со статическим значением
@@ -132,5 +143,47 @@ describe("router: ссылки на унаследованные статики"
     expect(rootQueryApi.delayStack.length).toBe(1);
     expect(rootQueryApi.delayRealized).toBe(false);
     expect(() => new AomCursor(rootQueryApi, unrelatedApi, "/")).toThrow("marker is not defined");
+  });
+
+  it("@This(ThisRef(...)) берёт класс шага — потомка, на котором исполняется унаследованный метод", async () => {
+    class ModelA {
+      readonly name = "a";
+    }
+    class ModelB {
+      readonly name = "b";
+    }
+
+    @Controller()
+    class Base {
+      static readonly Model: new () => { name: string };
+
+      @Get("/")
+      static async Index(
+        @This(ThisRef((({ Model }: typeof Base) => Model) as RefFunction)) model: { name: string },
+      ) {
+        return model.name;
+      }
+    }
+
+    @Controller()
+    class A extends Base {
+      static readonly Model = ModelA;
+    }
+
+    @Controller()
+    class B extends Base {
+      static readonly Model = ModelB;
+    }
+
+    @Controller()
+    @Bridge("/a", A)
+    @Bridge("/b", B)
+    class App {}
+
+    const router = new Router(App, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
+    const call = (path: string) => router.routes.find((route) => route.path === path)!.apply(context());
+
+    expect(await call("/a")).toBe("a");
+    expect(await call("/b")).toBe("b");
   });
 });

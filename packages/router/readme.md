@@ -8,7 +8,7 @@
 
 Пакет отвечает за две задачи: **сборку** (из дерева контроллеров получить `Router.routes` — плоские маршруты с путём, методом и списком курсоров) и **исполнение** (`AomRoute.apply(values)` — последовательный прогон курсоров с DI и сборкой аргументов). Метаданные не хранятся в самом пакете: каждый класс и каждый его декорированный метод получают мета-инстанс `AomApi` — наследника `AomCore` из `@aom-js/core`, с прикладными полями `element` (роль метода и списки связей) и `openApi` (декларации для документа). Декораторы пакета только заполняют эти поля (`packages/router/src/common/api.ts` (`AomApiElement`, `AomHttpOpenApi`)); когда именно выполняется тело декоратора, определяет фаза из `@aom-js/core` (`packages/core/src/defines/callstack.ts` (`AomCallstackQueue.add`, `AomCallstackQueue.transferTo`)).
 
-Зависимости: `@aom-js/core` (реестр, фазы, наследование, `resolveFor`), `@aom-js/schemer` (`Schemer` + `SchemasCollector` для рендера компонент-схем в `components.schemas`), `rxjs` (последовательное исполнение), `openapi3-ts` (типы документа). Потребители: `@aom-js/api` — `Server` матчит путь и вызывает `route.apply(...)`, билдеры и `BaseAccessController` строятся на декораторах и маркерах роутера; приложение импортирует роутер напрямую в каждом контроллере (`test/src/modules/orgs/api/index.ts`). Полный граф пакетов и порядок сборки монорепо — `main/docs/architecture.md` §«Состав…».
+Зависимости: `@aom-js/core` (реестр, фазы, наследование, `resolveFor`), `@aom-js/schemer` (`Schemer` + `SchemasCollector` для рендера компонент-схем в `components.schemas`), `rxjs` (последовательное исполнение), `openapi3-ts` (типы документа). Потребители: `@aom-js/api` — `Server` матчит путь и вызывает `route.apply(...)`, билдеры и `BaseAccessController` строятся на декораторах и маркерах роутера; приложение импортирует роутер напрямую в каждом контроллере (`test/src/modules/orgs/api/router.ts`). Полный граф пакетов и порядок сборки монорепо — `main/docs/architecture.md` §«Состав…».
 
 ## Публичный API
 
@@ -57,7 +57,7 @@
 | `Ctx` / `Req` / `Res`                               | `()`                                                                      | `values.ctx` / `values.req` / `values.res`                                                                                                 | `Ctx` — да (2; `test/src/modules/files/api/routes/files/index.ts` (`Ctx`))                                                                          |
 | `Cursor` / `Route`                                  | `()`                                                                      | Текущий курсор / маршрут                                                                                                                   | да (по 1; `test/src/modules/tickets/api/routes/tickets/init/controllers/value.ts` (`Cursor`), `test/src/common/controllers/protected.ts` (`Route`)) |
 | `State`                                             | `State(constructor?)`                                                     | Инстанс из `state` (только прошедший свои хуки) или весь `state`                                                                           | нет                                                                                                                                                 |
-| `This`                                              | `This(ctor?: ClassConstructor \| FwdContainer \| RouteRefContainer)`      | Инстанс класса, создаётся при отсутствии; публикуется только после хуков — чужой код ждёт или получает `CIRCULAR_INSTANCE_ERROR` при цикле | да (154; `test/src/modules/orgs/api/routes/orgs/index.ts` (`This`))                                                                                 |
+| `This`                                              | `This(ctor?: ClassConstructor \| FwdContainer \| RouteRefContainer \| ThisRefContainer)` | Инстанс класса, создаётся при отсутствии; публикуется только после хуков — чужой код ждёт или получает `CIRCULAR_INSTANCE_ERROR` при цикле | да (154; `test/src/modules/orgs/api/routes/orgs/index.ts` (`This`))                                                                                 |
 | `Run`                                               | `Run()`                                                                   | Функция `(...handlers) => Promise<any>` — прогон дополнительных курсоров                                                                   | нет                                                                                                                                                 |
 | `Err`                                               | `Err(ErrorConstructor = Error)`                                           | Фабрика ошибки со `status`/`data`                                                                                                          | нет                                                                                                                                                 |
 
@@ -412,7 +412,7 @@ Evidence: `packages/router/test/router-exec.test.ts` («миддлварь, ве
 
 **Отказ конструктора или хука по-прежнему помнится до конца запроса** (`KI-ROUTER-14`): `pending` не снимается при ошибке, следующие обращения к тому же классу в рамках запроса получают ту же ошибку без повторного создания. Паттерн «попробовать → войти → повторить» в одном запросе не работает — второй `next(Auth.Required)` после перехваченной ошибки первого получает ту же ошибку, не запуская проверку заново. Тесты: `packages/router/test/router-exec.test.ts` («перехваченная ошибка хука-проверки не пускает следующий курсор того же класса без авторизации», «отказ хука-проверки запоминается до конца запроса: соседний хук не пересоздаёт класс в фоне», «повторное обращение к классу после отказа в том же запросе получает ту же ошибку»).
 
-`@This(...)` (`packages/router/src/decorators/arguments/index.ts` (`This`)) разрешает цель в порядке: `FwdContainer` → `exec()`; `RouteRefContainer` → `exec(cursor.endpoint.$._.target)`; класс — как есть; без аргумента — класс текущего курсора. Затем всегда — `AomApi.instanceWithHooks(target, args)`, без отдельного чтения `state`.
+`@This(...)` (`packages/router/src/decorators/arguments/index.ts` (`This`)) разрешает цель в порядке: `FwdContainer` → `exec()`; `RouteRefContainer` → `exec(cursor.endpoint.$._.target)`; `ThisRefContainer` → `exec(cursor.$._.target)` — у унаследованного метода это потомок, на котором он исполняется, так что базовый класс может взять класс из статики потомка (тест `packages/router/test/inherited-static-refs.test.ts` («@This(ThisRef(...)) берёт класс шага — потомка, на котором исполняется унаследованный метод»)); класс — как есть; без аргумента — класс текущего курсора. Затем всегда — `AomApi.instanceWithHooks(target, args)`, без отдельного чтения `state`.
 
 Публичные следствия, проверенные тестами `packages/router/test/router-instance-safety.test.ts`:
 
@@ -503,7 +503,7 @@ Evidence: `packages/router/test/router-exec.test.ts` («миддлварь, ве
 | `@Ctx()`, `@Req()`, `@Res()`                         | `values.ctx` / `values.req` / `values.res`                                                                                                                                     | нет                                                                                                                                                                                                                 |
 | `@Cursor()`, `@Route()`                              | текущий `AomCursor` / `AomRoute`                                                                                                                                               | нет                                                                                                                                                                                                                 |
 | `@State(ctor?)`                                      | инстанс из `state` (только прошедший свои хуки) либо весь `state`                                                                                                              | конструктор                                                                                                                                                                                                         |
-| `@This(ctor?)`                                       | инстанс класса; создаётся при отсутствии; пока идут хуки класса — виден без ожидания только его собственному коду, чужой ждёт или получает `CIRCULAR_INSTANCE_ERROR` при цикле | класс, `FwdRef`, `RouteRef`, пусто                                                                                                                                                                                  |
+| `@This(ctor?)`                                       | инстанс класса; создаётся при отсутствии; пока идут хуки класса — виден без ожидания только его собственному коду, чужой ждёт или получает `CIRCULAR_INSTANCE_ERROR` при цикле | класс, `FwdRef`, `ThisRef`, `RouteRef`, пусто                                                                                                                                                                       |
 | `@Run()`                                             | функция `(...handlers) => Promise<any>`, строящая новые курсоры с тем же эндпоинтом и цепочкой владения (`creating`) и прогоняющая их в текущем контексте                      | нет                                                                                                                                                                                                                 |
 | `@Err(Ctor = Error)`                                 | фабрика `(message, status?, data?) => Error` со `status` из аргумента, инстанса или статики класса                                                                             | класс-наследник `Error`                                                                                                                                                                                             |
 
@@ -663,17 +663,21 @@ Evidence: `packages/router/src/decorators/arguments/index.ts` (`Query`, `Body`, 
 
 ## Как использует приложение
 
-Корень сервера модуля — контроллер без методов, собранный из бриджей; `Router` строится один раз при импорте модуля и передаётся в `Server`:
+Корень сервера модуля — контроллер без методов, собранный из бриджей; `Router` строится один раз при импорте модуля и передаётся в `Server`. Роутер вынесен в отдельный файл, чтобы тесты брали тот же роутер, не запуская сервер:
 
-`test/src/modules/orgs/api/index.ts` (`Index`)
+`test/src/modules/orgs/api/router.ts` (`Index`, `router`), `test/src/modules/orgs/api/index.ts`
 
 ```ts
+// router.ts
 @Controller()
 @Bridge("/", ModuleRoot)
 @Bridge("/api", OrgsRoutes)
 class Index {}
 
-export default new Server(settings, new Router(Index, Docs), i18nizer);
+export const router = new Router(Index, Docs);
+
+// index.ts
+export default new Server(settings, router, i18nizer);
 ```
 
 Ресурс собирается из классового `@Before` (общая подготовка), бриджа на дочерний контроллер по ID-сегменту и эндпоинтов, каждый из которых цепляет свои `@Before` и `@Next`:

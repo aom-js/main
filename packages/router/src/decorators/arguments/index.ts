@@ -609,8 +609,10 @@ export function State(constructor?: ClassConstructor): ReturnType<typeof Args> {
  * router's DI mechanism — every dependency between controllers goes through `\@This`.
  *
  * **Target resolution**, in order: `FwdRef(fn)` → `fn()`; `RouteRef(fn)` →
- * `fn(route.endpoint's class)`; a class → used as-is; omitted → the class of the
- * current cursor (so `\@This()` inside a class's own method/hook means "this class").
+ * `fn(route.endpoint's class)`; `ThisRef(fn)` → `fn(current cursor's class)` — for an
+ * inherited method that is the subclass it runs on, so a base class can read the subclass's
+ * statics; a class → used as-is; omitted → the class of the current cursor (so
+ * `\@This()` inside a class's own method/hook means "this class").
  *
  * **Visibility follows the two-stage instance lifecycle** (see `\@OnInstance`):
  *
@@ -633,11 +635,11 @@ export function State(constructor?: ClassConstructor): ReturnType<typeof Args> {
  * A failed construction or hook is remembered for the rest of the request: a second
  * `\@This(X)` later in the same request gets the same rejection, not a retry.
  *
- * @param constructor - class to get an instance of, a `FwdRef`/`RouteRef` wrapping a
- *   class resolver, or omitted for the current cursor's own class
+ * @param constructor - class to get an instance of, a `FwdRef`/`ThisRef`/`RouteRef`
+ *   wrapping a class resolver, or omitted for the current cursor's own class
  * @returns a parameter decorator
  * @throws {Error} `CONSTRUCTOR_TYPE_ERROR` if `constructor` is provided but isn't a
- *   function, `FwdRef`, or `RouteRef`
+ *   function, `FwdRef`, `ThisRef`, or `RouteRef`
  * @throws {Error} `CIRCULAR_INSTANCE_ERROR` at request time — see above
  *
  * @example
@@ -663,13 +665,14 @@ export function State(constructor?: ClassConstructor): ReturnType<typeof Args> {
  * ```
  */
 export function This(
-  constructor?: ClassConstructor | FwdContainer | RouteRefContainer,
+  constructor?: ClassConstructor | FwdContainer | RouteRefContainer | ThisRefContainer,
 ): ReturnType<typeof Args> {
   if (
     constructor &&
     !(
       constructor instanceof Function ||
       constructor instanceof FwdContainer ||
+      constructor instanceof ThisRefContainer ||
       constructor instanceof RouteRefContainer
     )
   ) {
@@ -685,6 +688,9 @@ export function This(
     } else if (constructor instanceof RouteRefContainer) {
       // if RouteRef is used, it returns the constructor for the current route
       target = constructor.exec(cursor.endpoint!.$._.target);
+    } else if (constructor instanceof ThisRefContainer) {
+      // if ThisRef is used, it returns the result for the current target context
+      target = constructor.exec(cursor.$._.target);
     } else if (constructor) {
       target = constructor;
     } else {
