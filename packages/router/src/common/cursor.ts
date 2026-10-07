@@ -87,15 +87,21 @@ export class AomCursor {
     if (!$.delayRealized && $.delayStack.length) {
       for (const handler of $.delayStack) {
         // run the delayed actions
+        // the descriptor must be passed explicitly: without `attributes` the reflect-metadata
+        // polyfill invokes the decorator with `descriptor = undefined`, and a queued decorator
+        // that assigns `element.descriptor = descriptor` (e.g. UseMarker) then overwrites the
+        // descriptor the inherit() transfer had installed — the copied method becomes
+        // unexecutable (KI-COMMON-17: AccessController.Required died exactly this way)
+        const descriptor = Reflect.getOwnPropertyDescriptor(target, property!);
         if (handler instanceof FwdContainer) {
-          Reflect.decorate([...handler.exec()], target, property!);
+          Reflect.decorate([...handler.exec()], target, property!, descriptor);
         } else if (handler instanceof ThisRefContainer) {
-          Reflect.decorate([...handler.exec(target)], target, property!);
+          Reflect.decorate([...handler.exec(target)], target, property!, descriptor);
         } else if (handler instanceof RouteRefContainer) {
           // RouteRef is realized from the route's endpoint; class-level middleware cursors
           // from Router.build have no endpoint yet — this is a definition error, not a TypeError
           if (!this.endpoint) throw new Error(constants.ROUTE_REF_DELAY_ERROR);
-          Reflect.decorate([...handler.exec(this.endpoint.$._.target)], target, property!);
+          Reflect.decorate([...handler.exec(this.endpoint.$._.target)], target, property!, descriptor);
         }
       }
       $.delayRealized = true;

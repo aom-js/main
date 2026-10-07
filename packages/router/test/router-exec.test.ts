@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   Controller, Get, Middleware, Before, After, Router, OpenApi,
   Query, Body, Err, This, OnInstance, HttpContextValues,
-  Run, Headers, State, Args, HandlerFunction,
+  Run, Headers, State, Args, HandlerFunction, AomApi,
 } from "@aom-js/router";
 
 const makeDocs = () => new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
@@ -532,5 +532,34 @@ describe("router: исполнение запроса", () => {
       second: "ctor-boom-1",
       created: 1,
     });
+  });
+
+  it("CURSOR_NOT_EXECUTABLE_ERROR: endpoint, переподвешенный через Reflect.decorate без дескриптора, роняет маршрут громко, а не исполняет пустышку", async () => {
+    // miniature of the tickets' ResponseByType pattern: a decorator re-applies @Get
+    // via a 3-argument Reflect.decorate — the polyfill hands the decorator
+    // `descriptor = undefined`, @Get assigns it to element.descriptor, and before the
+    // fail-closed guard the endpoint body was silently skipped (KI-COMMON-17 class)
+    const Relay = AomApi.methodDecorator(($) => {
+      const { target, property } = $._;
+      Reflect.decorate([Get("/replayed")], target, property!);
+    });
+
+    @Controller()
+    class App {
+      @Relay
+      static async index() {
+        return "ok";
+      }
+    }
+
+    const router = new Router(App, makeDocs());
+    const error = await call(router, "get", "/replayed", makeContext()).then(
+      () => {
+        throw new Error("ожидали CURSOR_NOT_EXECUTABLE_ERROR");
+      },
+      (e: Error) => e,
+    );
+    expect(error.message).toContain("CURSOR_NOT_EXECUTABLE_ERROR");
+    expect(error.message).toContain("App.index");
   });
 });

@@ -225,11 +225,20 @@ export class RxContext {
                 $.element.parameters.apply({ context: this, cursor, route }),
               );
 
-              const result = await Reflect.apply(
-                $.element.descriptor?.value || new Function(),
-                target,
-                args,
-              );
+              // fail closed: only method decorators assign `element.descriptor`, so a cursor
+              // without one is a decoration bug — executing a no-op here (the old
+              // `|| new Function()`) turned every such bug into a silently skipped step
+              // (see KI-COMMON-17: the access gate never ran and looked "green")
+              const executable = $.element.descriptor?.value;
+              if (typeof executable !== "function") {
+                throw new Error(
+                  `${constants.CURSOR_NOT_EXECUTABLE_ERROR}: ${$._.target.name}.${String(
+                    $._.property,
+                  )}`,
+                );
+              }
+
+              const result = await Reflect.apply(executable, target, args);
 
               // if the result is an Error, throw it
               if (result instanceof Error) {

@@ -44,3 +44,13 @@ export const ROUTE_REF_DELAY_ERROR = "ROUTE_REF_DELAY_ERROR";
  * on each other. The message lists every class in the cycle, joined by `->`.
  */
 export const CIRCULAR_INSTANCE_ERROR = "CIRCULAR_INSTANCE_ERROR";
+
+/**
+ * Also thrown at request time, by `RxContext.run`: a cursor's meta-instance has no
+ * executable (no `element.descriptor.value`), so there is no body to run. Method
+ * decorators (`\@Middleware`, `\@Get`, ...) are the only ones that assign
+ * `element.descriptor`; reaching the executor without one always means a decoration
+ * bug — most often a decorator re-applied via `Reflect.decorate` without the explicit
+ * descriptor, or a handler used in a chain without a method decorator at all.
+ */
+export const CURSOR_NOT_EXECUTABLE_ERROR = "CURSOR_NOT_EXECUTABLE_ERROR";
