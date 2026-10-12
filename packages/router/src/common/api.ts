@@ -1,5 +1,5 @@
 import { AomCore } from "@aom-js/core";
-import type { ClassConstructor } from "@aom-js/core";
+import type { ClassConstructor, InstanceTarget } from "@aom-js/core";
 
 import type { HTTPMethods } from "./types";
 
@@ -207,6 +207,11 @@ export class AomApi extends AomCore {
   title?: string;
 
   description?: string;
+
+  /** `"ClassName"` for a class-level instance, `"ClassName.method"` for a method-level one. */
+  static toString(handler: InstanceTarget): string | undefined {
+    return this.checkExists(handler)?.toString();
+  }
 
   /** `"ClassName"` for a class-level instance, `"ClassName.method"` for a method-level one. */
   toString() {
