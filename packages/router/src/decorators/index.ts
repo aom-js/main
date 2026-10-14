@@ -5,3 +5,4 @@ export * from "./endpoints";
 export * from "./docs";
 export * from "./openapi";
 export * from "./references";
+export * from "./kinds";

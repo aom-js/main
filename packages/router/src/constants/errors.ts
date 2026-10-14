@@ -32,8 +32,24 @@ export const USE_MARKER_DEFINE_ERROR = "USE_MARKER_DEFINE_ERROR";
 /** `\@Before`/`\@After` referencing a method that isn't `\@Middleware()`. */
 export const USE_MIDDLEWARE_DEFINE_ERROR = "USE_MIDDLEWARE_DEFINE_ERROR";
 
+/** `\@CursorKind(k)` where `k` isn't an `AomCursorKind` value, or a second `\@CursorKind` on the same method. */
+export const CURSOR_KIND_DEFINE_ERROR = "CURSOR_KIND_DEFINE_ERROR";
+
 /** `\@DelayRefStack(RouteRef(...))` realized on a cursor with no `endpoint` — class-level middleware collected by `Router.build`, before `AomRoute` assigns one. */
 export const ROUTE_REF_DELAY_ERROR = "ROUTE_REF_DELAY_ERROR";
+
+/**
+ * Thrown by `Router.routeOf(endpoint)` (on call, not at decoration time): no route of
+ * this router has `endpoint` as its handler. The message is the code followed by the
+ * endpoint's name.
+ */
+export const ROUTE_OF_NOT_FOUND_ERROR = "ROUTE_OF_NOT_FOUND_ERROR";
+/**
+ * Thrown by `Router.routeOf(endpoint)`: more than one route of this router has `endpoint`
+ * as its handler (`\@Get \@Post` on one method, a controller under two `\@Bridge`s). The
+ * message is the code followed by every `method path` found.
+ */
+export const ROUTE_OF_AMBIGUOUS_ERROR = "ROUTE_OF_AMBIGUOUS_ERROR";
 
 /**
  * Thrown at request time (not at decoration time, unlike every other code here) by

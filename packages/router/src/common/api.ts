@@ -12,6 +12,7 @@ import type {
 } from "./openapi";
 
 import type { FwdContainer, RouteRefContainer, ThisRefContainer } from "./references";
+import type { AomCursorKind } from "./kinds";
 import { circularInstanceError, type RxContext } from "./context";
 import { AomCursor } from "./cursor";
 import type { AomRoute } from "./route";
@@ -162,6 +163,9 @@ class AomApiElement {
   post_middlewares: AomApi[] = [];
 
   nextpoint?: AomApi;
+
+  /** Kind declared with `\@CursorKind` on the step's definition; derivable kinds are inferred by the application. */
+  cursorKind?: AomCursorKind;
 
   private api: AomApi;
 

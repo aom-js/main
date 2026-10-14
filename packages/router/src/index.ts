@@ -8,3 +8,4 @@ export * from "./common/openapi";
 export * from "./common/classes";
 export * from "./common/types";
 export * from "./common/lazy";
+export * from "./common/kinds";
