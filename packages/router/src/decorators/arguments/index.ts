@@ -3,11 +3,16 @@ import * as constants from "../../constants";
 
 import {
   AomCursor,
+  AomParameterKind,
+  AomValuesSource,
   ArgumentsDecoratorHandler,
   ArgumentsHandlerParameters,
   HandlerFunction,
+  RefContainer,
+  resolveTarget,
+  type AomParameterDescriptor,
 } from "../../common";
-import { FwdContainer, ThisRefContainer, RouteRefContainer } from "../../common";
+import type { FwdContainer, ThisRefContainer, RouteRefContainer } from "../../common";
 import { AomApi } from "../../common";
 
 /** Default `Args` handler: returns the whole `{context, cursor, route}` object unchanged. */
@@ -25,6 +30,9 @@ function defaultHandler(args: ArgumentsHandlerParameters | any) {
  *
  * @param handler - called with `{context, cursor, route}`; may be async; defaults to
  *   returning that object as-is
+ * @param descriptor - what the parameter injects, stored next to the handler in
+ *   `$.element.parameters.descriptors` and read by `AomCursor.parameters()`; every built-in
+ *   decorator passes its own, a custom `Args(handler)` gets `{kind: "other"}`
  * @returns a parameter decorator
  * @throws {Error} `PARAMETER_HANDLER_ERROR` if `handler` isn't a function
  *
@@ -43,11 +51,32 @@ function defaultHandler(args: ArgumentsHandlerParameters | any) {
  */
 export function Args(
   handler: ArgumentsDecoratorHandler = defaultHandler,
+  descriptor: AomParameterDescriptor = { kind: AomParameterKind.Other },
 ): ReturnType<typeof AomApi.parameterDecorator> {
   if (typeof handler !== "function") throw new Error(constants.PARAMETER_HANDLER_ERROR);
   return AomApi.parameterDecorator(($, parameterIndex) => {
     $.element.parameters.handlers[parameterIndex] = handler;
+    $.element.parameters.descriptors[parameterIndex] = descriptor;
   }, ExecutionPhase.LAST);
+}
+
+/**
+ * Shared body of the request-input decorators (`\@Query`/`\@Body`/`\@Params`/`\@Cookies`/
+ * `\@Headers`): `ref` is resolved with `resolveTarget` on every call; a string reads that
+ * key of the field, a function is called with the whole field.
+ */
+function values(
+  source: AomValuesSource,
+  ref: Function | ThisRefContainer | RouteRefContainer | string,
+  thisArg?: (cursor: AomCursor) => unknown,
+): ReturnType<typeof Args> {
+  const handler: ArgumentsDecoratorHandler = async function ({ context, cursor }) {
+    const target = resolveTarget(ref, cursor);
+    const value = await context.value(source as keyof typeof context.values);
+    if ("string" === typeof target) return Reflect.get(value, target);
+    return Reflect.apply(<Function>target, thisArg?.(cursor), [value]);
+  };
+  return Args(handler, { kind: AomParameterKind.Values, source, ref });
 }
 
 // ---
@@ -83,20 +112,7 @@ export function Args(
 export function Query(
   queryHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
 ): ReturnType<typeof Args> {
-  const handler: ArgumentsDecoratorHandler = async function (args) {
-    const { context, cursor } = args;
-    let resultHandler = queryHandler;
-    if (queryHandler instanceof ThisRefContainer) {
-      resultHandler = queryHandler.exec(cursor.$._.target);
-    } else if (queryHandler instanceof RouteRefContainer) {
-      resultHandler = queryHandler.exec(cursor.endpoint!.$._.target);
-    } else if ("string" === typeof queryHandler) {
-      return Reflect.get(await context.value("query"), queryHandler);
-    }
-
-    return Reflect.apply(<Function>resultHandler, undefined, [await context.value("query")]);
-  };
-  return Args(handler);
+  return values(AomValuesSource.Query, queryHandler);
 }
 
 // ---
@@ -126,19 +142,7 @@ export function Query(
 export function Body(
   bodyHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
 ): ReturnType<typeof Args> {
-  const handler: ArgumentsDecoratorHandler = async function (args) {
-    const { context, cursor } = args;
-    let resultHandler = bodyHandler;
-    if (bodyHandler instanceof ThisRefContainer) {
-      resultHandler = bodyHandler.exec(cursor.$._.target);
-    } else if (bodyHandler instanceof RouteRefContainer) {
-      resultHandler = bodyHandler.exec(cursor.endpoint!.$._.target);
-    } else if ("string" === typeof bodyHandler) {
-      return Reflect.get(await context.value("body"), bodyHandler);
-    }
-    return Reflect.apply(<Function>resultHandler, undefined, [await context.value("body")]);
-  };
-  return Args(handler);
+  return values(AomValuesSource.Body, bodyHandler);
 }
 
 // ---
@@ -166,19 +170,7 @@ export function Body(
 export function Params(
   paramsHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
 ): ReturnType<typeof Args> {
-  const handler: ArgumentsDecoratorHandler = async function (args) {
-    const { context, cursor } = args;
-    let resultHandler = paramsHandler;
-    if (paramsHandler instanceof ThisRefContainer) {
-      resultHandler = paramsHandler.exec(cursor.$._.target);
-    } else if (paramsHandler instanceof RouteRefContainer) {
-      resultHandler = paramsHandler.exec(cursor.endpoint!.$._.target);
-    } else if ("string" === typeof paramsHandler) {
-      return Reflect.get(await context.value("params"), paramsHandler);
-    }
-    return Reflect.apply(<Function>resultHandler, undefined, [await context.value("params")]);
-  };
-  return Args(handler);
+  return values(AomValuesSource.Params, paramsHandler);
 }
 
 // ---
@@ -205,19 +197,7 @@ export function Params(
 export function Cookies(
   paramsHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
 ): ReturnType<typeof Args> {
-  const handler: ArgumentsDecoratorHandler = async function (args) {
-    const { context, cursor } = args;
-    let resultHandler = paramsHandler;
-    if (paramsHandler instanceof ThisRefContainer) {
-      resultHandler = paramsHandler.exec(cursor.$._.target);
-    } else if (paramsHandler instanceof RouteRefContainer) {
-      resultHandler = paramsHandler.exec(cursor.endpoint!.$._.target);
-    } else if ("string" === typeof paramsHandler) {
-      return Reflect.get(await context.value("cookies"), paramsHandler);
-    }
-    return Reflect.apply(<Function>resultHandler, undefined, [await context.value("cookies")]);
-  };
-  return Args(handler);
+  return values(AomValuesSource.Cookies, paramsHandler);
 }
 
 // ---
@@ -248,7 +228,7 @@ export function Session(sessionName?: string): ReturnType<typeof Args> {
     const session = await context.value("session");
     return sessionName ? Reflect.get(session, sessionName) : session;
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.Values, source: AomValuesSource.Session, ref: sessionName });
 }
 
 // ---
@@ -279,7 +259,7 @@ export function Files(fileName?: string): ReturnType<typeof Args> {
     const files = await context.value("files");
     return fileName ? Reflect.get(files, fileName) : files;
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.Values, source: AomValuesSource.Files, ref: fileName });
 }
 
 // ---
@@ -306,21 +286,8 @@ export function Files(fileName?: string): ReturnType<typeof Args> {
 export function Headers(
   headerHandler: Function | ThisRefContainer | RouteRefContainer | string = defaultHandler,
 ): ReturnType<typeof Args> {
-  const handler: ArgumentsDecoratorHandler = async function (args) {
-    const { context, cursor } = args;
-    let resultHandler = headerHandler;
-    if (headerHandler instanceof ThisRefContainer) {
-      resultHandler = headerHandler.exec(cursor.$._.target);
-    } else if (headerHandler instanceof RouteRefContainer) {
-      resultHandler = headerHandler.exec(cursor.endpoint!.$._.target);
-    } else if ("string" === typeof headerHandler) {
-      return Reflect.get(await context.value("headers"), headerHandler);
-    }
-    return Reflect.apply(<Function>resultHandler, cursor.constructor, [
-      await context.value("headers"),
-    ]);
-  };
-  return Args(handler);
+  // a header function is called with the cursor's constructor as `this` (kept as it was)
+  return values(AomValuesSource.Headers, headerHandler, (cursor) => cursor.constructor);
 }
 
 // ---
@@ -380,7 +347,7 @@ export function Run(): ReturnType<typeof Args> {
       return context.run(cursors);
     };
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.Run });
 }
 
 // ---
@@ -408,7 +375,7 @@ export function Ctx() {
     const { context } = args;
     return context.values.ctx;
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.Ctx });
 }
 
 // ---
@@ -446,7 +413,7 @@ export function Err(ErrorConstructor: ClassConstructor = Error): ReturnType<type
       return Object.assign(error, { status, data });
     };
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.Err });
 }
 
 // ---
@@ -473,7 +440,7 @@ export function Req() {
     const { context } = args;
     return context.values.req;
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.Req });
 }
 
 // ---
@@ -500,7 +467,7 @@ export function Res() {
     const { context } = args;
     return context.values.res;
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.Res });
 }
 
 // ---
@@ -528,7 +495,7 @@ export function Cursor(): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = function ({ cursor }) {
     return cursor;
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.Cursor });
 }
 
 // ---
@@ -555,7 +522,7 @@ export function Route(): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = function ({ route }) {
     return route;
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.Route });
 }
 
 // ---
@@ -593,13 +560,9 @@ export function Route(): ReturnType<typeof Args> {
  */
 export function State(constructor?: ClassConstructor): ReturnType<typeof Args> {
   const handler: ArgumentsDecoratorHandler = ({ context }) => {
-    // if `FwdRef` is used, the target value is the function's result
-    // if (constructor instanceof FwdContainer) {
-    //   constructor = constructor.exec();
-    // }
     return constructor ? context.state.get(constructor) : context.state;
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.State, ref: constructor });
 }
 
 // ---
@@ -667,39 +630,17 @@ export function State(constructor?: ClassConstructor): ReturnType<typeof Args> {
 export function This(
   constructor?: ClassConstructor | FwdContainer | RouteRefContainer | ThisRefContainer,
 ): ReturnType<typeof Args> {
-  if (
-    constructor &&
-    !(
-      constructor instanceof Function ||
-      constructor instanceof FwdContainer ||
-      constructor instanceof ThisRefContainer ||
-      constructor instanceof RouteRefContainer
-    )
-  ) {
+  if (constructor && !(constructor instanceof Function || constructor instanceof RefContainer)) {
     throw new Error(constants.CONSTRUCTOR_TYPE_ERROR);
   }
-  // const handler = ({ ctx, cursor, route }: ArgumentsHandlerParameters) => {
   const handler: ArgumentsDecoratorHandler = async (args) => {
-    const { context, cursor } = args;
-    let target: ClassConstructor;
-    if (constructor instanceof FwdContainer) {
-      // if `FwdRef` is used, the target value is the function's result
-      target = constructor.exec();
-    } else if (constructor instanceof RouteRefContainer) {
-      // if RouteRef is used, it returns the constructor for the current route
-      target = constructor.exec(cursor.endpoint!.$._.target);
-    } else if (constructor instanceof ThisRefContainer) {
-      // if ThisRef is used, it returns the result for the current target context
-      target = constructor.exec(cursor.$._.target);
-    } else if (constructor) {
-      target = constructor;
-    } else {
-      target = cursor.$._.target;
-    }
+    const { cursor } = args;
+    // resolved on every call; omitted means the class of the current cursor
+    const target: ClassConstructor = resolveTarget(constructor, cursor) ?? cursor.$._.target;
 
     // ready instance, unvalidated for the own branch, or waiting on someone else's creation —
     // instanceWithHooks decides all of that; there must be no separate state read here
     return AomApi.instanceWithHooks(target, args);
   };
-  return Args(handler);
+  return Args(handler, { kind: AomParameterKind.This, ref: constructor });
 }

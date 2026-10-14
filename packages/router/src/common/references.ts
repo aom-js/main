@@ -10,7 +10,7 @@ import { ContainerFunction, FwdFunction, RefFunction } from "./types";
  * Not part of the package's public API — construct instances through the factories in
  * `specials/references.ts` (`FwdRef`, `ThisRef`, `RouteRef`), not directly.
  */
-class RefContainer {
+export class RefContainer {
   protected fn: ContainerFunction;
   constructor(fn: RefFunction = RefContainer.default) {
     this.fn = fn;

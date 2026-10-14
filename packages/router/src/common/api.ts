@@ -12,7 +12,7 @@ import type {
 } from "./openapi";
 
 import type { FwdContainer, RouteRefContainer, ThisRefContainer } from "./references";
-import type { AomCursorKind } from "./kinds";
+import type { AomCursorKind, AomParameterKind, AomValuesSource } from "./kinds";
 import { circularInstanceError, type RxContext } from "./context";
 import { AomCursor } from "./cursor";
 import type { AomRoute } from "./route";
@@ -43,6 +43,21 @@ export declare type ArgumentsHandlerParameters = {
 
 /** Function stored by `Args(...)` (and every parameter decorator built on top of it) for one parameter. */
 export declare type ArgumentsDecoratorHandler = (args: ArgumentsHandlerParameters) => any;
+
+/**
+ * What one parameter injects, written by `Args(handler, descriptor)` next to the handler.
+ * Readable without running the handler — the cursor projection resolves `ref` with the
+ * same `resolveTarget` the handler calls on every request.
+ */
+export declare type AomParameterDescriptor = {
+  kind: AomParameterKind;
+  /** For `Values`: the request field read. */
+  source?: AomValuesSource;
+  /** The decorator's target argument: a class, `FwdRef`/`ThisRef`/`RouteRef`, a key or a handler function. */
+  ref?: unknown;
+  /** For `Other`: the custom decorator's name. */
+  name?: string;
+};
 
 /** One `\@Bridge(prefix, next)` registration: `next` is mounted under `prefix` relative to the declaring class. */
 export declare interface AomBridge {
@@ -106,6 +121,9 @@ class AomHttpOpenApi {
  */
 class AomHttpParameters {
   handlers: ArgumentsDecoratorHandler[] = [];
+
+  /** `descriptors[i]` describes `handlers[i]` — see {@link AomParameterDescriptor}. */
+  descriptors: AomParameterDescriptor[] = [];
 
   private api: AomApi;
 

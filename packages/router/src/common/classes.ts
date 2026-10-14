@@ -12,9 +12,11 @@ export type {
   ArgumentsDecoratorHandler,
   AomBridge,
   AomEndpoint,
+  AomParameterDescriptor,
 } from "./api";
 
-export { AomCursor } from "./cursor";
+export { AomCursor, resolveTarget } from "./cursor";
+export type { AomCursorParameter } from "./cursor";
 
 export { AomRoute } from "./route";
 export type { MarkerType, MarkerHandler } from "./route";

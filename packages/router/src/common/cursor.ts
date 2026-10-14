@@ -3,6 +3,40 @@ import type { ClassConstructor } from "@aom-js/core";
 import * as constants from "../constants";
 import { FwdContainer, RouteRefContainer, ThisRefContainer } from "./references";
 import { AomApi, type AomEndpoint } from "./api";
+import { AomParameterKind, type AomValuesSource } from "./kinds";
+
+/**
+ * Resolves a decorator's target argument in the context of a cursor — the single place
+ * where `FwdRef`/`ThisRef`/`RouteRef` are unwrapped. Parameter handlers call it on every
+ * request; `AomCursor.parameters()` and `realizeDelay` call it too, so the projection and
+ * execution agree by construction. Its inputs (`cursor.$` after `resolveFor`,
+ * `cursor.endpoint`) are fixed when the cursor is created.
+ *
+ * @param ref - a class, `FwdRef(...)`, `ThisRef(...)`, `RouteRef(...)`, a key, a handler
+ *   function or `undefined`
+ * @param cursor - the cursor the reference is resolved for
+ * @returns `fn()` for `FwdRef`, `fn(cursor's class)` for `ThisRef`, `fn(endpoint's class)`
+ *   for `RouteRef`; anything else unchanged
+ * @throws {Error} `ROUTE_REF_DELAY_ERROR` for a `RouteRef` on a cursor without an endpoint
+ */
+export function resolveTarget(ref: unknown, cursor: AomCursor): any {
+  if (ref instanceof FwdContainer) return ref.exec();
+  if (ref instanceof ThisRefContainer) return ref.exec(cursor.$._.target);
+  if (ref instanceof RouteRefContainer) {
+    if (!cursor.endpoint) throw new Error(constants.ROUTE_REF_DELAY_ERROR);
+    return ref.exec(cursor.endpoint.$._.target);
+  }
+  return ref;
+}
+
+/** One entry of `AomCursor.parameters()`: a parameter descriptor with its target resolved for this cursor. */
+export declare type AomCursorParameter = {
+  kind: AomParameterKind;
+  source?: AomValuesSource;
+  /** `resolveTarget(ref, cursor)`; for `\@This()` without an argument — the cursor's own class. */
+  target?: unknown;
+  name?: string;
+};
 
 /**
  * One step of a route's execution chain: a middleware, an endpoint, a nextpoint, or an
@@ -63,15 +97,35 @@ export class AomCursor {
   }
 
   /**
+   * What this cursor's method parameters inject, in signature order: each parameter's
+   * descriptor with `ref` resolved by `resolveTarget` for this cursor — the same target the
+   * parameter's handler gets on a request. Computed on every call, nothing is stored.
+   */
+  parameters(): AomCursorParameter[] {
+    // Array.from, not map: a parameter without a decorator leaves a hole in the array
+    return Array.from(this.$.element.parameters.descriptors, (descriptor) => {
+      const { kind, source, ref, name } = descriptor ?? { kind: AomParameterKind.Other };
+      const target = resolveTarget(ref, this);
+      const parameter: AomCursorParameter = { kind };
+      if (source) parameter.source = source;
+      if (kind === AomParameterKind.This) parameter.target = target ?? this.$._.target;
+      else if (target !== undefined) parameter.target = target;
+      if (name) parameter.name = name;
+      return parameter;
+    });
+  }
+
+  /**
    * Runs the method's `\@DelayRefStack` handlers once, applying the decorators they
    * return via `Reflect.decorate` in the context of the correct subclass. Guarded by
    * `$.delayRealized` so a meta-instance shared by several cursors (class-level
    * middleware reused across routes) only realizes its stack the first time.
    *
-   * @throws {Error} `ROUTE_REF_DELAY_ERROR` when the stack contains a `RouteRef` but
-   *   this cursor has no `endpoint` yet (class-level middleware collected by
-   *   `Router.build`, before `AomRoute` gives it one) — a controlled error instead of
-   *   a raw `TypeError` from dereferencing `undefined`.
+   * @throws {Error} `ROUTE_REF_DELAY_ERROR` when the stack contains a `RouteRef` and this
+   *   cursor isn't the endpoint itself. The stack is realized once per meta-instance, so on
+   *   a step shared by several routes the first route's resolution would silently spread to
+   *   the others; a class-level middleware collected by `Router.build` has no `endpoint`
+   *   at all.
    *
    * If a handler throws, `delayRealized` is left `false` and the stack is not
    * consumed: the same binding problem reproduces on every subsequent attempt to
@@ -93,16 +147,12 @@ export class AomCursor {
         // descriptor the inherit() transfer had installed — the copied method becomes
         // unexecutable (KI-COMMON-17: AccessController.Required died exactly this way)
         const descriptor = Reflect.getOwnPropertyDescriptor(target, property!);
-        if (handler instanceof FwdContainer) {
-          Reflect.decorate([...handler.exec()], target, property!, descriptor);
-        } else if (handler instanceof ThisRefContainer) {
-          Reflect.decorate([...handler.exec(target)], target, property!, descriptor);
-        } else if (handler instanceof RouteRefContainer) {
-          // RouteRef is realized from the route's endpoint; class-level middleware cursors
-          // from Router.build have no endpoint yet — this is a definition error, not a TypeError
-          if (!this.endpoint) throw new Error(constants.ROUTE_REF_DELAY_ERROR);
-          Reflect.decorate([...handler.exec(this.endpoint.$._.target)], target, property!, descriptor);
+        // RouteRef is endpoint-specific, while the stack is realized once per meta-instance:
+        // only the endpoint's own stack may hold it (a shared step would keep the first route's result)
+        if (handler instanceof RouteRefContainer && $ !== this.endpoint?.$) {
+          throw new Error(constants.ROUTE_REF_DELAY_ERROR);
         }
+        Reflect.decorate([...resolveTarget(handler, this)], target, property!, descriptor);
       }
       $.delayRealized = true;
       // apply any pending delayed calls

@@ -72,30 +72,33 @@ export function ThisRef(fn?: RefFunction): ThisRefContainer {
 
 /**
  * Wraps a function resolved against the class of the route's endpoint, not the class
- * that declared the decorator. Useful on a class-level middleware shared by several
- * routes when the value must depend on which endpoint the request actually hit.
+ * that declared the decorator — makes a step endpoint-specific.
+ *
+ * - In **arguments** (`\@This(RouteRef(...))`, `\@Query(RouteRef(...))`, ...) it is
+ *   resolved on every call, so a step shared by several routes gets its own route's class.
+ * - In **`\@DelayRefStack`** it is allowed only on an endpoint method: the stack is realized
+ *   once per meta-instance, and on a shared step the first route's result would silently
+ *   apply to the others. Anywhere else building the `Router` throws `ROUTE_REF_DELAY_ERROR`.
  *
  * @param fn - called with the endpoint's class; defaults to identity
  * @returns a `RouteRefContainer` accepted by the same decorators as {@link ThisRef}
  *
  * @example
  * ```ts
- * import { Controller, Middleware, Before, DelayRefStack, RequestBody, RouteRef } from "@aom-js/router";
+ * import { Controller, Middleware, Before, Get, This, RouteRef } from "@aom-js/router";
  *
- * // class-level middleware shared by several endpoints; the request body schema
- * // depends on which endpoint actually handled the request, not on this class
+ * // shared step: the injected instance is the class of the endpoint the request hit
  * class Guard {
  *   \@Middleware()
- *   \@DelayRefStack(RouteRef((endpointClass) => [RequestBody({ schema: endpointClass })]))
- *   static async check() {}
+ *   static async check(\@This(RouteRef()) endpoint: object) {}
  * }
  *
- * // RouteRef requires an endpoint: applying it on a cursor built without one
- * // (e.g. class-level middleware collected by Router.build before AomRoute exists)
- * // throws ROUTE_REF_DELAY_ERROR instead of a raw TypeError
  * \@Controller()
  * \@Before(Guard.check)
- * class App {}
+ * class App {
+ *   \@Get("/a")
+ *   static async a() {}
+ * }
  * ```
  */
 export function RouteRef(fn?: RefFunction): RouteRefContainer {

@@ -15,8 +15,9 @@ import { AomApi, FwdContainer, RouteRefContainer, ThisRefContainer } from "../..
  *   an array of decorators
  * @returns a method decorator
  * @throws {Error} `ROUTE_REF_DELAY_ERROR` at cursor-creation time if `handler` is a
- *   `RouteRef` and the cursor has no endpoint yet (class-level middleware collected by
- *   `Router.build`, before `AomRoute` assigns one)
+ *   `RouteRef` on anything but an endpoint method: the stack is realized once per
+ *   meta-instance, so on a step shared by several routes the first route's result would
+ *   silently apply to all of them
  *
  * @example
  * ```ts
