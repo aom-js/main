@@ -16,7 +16,7 @@ export type {
 } from "./api";
 
 export { AomCursor, resolveTarget } from "./cursor";
-export type { AomCursorParameter } from "./cursor";
+export type { AomCursorParameter, AomCursorJSON, AomParameterJSON } from "./cursor";
 
 export { AomRoute } from "./route";
-export type { MarkerType, MarkerHandler } from "./route";
+export type { MarkerType, MarkerHandler, AomRouteJSON } from "./route";

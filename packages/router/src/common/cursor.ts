@@ -1,9 +1,16 @@
 import type { ClassConstructor } from "@aom-js/core";
+import { Schemer } from "@aom-js/schemer";
 
 import * as constants from "../constants";
 import { FwdContainer, RouteRefContainer, ThisRefContainer } from "./references";
 import { AomApi, type AomEndpoint } from "./api";
-import { AomParameterKind, type AomValuesSource } from "./kinds";
+import {
+  AomParameterKind,
+  AomValuesSource,
+  type AomCursorKind,
+  type AomViaKind,
+} from "./kinds";
+import type { ParameterLocation } from "openapi3-ts/oas31";
 
 /**
  * Resolves a decorator's target argument in the context of a cursor — the single place
@@ -38,6 +45,50 @@ export declare type AomCursorParameter = {
   name?: string;
 };
 
+/** Projection of one parameter — `AomCursor.toJSON().parameters[i]`. */
+export declare type AomParameterJSON =
+  | { kind: AomParameterKind.This; subject: string }
+  | { kind: AomParameterKind.State; subject?: string }
+  | { kind: AomParameterKind.Values; source: AomValuesSource; fields?: string[] }
+  | { kind: AomParameterKind.Other; name?: string }
+  | { kind: AomParameterKind };
+
+/** Projection of one cursor — `AomCursor.toJSON()`; the step's place, attachment and targets, without references. */
+export declare interface AomCursorJSON {
+  /** Position in the route. */
+  i: number;
+  /** `AomApi.toString` of the executed method. */
+  step: string;
+  /** `AomApi.toString` of the attachment point. */
+  origin: string;
+  via?: AomViaKind;
+  /** For `Next`: `AomApi.toString` of the step whose `\@Next` was expanded. */
+  viaGroup?: string;
+  /** Only a kind declared with `\@CursorKind`; derivable kinds are added by the application. */
+  kind?: AomCursorKind;
+  /** In signature order. */
+  parameters: AomParameterJSON[];
+  /** Classes whose instance this step creates first in the route: its own class, then `\@This` targets. */
+  creates: string[];
+  /** `\@OnInstance` hooks run on that creation. */
+  hooks: string[];
+}
+
+// field names are read from rendered schemas; the prefix only shapes `$ref`s, which aren't read
+const schemer = new Schemer("#/components/schemas/");
+
+/** OpenAPI `in` of a parameter for each request field that has one. */
+const locations: Partial<Record<AomValuesSource, ParameterLocation>> = {
+  [AomValuesSource.Query]: "query",
+  [AomValuesSource.Headers]: "header",
+  [AomValuesSource.Cookies]: "cookie",
+  [AomValuesSource.Params]: "path",
+};
+
+/** `fn.name` for a class or function, the string itself otherwise. */
+const nameOf = (value: unknown): string =>
+  typeof value === "function" ? value.name : String(value);
+
 /**
  * One step of a route's execution chain: a middleware, an endpoint, a nextpoint, or an
  * `\@OnInstance` hook, bound to the class (`$`) that owns it. `Router.build` and
@@ -69,6 +120,12 @@ export class AomCursor {
   // the cursor's own api instance
   /** Meta-instance of the method (or class) this cursor executes — already re-bound to the correct subclass. */
   $: AomApi;
+
+  /** Why the cursor stands in the chain — set where the chain is laid out (`Router.build`, `AomRoute`); `undefined` for cursors built at request time (`\@Run`, `\@OnInstance` hooks). */
+  via?: AomViaKind;
+
+  /** For `via === Next`: `AomApi.toString` of the step whose `\@Next` was expanded. */
+  viaGroup?: string;
 
   // ownership chain: classes whose creation this execution branch is holding. Lives on the
   // cursor, not on the context: the context is one per request, while several branches run
@@ -113,6 +170,84 @@ export class AomCursor {
       if (name) parameter.name = name;
       return parameter;
     });
+  }
+
+  /**
+   * Projection of this cursor (`JSON.stringify(cursor)`): place, attachment, declared kind,
+   * parameter targets, and the instances it creates. Computed on demand, executes nothing.
+   *
+   * @param created - classes already created by earlier cursors of the route
+   *   (`AomRoute.toJSON` shares one set across its cursors and this call adds to it); on its
+   *   own the cursor is treated as the first of its route
+   */
+  toJSON(created?: Set<unknown>): AomCursorJSON {
+    // JSON.stringify passes the property key here, not a set
+    const seen = created instanceof Set ? created : new Set<unknown>();
+    const parameters = this.parameters();
+    const creates = [
+      this.$._.target,
+      ...parameters.filter(({ kind }) => kind === AomParameterKind.This).map(({ target }) => target),
+    ].filter((target) => {
+      if (seen.has(target)) return false;
+      seen.add(target);
+      return true;
+    });
+
+    const { cursorKind } = this.$.element;
+    return {
+      i: this.index,
+      step: this.$.toString(),
+      origin: this.origin.toString(),
+      via: this.via,
+      ...(this.viaGroup ? { viaGroup: this.viaGroup } : {}),
+      ...(cursorKind ? { kind: cursorKind } : {}),
+      parameters: parameters.map((parameter) => this.parameterJSON(parameter)),
+      creates: creates.map(nameOf),
+      hooks: creates.flatMap(
+        (target) => AomApi.checkExists(target as ClassConstructor)?.element.instanceHooks.map(String) ?? [],
+      ),
+    };
+  }
+
+  private parameterJSON({ kind, source, target, name }: AomCursorParameter): AomParameterJSON {
+    switch (kind) {
+      case AomParameterKind.This:
+        return { kind, subject: nameOf(target) };
+      case AomParameterKind.State:
+        return target ? { kind, subject: nameOf(target) } : { kind };
+      case AomParameterKind.Values: {
+        const fields = this.fields(source!, target);
+        return fields.length ? { kind, source: source!, fields } : { kind, source: source! };
+      }
+      case AomParameterKind.Other:
+        return name ? { kind, name } : { kind };
+      default:
+        return { kind };
+    }
+  }
+
+  /**
+   * Field names a `Values` parameter reads: declared in `$.openApi` (filled by builders'
+   * `\@DelayRefStack` after `realizeDelay`) for its source — parameters by location, path
+   * parameters, top-level properties of the request body schema; a string key otherwise.
+   */
+  private fields(source: AomValuesSource, target: unknown): string[] {
+    const { openApi } = this.$;
+    const names =
+      source === AomValuesSource.Body
+        ? this.schemaFields(openApi.requestBody?.schema)
+        : openApi.parameters.filter((p) => p.in === locations[source]).map((p) => p.name);
+    if (source === AomValuesSource.Params) {
+      names.push(...openApi.path.flatMap((structure) => Object.values(structure).map((p) => p.name)));
+    }
+    if (!names.length && typeof target === "string") names.push(target);
+    return names;
+  }
+
+  private schemaFields(schema: unknown): string[] {
+    const resolved = resolveTarget(schema, this);
+    const rendered = typeof resolved === "function" ? schemer.render(resolved as ClassConstructor) : resolved;
+    return Object.keys((rendered as { properties?: object } | undefined)?.properties ?? {});
   }
 
   /**

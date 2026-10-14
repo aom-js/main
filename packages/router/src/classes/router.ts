@@ -1,7 +1,15 @@
 import { ClassType } from "@aom-js/core";
 import { resolve, join } from "node:path";
-import { AomRoute, AomApi, AomCursor } from "../common";
+import * as constants from "../constants";
+import { AomRoute, AomApi, AomCursor, AomViaKind, type AomRouteJSON } from "../common";
 import { OpenApi } from "./openapi";
+
+/** Projection of a whole router — `JSON.stringify(router)`, the dump format. */
+export declare interface AomRouterJSON {
+  version: 1;
+  /** Sorted by `method path`. */
+  routes: AomRouteJSON[];
+}
 
 /**
  * Builds the flat route table for a controller tree and registers every route with an
@@ -73,14 +81,20 @@ export class Router {
     const preCursors = [...cursors];
 
     // combine the pre-middlewares that will also be pushed down into other bridges
-    preCursors.push(...root.element.pre_middlewares.map(($) => new AomCursor($, root, prefix)));
+    preCursors.push(
+      ...root.element.pre_middlewares.map(($) =>
+        Object.assign(new AomCursor($, root, prefix), { via: AomViaKind.ClassBefore }),
+      ),
+    );
 
     root.element.bridges.forEach((bridge) => {
       this.build(bridge.next, preCursors, resolve(join(prefix, bridge.prefix)));
     });
 
     // build the post-middlewares, which are not pushed into other bridges but are used for this level's own methods and sockets
-    const postCursors = root.element.post_middlewares.map(($) => new AomCursor($, root, prefix));
+    const postCursors = root.element.post_middlewares.map(($) =>
+      Object.assign(new AomCursor($, root, prefix), { via: AomViaKind.ClassAfter }),
+    );
 
     root.element.endpoints.forEach((endpoint) => {
       const route = new AomRoute(this, prefix, endpoint, [...preCursors, ...postCursors]);
@@ -93,7 +107,52 @@ export class Router {
     });
   }
 
-  // route(method: string, path: string): AomRoute | undefined {
-  //   return this.routesMap.get(`${method.toLowerCase()}:${path}`);
-  // }
+  /**
+   * Finds the route served by `endpoint` — by reference to the endpoint method, not by a
+   * method+path pair. For an inherited handler pass the method through the class from the
+   * router's tree (`Child.Create`, not `Base.Create`): the subclass owns its own copy.
+   * Looks the meta-instance up with `AomApi.checkExists`, so the search registers nothing.
+   *
+   * @param endpoint - the endpoint method (`Orgs.Index`)
+   * @returns the only route whose handler is `endpoint`
+   * @throws {Error} `ROUTE_OF_NOT_FOUND_ERROR` when no route has it as its handler
+   * @throws {Error} `ROUTE_OF_AMBIGUOUS_ERROR` when several do (`\@Get \@Post` on one method,
+   *   a controller under two `\@Bridge`s) — every `method path` is listed in the message
+   *
+   * @example
+   * ```ts
+   * import { Controller, Get, Router, OpenApi } from "@aom-js/router";
+   *
+   * \@Controller()
+   * class App {
+   *   \@Get("/hello")
+   *   static async hello() {}
+   * }
+   *
+   * const router = new Router(App, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
+   * router.routeOf(App.hello).path; // "/hello"
+   * ```
+   */
+  routeOf(endpoint: Function): AomRoute {
+    const $ = AomApi.checkExists(endpoint);
+    const found = $ ? this.routes.filter((route) => route.endpoint.$ === $) : [];
+    if (!found.length) {
+      throw new Error(`${constants.ROUTE_OF_NOT_FOUND_ERROR}: ${endpoint.name}`);
+    }
+    if (found.length > 1) {
+      const places = found.map(({ method, path }) => `${method} ${path}`).join(", ");
+      throw new Error(`${constants.ROUTE_OF_AMBIGUOUS_ERROR}: ${places}`);
+    }
+    return found[0];
+  }
+
+  /**
+   * Projection of every route (`JSON.stringify(router)`), sorted by `method path` so the
+   * output is deterministic and diffable. Computed on demand, executes nothing.
+   */
+  toJSON(): AomRouterJSON {
+    const key = ({ method, path }: AomRoute) => `${method} ${path}`;
+    const routes = [...this.routes].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+    return { version: 1, routes: routes.map((route) => route.toJSON()) };
+  }
 }

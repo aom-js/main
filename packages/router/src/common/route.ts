@@ -4,15 +4,34 @@ import type { HTTPMethods } from "./types";
 
 import type { HttpContextValues } from "../types";
 import type { Router } from "../classes";
-import { AomCursor } from "./cursor";
+import { AomCursor, type AomCursorJSON } from "./cursor";
 import type { AomEndpoint } from "./api";
 import { RxContext } from "./context";
+import { AomViaKind } from "./kinds";
 
 /** Shape of `AomRoute.markers` — one entry per marker name, value set by the marker's handler. */
 export declare type MarkerType = Record<string, any>;
 
 /** Signature of a method decorated with `\@Marker()`, invoked once per cursor by `AomRoute`'s constructor. */
 export declare type MarkerHandler = (route: AomRoute, cursor: AomCursor) => void | unknown;
+
+/** Projection of one route — `AomRoute.toJSON()`. */
+export declare interface AomRouteJSON {
+  method: string;
+  /** Path template as declared — data, not an access key. */
+  path: string;
+  /** Per marker: `ident`s of the access points it collected (`accessPoints[].ident`), without their content. */
+  markers: Record<string, { accessPoints: string[] }>;
+  /** In execution order. */
+  steps: AomCursorJSON[];
+}
+
+/** Sets where a cursor stands in the chain; `viaGroup` only for `Next`. */
+function placed(cursor: AomCursor, via?: AomViaKind, viaGroup?: string): AomCursor {
+  cursor.via = via;
+  if (viaGroup) cursor.viaGroup = viaGroup;
+  return cursor;
+}
 
 /**
  * One built route: a path, an HTTP method, and the flat, ordered list of cursors that
@@ -57,8 +76,11 @@ export class AomRoute {
     this.plain([
       // cursors from Router.build are shared across every route of the level — don't mutate
       // them, create our own with the current route's endpoint (index below is assigned per-route too)
-      ...cursors.map((cursor) => new AomCursor(cursor.$, cursor.origin, cursor.prefix, endpoint)),
-      new AomCursor(endpoint.$, endpoint.$, this.path, endpoint), // the endpoint itself is also a cursor
+      ...cursors.map((cursor) =>
+        placed(new AomCursor(cursor.$, cursor.origin, cursor.prefix, endpoint), cursor.via),
+      ),
+      // the endpoint itself is also a cursor
+      placed(new AomCursor(endpoint.$, endpoint.$, this.path, endpoint), AomViaKind.Endpoint),
     ]);
 
     // assign indexes to the cursors
@@ -83,8 +105,8 @@ export class AomRoute {
 
       // first place the current cursor's own pre-middlewares
       this.plain(
-        cursor.$.element.pre_middlewares.map(
-          (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint),
+        cursor.$.element.pre_middlewares.map((middleware) =>
+          placed(new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint), AomViaKind.Before),
         ),
       );
 
@@ -92,15 +114,19 @@ export class AomRoute {
       this.cursors.push(cursor);
 
       this.plain(
-        cursor.$.element.post_middlewares.map(
-          (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint),
+        cursor.$.element.post_middlewares.map((middleware) =>
+          placed(new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint), AomViaKind.After),
         ),
       );
 
       // if the current cursor has a nextpoint, process it recursively too, including its own middlewares and nextpoints
       if (cursor.$.element.nextpoint) {
         this.plain([
-          new AomCursor(cursor.$.element.nextpoint, cursor.$, cursor.prefix, cursor.endpoint),
+          placed(
+            new AomCursor(cursor.$.element.nextpoint, cursor.$, cursor.prefix, cursor.endpoint),
+            AomViaKind.Next,
+            cursor.$.toString(),
+          ),
         ]);
       }
     });
@@ -131,5 +157,25 @@ export class AomRoute {
    */
   apply(context: HttpContextValues): any {
     return new RxContext(context, this).run(this.cursors);
+  }
+
+  /**
+   * Projection of this route (`JSON.stringify(route)`): method, path, access-point `ident`s by
+   * marker and the steps in execution order. Computed on demand, executes nothing.
+   */
+  toJSON(): AomRouteJSON {
+    const markers: AomRouteJSON["markers"] = {};
+    Object.entries(this.markers).forEach(([name, marker]) => {
+      const points: Array<{ ident: string }> = Array.isArray(marker?.accessPoints) ? marker.accessPoints : [];
+      markers[name] = { accessPoints: points.map(({ ident }) => ident) };
+    });
+    // one set for the whole route: a class is created by the first step that needs it
+    const created = new Set<unknown>();
+    return {
+      method: this.method,
+      path: this.path,
+      markers,
+      steps: this.cursors.map((cursor) => cursor.toJSON(created)),
+    };
   }
 }
