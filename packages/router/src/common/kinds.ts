@@ -63,7 +63,7 @@ export enum AomValuesSource {
   Files = "files",
 }
 
-/** Why a cursor stands in the chain — derived while the chain is laid out (`Router.build`, `AomRoute.plain`). */
+/** Why a cursor stands in the chain — derived while the chain is laid out (`Router.build`, `plain` in `common/route.ts`). */
 export enum AomViaKind {
   /** The handler itself. */
   Endpoint = "endpoint",

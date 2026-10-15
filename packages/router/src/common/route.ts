@@ -34,6 +34,52 @@ function placed(cursor: AomCursor, via?: AomViaKind, viaGroup?: string): AomCurs
 }
 
 /**
+ * Recursively flattens cursors into `into`, interleaving each cursor's own pre-middlewares, the
+ * cursor itself, its post-middlewares, and — if it has one — its nextpoint (processed the same
+ * way, so a chain of `\@Next` calls unrolls fully). The one traversal that lays out a route;
+ * the probe runner (`testing/runner.ts`) calls it to unfold a single step. Not exported from
+ * the package.
+ */
+export function plain(cursors: AomCursor[], into: AomCursor[] = []): AomCursor[] {
+  cursors.forEach((cursor) => {
+    // rebinding the context to the descendant is done in AomCursor's constructor (resolveFor)
+
+    // first place the current cursor's own pre-middlewares
+    plain(
+      cursor.$.element.pre_middlewares.map((middleware) =>
+        placed(new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint), AomViaKind.Before),
+      ),
+      into,
+    );
+
+    // then place the cursor itself, which can be either a middleware or an endpoint
+    into.push(cursor);
+
+    plain(
+      cursor.$.element.post_middlewares.map((middleware) =>
+        placed(new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint), AomViaKind.After),
+      ),
+      into,
+    );
+
+    // if the current cursor has a nextpoint, process it recursively too, including its own middlewares and nextpoints
+    if (cursor.$.element.nextpoint) {
+      plain(
+        [
+          placed(
+            new AomCursor(cursor.$.element.nextpoint, cursor.$, cursor.prefix, cursor.endpoint),
+            AomViaKind.Next,
+            cursor.$.toString(),
+          ),
+        ],
+        into,
+      );
+    }
+  });
+  return into;
+}
+
+/**
  * One built route: a path, an HTTP method, and the flat, ordered list of cursors that
  * `apply()` runs to serve a request. Created by `Router.build` for every endpoint and
  * websocket in the controller tree — application code doesn't construct `AomRoute`
@@ -73,7 +119,7 @@ export class AomRoute {
 
     this.endpoint = endpoint;
 
-    this.plain([
+    this.cursors = plain([
       // cursors from Router.build are shared across every route of the level — don't mutate
       // them, create our own with the current route's endpoint (index below is assigned per-route too)
       ...cursors.map((cursor) =>
@@ -91,44 +137,6 @@ export class AomRoute {
       });
 
       cursor.index = index;
-    });
-  }
-
-  /**
-   * Recursively flattens cursors into `this.cursors`, interleaving each cursor's own
-   * pre-middlewares, the cursor itself, its post-middlewares, and — if it has one — its
-   * nextpoint (processed the same way, so a chain of `\@Next` calls unrolls fully).
-   */
-  private plain(cursors: AomCursor[]) {
-    cursors.forEach((cursor) => {
-      // rebinding the context to the descendant is done in AomCursor's constructor (resolveFor)
-
-      // first place the current cursor's own pre-middlewares
-      this.plain(
-        cursor.$.element.pre_middlewares.map((middleware) =>
-          placed(new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint), AomViaKind.Before),
-        ),
-      );
-
-      // then place the cursor itself, which can be either a middleware or an endpoint
-      this.cursors.push(cursor);
-
-      this.plain(
-        cursor.$.element.post_middlewares.map((middleware) =>
-          placed(new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint), AomViaKind.After),
-        ),
-      );
-
-      // if the current cursor has a nextpoint, process it recursively too, including its own middlewares and nextpoints
-      if (cursor.$.element.nextpoint) {
-        this.plain([
-          placed(
-            new AomCursor(cursor.$.element.nextpoint, cursor.$, cursor.prefix, cursor.endpoint),
-            AomViaKind.Next,
-            cursor.$.toString(),
-          ),
-        ]);
-      }
     });
   }
 
