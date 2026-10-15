@@ -6,6 +6,7 @@ import {
   Before,
   Bridge,
   Controller,
+  Ctx,
   Get,
   Headers,
   Middleware,
@@ -70,6 +71,15 @@ class ItemID {
   static async PathID() {}
 }
 
+/** Writes into the caller's `ctx`: `runSteps` must hand the caller's objects through. */
+@Controller()
+class Visit {
+  @Middleware()
+  static async Mark(@Ctx() ctx: Record<string, unknown>) {
+    ctx.visited = true;
+  }
+}
+
 @Controller()
 @Before(Guard.Check)
 class Items {
@@ -82,6 +92,13 @@ class Items {
   @Before(ItemID.PathID)
   static async One(@This(Item) item: Item) {
     return { id: item.id };
+  }
+
+  /** Two parameters in one segment: the server splits `1-2-3` as `a = 1-2`, `b = 3`. */
+  @Get("/pair/:a([0-9-]+)-:b")
+  @Before(Visit.Mark)
+  static async Pair(@Params() params: Record<string, string>) {
+    return params;
   }
 }
 
@@ -337,6 +354,27 @@ describe("runSteps", () => {
     expect(guardOfIndex.$).toBe(one().cursors[0]!.$);
 
     await expect(runSteps(one(), values, [guardOfIndex])).rejects.toThrow("is not a step of this route");
+  });
+
+  it("runs the chosen steps in the route's order, however they are listed", async () => {
+    await expect(runSteps(one(), values, [...one().cursors].reverse())).resolves.toEqual({ id: "7" });
+  });
+
+  it("hands the caller's request objects through, like route.apply()", async () => {
+    const ctx: Record<string, unknown> = {};
+
+    await runSteps(router.routeOf(Items.Pair), { ...values, ctx, params: { a: "1", b: "2" } });
+
+    expect(ctx.visited).toBe(true);
+  });
+
+  it("refuses values the server would split differently: a = 1, b = 2-3 arrives as a = 1-2, b = 3", async () => {
+    const pair = router.routeOf(Items.Pair);
+    await expect(runSteps(pair, { ...values, params: { a: "1-2", b: "3" } })).resolves.toEqual({ a: "1-2", b: "3" });
+
+    await expect(runSteps(pair, { ...values, params: { a: "1", b: "2-3" } })).rejects.toThrow(
+      "does not match the route path",
+    );
   });
 
   it("checks the address by the server's grammar before running", async () => {

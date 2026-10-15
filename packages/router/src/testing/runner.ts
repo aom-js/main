@@ -205,14 +205,16 @@ export async function runProbes(tester: object, router: Router, options: RunOpti
  * Runs the chosen steps of `route` (the whole chain by default) in a fresh request context, in
  * the route's own order, without touching `route.cursors`. Values are completed to the server's
  * shape and the address is checked as in `runProbes`; every step must be a cursor of this very
- * route. Resolves and rejects like `route.apply()`.
+ * route. Resolves and rejects like `route.apply()`, and like it hands the caller's request objects
+ * to the steps as they are (`runProbes` copies them: one run per probe input).
  */
 export async function runSteps(
   route: AomRoute,
   values?: Partial<HttpContextValues>,
   steps: AomCursor[] = route.cursors,
 ): Promise<unknown> {
-  const full = request(values);
+  // missing fields get the server's empty defaults; the caller's own objects go through as is
+  const full = { ...request(), ...values } as HttpContextValues;
   address(route, full.params as Record<string, unknown>);
 
   const foreign = steps.find((step) => !route.cursors.includes(step));
