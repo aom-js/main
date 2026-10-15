@@ -368,6 +368,7 @@ export async function runAcross(
     throw new Error(`probe class ${nameOf(tester)} is bound to one endpoint — run it with runProbes`);
   }
   const routes = routesOf(tester, routers);
+  if (!routes.length) throw new Error(`probes ${nameOf(tester)}: the predicate matches no route — nothing would be checked`);
   const groups = group(tester, probesOf(tester));
 
   const skip = new Map([...(options.skip ?? [])].map(([endpoint, reason]) => [AomApi.instance(endpoint), reason]));
@@ -379,7 +380,8 @@ export async function runAcross(
   const plan = routes
     .filter((route) => !skip.has(route.endpoint.$))
     .map((route) => ({ route, values: options.values(route) }));
-  const drift = plan.filter(({ values }) => values === undefined).map(({ route }) => where(route));
+  // no value sets — the same drift: the route would be counted as checked without a single run
+  const drift = plan.filter(({ values }) => !values || (Array.isArray(values) && !values.length)).map(({ route }) => where(route));
   if (drift.length) {
     const what = drift.length === 1 ? "1 matched route has" : `${drift.length} matched routes have`;
     throw new Error(`probes ${nameOf(tester)}: ${what} no values and no skip: ${drift.join(", ")}`);

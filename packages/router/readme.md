@@ -786,7 +786,8 @@ const report = await runProbes(RolesIndexProbes, router, {
 | `input is not plain JSON (…)` | вход `@Probe` с функцией, `undefined`, символом или инстансом класса: JSON его потеряет, и два разных входа слились бы в один прогон |
 | `ROUTE_OF_NOT_FOUND_ERROR` / `ROUTE_OF_AMBIGUOUS_ERROR` | эндпоинта нет в этом роутере / его выполняют несколько маршрутов |
 | `has a route predicate — run it with runAcross` / `is bound to one endpoint — run it with runProbes` | класс сквозной схемы передан в `runProbes` / точечной — в `runAcross` |
-| `N matched routes have no values and no skip: …` | дрейф сквозного прогона: предикат отобрал маршрут, для которого нет ни значений, ни причины исключения |
+| `N matched routes have no values and no skip: …` | дрейф сквозного прогона: предикат отобрал маршрут, для которого нет ни значений (или пустой список наборов), ни причины исключения |
+| `the predicate matches no route` | предикат сквозного класса не отобрал ни одного маршрута — проверять было бы нечего |
 | `skip names X, which the class does not match` | устаревшее исключение сквозного прогона |
 | `path parameter "x" is not set` / `the route has no path parameters x` | недостающий / лишний параметр адреса |
 | `… does not match the route path` | сервер не довёл бы такой адрес до этого маршрута |

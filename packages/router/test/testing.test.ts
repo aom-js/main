@@ -703,6 +703,23 @@ describe("runAcross", () => {
     ).rejects.toThrow("skip names Lonely.Index, which the class does not match");
   });
 
+  it("nothing to run is an error, not a green report: no matched route, or a route with no value sets", async () => {
+    @Tester({ match: (route) => route.path === "/nowhere" })
+    class Nowhere {
+      @Probe("never runs")
+      static async never(@Report() report: TesterReport) {
+        report.check("never", true);
+      }
+    }
+
+    await expect(runAcross(Nowhere, router, { values: itemValues })).rejects.toThrow(
+      "probes Nowhere: the predicate matches no route",
+    );
+    await expect(runAcross(Sweep, router, { values: () => [], skip: gone })).rejects.toThrow(
+      "4 matched routes have no values and no skip",
+    );
+  });
+
   it("runProbes refuses a predicate class, runAcross refuses an endpoint class", async () => {
     await expect(runProbes(Sweep, router)).rejects.toThrow("has a route predicate — run it with runAcross");
     await expect(runAcross(Loaded, router, { values: itemValues })).rejects.toThrow(
