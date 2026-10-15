@@ -635,8 +635,9 @@ export function This(
   }
   const handler: ArgumentsDecoratorHandler = async (args) => {
     const { cursor } = args;
-    // resolved on every call; omitted means the class of the current cursor
-    const target: ClassConstructor = resolveTarget(constructor, cursor) ?? cursor.$._.target;
+    // resolved on every call; omitted means the class of the current cursor — but a reference
+    // that resolves to nothing is not replaced by it (the request fails, as before)
+    const target: ClassConstructor = constructor ? resolveTarget(constructor, cursor) : cursor.$._.target;
 
     // ready instance, unvalidated for the own branch, or waiting on someone else's creation —
     // instanceWithHooks decides all of that; there must be no separate state read here

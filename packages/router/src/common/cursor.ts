@@ -165,7 +165,8 @@ export class AomCursor {
       const target = resolveTarget(ref, this);
       const parameter: AomCursorParameter = { kind };
       if (source) parameter.source = source;
-      if (kind === AomParameterKind.This) parameter.target = target ?? this.$._.target;
+      // same rule as the `\@This` handler: only an omitted argument means the cursor's own class
+      if (kind === AomParameterKind.This) parameter.target = ref ? target : this.$._.target;
       else if (target !== undefined) parameter.target = target;
       if (name) parameter.name = name;
       return parameter;

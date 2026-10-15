@@ -169,6 +169,22 @@ describe("router: resolveTarget", () => {
     expect(stepOf(ChildSteps.Index).parameters()).toEqual([{ kind: "this", target: ChildSteps }]);
   });
 
+  it("@This(ref), разрешившийся в undefined, не подменяется классом курсора", async () => {
+    const seen: unknown[] = [];
+    @Controller()
+    class Lost {
+      @Get("/lost")
+      static async Index(@This(ThisRef((() => undefined) as RefFunction)) value: unknown) {
+        seen.push(value);
+        return "ok";
+      }
+    }
+    const [lost] = new Router(Lost, makeDocs()).routes;
+    await expect(lost.apply(context())).rejects.toThrow();
+    expect(seen).toEqual([]);
+    expect(lost.cursors.at(-1)!.parameters()).toEqual([{ kind: "this" }]);
+  });
+
   it("cursor.parameters() ничего не хранит — каждый вызов вычисляет заново", () => {
     const cursor = stepOf(ChildSteps.Step);
     expect(cursor.parameters()).not.toBe(cursor.parameters());
