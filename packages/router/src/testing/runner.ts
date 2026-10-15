@@ -8,7 +8,7 @@ import { compilePath, PATH_PARAM } from "../common/path";
 import { plain, type AomRoute } from "../common/route";
 import type { HandlerFunction } from "../common/types";
 import type { HttpContextValues } from "../types";
-import { endpointOf, probeMeta } from "./decorators";
+import { endpointOf, probeMeta, type RouteOutcome } from "./decorators";
 import { TesterReport } from "./report";
 
 export type RunOptions = {
@@ -28,11 +28,27 @@ type ProbeMethod = {
   fn: HandlerFunction;
   title: string;
   input?: Partial<HttpContextValues>;
+  route: RouteOutcome;
 };
 
 const nameOf = (cls: object) => (cls as { name?: string }).name;
 
 const where = (route: AomRoute) => `${route.method.toUpperCase()} ${route.path}`;
+
+/** How a route run ended, in the terms `@Probe` declares it: `ok`, `status 404 (…)` or `error …`. */
+function outcome(error: unknown): string {
+  if (error === undefined) return "ok";
+  const message = error instanceof Error ? error.message : String(error);
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? `status ${status} (${message})` : `error ${message}`;
+}
+
+/** Whether the run ended as the probe declares; `"any"` is never checked. */
+function expected(route: RouteOutcome, error: unknown): boolean {
+  if (route === "any") return true;
+  if (route === "ok") return error === undefined;
+  return (error as { status?: unknown } | null)?.status === route;
+}
 
 /** The endpoint of a probe class; without `@Tester` its parameters would silently be `undefined`. */
 function endpointFor(tester: object): HandlerFunction {
@@ -216,6 +232,11 @@ export async function runProbes(tester: object, router: Router, options: RunOpti
     for (const method of probes) {
       report.probe = method.title;
       const before = report.checks;
+
+      if (!expected(method.route, report.routeError)) {
+        const declared = typeof method.route === "number" ? `status ${method.route}` : method.route;
+        report.violation(method.title, "route", `route ended with ${outcome(report.routeError)}, expected ${declared}`);
+      }
 
       try {
         // every probe is a call of its own: one failing does not take the others down

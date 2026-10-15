@@ -8,6 +8,6 @@
  */
 import "reflect-metadata";
 
-export { Observe, Probe, Report, Tester, isTester } from "./decorators";
+export { Observe, Probe, Report, Tester, isTester, type RouteOutcome } from "./decorators";
 export { TesterReport, type CheckResult } from "./report";
 export { runProbes, runSteps, type RunOptions } from "./runner";

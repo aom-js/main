@@ -7,10 +7,17 @@ import { Args } from "../decorators/arguments";
 import type { HttpContextValues } from "../types";
 import { TesterReport } from "./report";
 
-/** Title and input of every method marked `\@Probe`. Read by the runner. */
+/**
+ * How the route run must end for a probe's assertions to mean anything: `"ok"` — no error, a
+ * number — an error with that `status` (the error responses of `@aom-js/api` carry one), `"any"` —
+ * not checked.
+ */
+export type RouteOutcome = "ok" | number | "any";
+
+/** Title, input and expected route outcome of every method marked `\@Probe`. Read by the runner. */
 export const probeMeta = new WeakMap<
   HandlerFunction,
-  { title: string; input?: Partial<HttpContextValues> }
+  { title: string; input?: Partial<HttpContextValues>; route: RouteOutcome }
 >();
 
 /**
@@ -45,10 +52,15 @@ function runnable(store?: (fn: HandlerFunction) => void): MethodDecorator {
 /**
  * Declares a method a probe. The second argument is the input under which the assertion must
  * hold: partial request values on top of the run's base values. Probes with different inputs
- * run in separate runs of the route.
+ * run in separate runs of the route. The third declares how the route must end (`"ok"` by
+ * default); any other outcome is a violation of the probe.
  */
-export function Probe(title: string, input?: Partial<HttpContextValues>): MethodDecorator {
-  return runnable((fn) => probeMeta.set(fn, { title, input }));
+export function Probe(
+  title: string,
+  input?: Partial<HttpContextValues>,
+  expect: { route?: RouteOutcome } = {},
+): MethodDecorator {
+  return runnable((fn) => probeMeta.set(fn, { title, input, route: expect.route ?? "ok" }));
 }
 
 /**

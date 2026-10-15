@@ -94,6 +94,12 @@ class Items {
     return { id: item.id };
   }
 
+  /** Fails the way an error response of `@aom-js/api` does: an `Error` with a numeric `status`. */
+  @Get("/gone")
+  static async Gone() {
+    throw Object.assign(new Error("ITEM_NOT_FOUND"), { status: 404 });
+  }
+
   /** Two parameters in one segment: the server splits `1-2-3` as `a = 1-2`, `b = 3`. */
   @Get("/pair/:a([0-9-]+)-:b")
   @Before(Visit.Mark)
@@ -134,7 +140,7 @@ class Preset {
 
 @Tester(Items.Index)
 class Failed {
-  @Probe("sees why the route failed")
+  @Probe("sees why the route failed", undefined, { route: "any" })
   static async error(@Report() report: TesterReport) {
     report.check("route error", (report.routeError as Error)?.message === "NO_TOKEN");
   }
@@ -213,7 +219,7 @@ class ItemProbes {
 /** Two inputs, two runs: the first fails without a token, the second must not see its error. */
 @Tester(Items.Index)
 class TwoInputs {
-  @Probe("without a token the route fails")
+  @Probe("without a token the route fails", undefined, { route: "any" })
   static async failed(@Report() report: TesterReport) {
     report.check("NO_TOKEN", (report.routeError as Error)?.message === "NO_TOKEN");
   }
@@ -237,6 +243,52 @@ const lossy = (value: unknown) => {
   }
   return Lossy;
 };
+
+/** The expected outcome of the route is `"ok"` unless declared: a failed route is a violation. */
+@Tester(Items.Index)
+class ExpectsOk {
+  @Probe("expects the route to pass")
+  static async ok(@Report() report: TesterReport) {
+    report.check("ran", true);
+  }
+}
+
+@Tester(Items.Gone)
+class Gone404 {
+  @Probe("the item is gone", undefined, { route: 404 })
+  static async gone(@Report() report: TesterReport) {
+    report.check("ran", true);
+  }
+}
+
+@Tester(Items.Gone)
+class Gone409 {
+  @Probe("expects a conflict", undefined, { route: 409 })
+  static async conflict(@Report() report: TesterReport) {
+    report.check("ran", true);
+  }
+}
+
+@Tester(Items.Index)
+class Expects404 {
+  @Probe("expects the item to be gone", undefined, { route: 404 })
+  static async gone(@Report() report: TesterReport) {
+    report.check("ran", true);
+  }
+}
+
+@Tester(Items.Index)
+class AnyOutcome {
+  @Probe("does not care how the route ended", undefined, { route: "any" })
+  static async any(@Report() report: TesterReport) {
+    report.check("ran", true);
+  }
+
+  @Probe("expects the route to pass")
+  static async ok(@Report() report: TesterReport) {
+    report.check("ran", true);
+  }
+}
 
 /** `ItemID.PathID` alone sets nothing: only its `@After(ItemParam.Assign)` does. */
 const pathID = { cursors: [ItemID.PathID] };
@@ -273,6 +325,37 @@ describe("runProbes", () => {
 
     await expect(runProbes(lossy(value), router, cheap)).rejects.toThrow("not plain JSON");
     expect(lossyRuns).toBe(0);
+  });
+
+  it("by default a failed route is a violation of every probe of its input", async () => {
+    await expect(runProbes(ExpectsOk, router)).rejects.toThrow(
+      "expects the route to pass → route: route ended with error NO_TOKEN, expected ok",
+    );
+  });
+
+  it("a declared status passes when the route ends with it", async () => {
+    const report = await runProbes(Gone404, router, authorized);
+
+    expect(report.failures).toEqual([]);
+    expect(report.checks).toBe(1);
+  });
+
+  it("a declared status fails when the route ends otherwise", async () => {
+    await expect(runProbes(Gone409, router, authorized)).rejects.toThrow(
+      "route ended with status 404 (ITEM_NOT_FOUND), expected status 409",
+    );
+    await expect(runProbes(Expects404, router, authorized)).rejects.toThrow(
+      "route ended with ok, expected status 404",
+    );
+  });
+
+  it('"any" does not check the outcome of the route; its neighbour on the same input does', async () => {
+    const failed = String(await runProbes(AnyOutcome, router).catch((error: Error) => error));
+
+    expect(failed).toContain("1 of 3 failed");
+    expect(failed).toContain("expects the route to pass → route: route ended with error NO_TOKEN");
+    expect(failed).not.toContain("does not care how the route ended → route");
+    await expect(runProbes(AnyOutcome, router, authorized)).resolves.toBeInstanceOf(TesterReport);
   });
 
   it("a preset instance cancels the creation and the hooks of its class", async () => {
