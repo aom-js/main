@@ -134,10 +134,11 @@ export class Router {
    * ```
    */
   routeOf(endpoint: Function): AomRoute {
-    const $ = AomApi.checkExists(endpoint);
+    // a typo in the method name passes `undefined`; checkExists would throw a TypeError on it
+    const $ = typeof endpoint === "function" ? AomApi.checkExists(endpoint) : undefined;
     const found = $ ? this.routes.filter((route) => route.endpoint.$ === $) : [];
     if (!found.length) {
-      throw new Error(`${constants.ROUTE_OF_NOT_FOUND_ERROR}: ${endpoint.name}`);
+      throw new Error(`${constants.ROUTE_OF_NOT_FOUND_ERROR}: ${String(endpoint?.name ?? endpoint)}`);
     }
     if (found.length > 1) {
       const places = found.map(({ method, path }) => `${method} ${path}`).join(", ");

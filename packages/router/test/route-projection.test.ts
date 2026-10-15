@@ -171,6 +171,12 @@ describe("router: Router.routeOf", () => {
     );
     expect(AomApi.checkExists(plain)).toBeUndefined();
   });
+
+  it("undefined (опечатка в имени метода) — ROUTE_OF_NOT_FOUND_ERROR, а не TypeError", () => {
+    expect(() => router.routeOf((Leaf as any).Itemz)).toThrow(
+      expect.objectContaining({ message: "ROUTE_OF_NOT_FOUND_ERROR: undefined" }),
+    );
+  });
 });
 
 describe("router: toJSON", () => {
