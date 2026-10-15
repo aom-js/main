@@ -21,7 +21,10 @@ packages.forEach((package) => {
     const srcPackageJson = require(srcPackageJsonFile);
     Object.assign(resultPackageJson, srcPackageJson);
   });
+  // шаблон задаёт ".", пакет может добавить свои точки входа (router: "./testing")
+  const ownExports = resultPackageJson.exports;
   Object.assign(resultPackageJson, distPackageJson);
+  resultPackageJson.exports = { ...distPackageJson.exports, ...ownExports };
   // const resultPackageJson = { ...srcPackageJson, ...distPackageJson };
   const resultPackageJsonFile = path.join(package, "package.json");
   fs.writeFileSync(resultPackageJsonFile, JSON.stringify(resultPackageJson, null, 2));

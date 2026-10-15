@@ -19,6 +19,8 @@ export default defineConfig({
     alias: {
       "@aom-js/core": resolve(__dirname, "packages/core/src"),
       "@aom-js/schemer": resolve(__dirname, "packages/schemer/src"),
+      // подпуть — раньше корня: vite берёт первый совпавший префикс
+      "@aom-js/router/testing": resolve(__dirname, "packages/router/src/testing"),
       "@aom-js/router": resolve(__dirname, "packages/router/src"),
       "@aom-js/transfer": resolve(__dirname, "packages/transfer/src"),
       "@aom-js/codegen": resolve(__dirname, "packages/codegen/src"),

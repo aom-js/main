@@ -17,7 +17,12 @@ const os = require("node:os");
 const path = require("node:path");
 const packages = require("./packages");
 
-const names = packages.map((p) => `@aom-js/${path.basename(p)}`);
+// каждая точка входа каждого пакета: "." — сам пакет, "./x" — "имя/x"
+const names = packages.flatMap((p) => {
+  const name = `@aom-js/${path.basename(p)}`;
+  const { exports = { ".": null } } = JSON.parse(fs.readFileSync(path.join(p, "package.json"), "utf8"));
+  return Object.keys(exports).map((key) => (key === "." ? name : `${name}${key.slice(1)}`));
+});
 
 const consumer = fs.mkdtempSync(path.join(os.tmpdir(), "aom-smoke-"));
 const scope = path.join(consumer, "node_modules", "@aom-js");
@@ -45,7 +50,7 @@ if (failures.length) {
   failures.forEach((f) => console.error("  " + f));
   process.exit(1);
 }
-console.log(\`smoke: \${names.length} пакетов грузятся через require() и import()\`);
+console.log(\`smoke: \${names.length} точек входа грузятся через require() и import()\`);
 `;
 
 try {

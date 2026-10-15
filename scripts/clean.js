@@ -23,6 +23,9 @@ packages.forEach((package) => {
     const srcPackageJson = fs.readFileSync(srcPackageFile).toString();
     Object.assign(packageJson, JSON.parse(srcPackageJson));
   });
+  // в режиме разработки пакет резолвится через main (src); свои exports пакета указывают
+  // на dist и без "." закрыли бы корень
+  delete packageJson.exports;
   fs.writeFileSync(packageJsonFile, JSON.stringify(packageJson, null, 2));
   console.log(`${package} clean for development`);
 });
