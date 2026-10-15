@@ -245,4 +245,28 @@ describe("router: toJSON", () => {
       ["Pager.Page", ["Pager"], []],
     ]);
   });
+
+  it("creates/hooks: классы, которые создаёт конструктор (@This в его параметрах), — у того же шага, рекурсивно", () => {
+    @Controller()
+    class Db {
+      @OnInstance()
+      static async Open() {}
+    }
+
+    @Controller()
+    class Store {
+      constructor(@This(Db) public db: Db) {}
+    }
+
+    @Controller()
+    class Owner {
+      constructor(@This() public self: unknown) {}
+
+      @Get("/")
+      static async Index(@This(Store) _store: Store) {}
+    }
+
+    const [index] = new Router(Owner, makeDocs()).routeOf(Owner.Index).toJSON().steps;
+    expect([index.creates, index.hooks]).toEqual([["Owner", "Store", "Db"], ["Db.Open"]]);
+  });
 });

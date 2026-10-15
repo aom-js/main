@@ -68,7 +68,7 @@ export declare interface AomCursorJSON {
   kind?: AomCursorKind;
   /** In signature order. */
   parameters: AomParameterJSON[];
-  /** Classes whose instance this step creates first in the route: its own class, then `\@This` targets. */
+  /** Classes whose instance this step creates first in the route: its own class, then `\@This` targets; each followed by the `\@This` targets of its constructor, recursively. */
   creates: string[];
   /** `\@OnInstance` hooks run on that creation. */
   hooks: string[];
@@ -185,14 +185,20 @@ export class AomCursor {
     // JSON.stringify passes the property key here, not a set
     const seen = created instanceof Set ? created : new Set<unknown>();
     const parameters = this.parameters();
-    const creates = [
-      this.$._.target,
-      ...parameters.filter(({ kind }) => kind === AomParameterKind.This).map(({ target }) => target),
-    ].filter((target) => {
-      if (seen.has(target)) return false;
+    const creates: unknown[] = [];
+    // a class is created together with the `\@This` targets of its constructor, resolved from
+    // the creating cursor like `AomApi.instanceWithHooks` does (omitted argument — its own class)
+    const create = (target: unknown) => {
+      if (seen.has(target)) return;
       seen.add(target);
-      return true;
-    });
+      creates.push(target);
+      if (typeof target !== "function") return;
+      AomApi.checkExists(target as ClassConstructor)?.element.parameters.descriptors.forEach(({ kind, ref }) => {
+        if (kind === AomParameterKind.This) create(ref === undefined ? this.$._.target : resolveTarget(ref, this));
+      });
+    };
+    create(this.$._.target);
+    parameters.filter(({ kind }) => kind === AomParameterKind.This).forEach(({ target }) => create(target));
 
     const { cursorKind } = this.$.element;
     return {
