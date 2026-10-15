@@ -7,7 +7,7 @@ export type CheckResult = { probe: string; check: string; ok: boolean; error?: s
 export class TesterReport {
   readonly results: CheckResult[] = [];
 
-  /** Error of the route run, if the route failed. Probes run anyway. */
+  /** Error of the route run of the current input, if it failed. Probes run anyway; other inputs never see it. */
   routeError?: unknown;
 
   /** Title of the current probe; set by the runner before each one. */

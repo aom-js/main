@@ -56,10 +56,19 @@ function probesOf(tester: object): ProbeMethod[] {
   return methods;
 }
 
-/** One run of the route per distinct input. */
-function group(methods: ProbeMethod[]): ProbeMethod[][] {
+/**
+ * One run of the route per distinct input. Inputs are told apart by their JSON, so an input JSON
+ * would lose part of is refused: probes of two different inputs would share one run.
+ */
+function group(tester: object, methods: ProbeMethod[]): ProbeMethod[][] {
   const groups = new Map<string, ProbeMethod[]>();
   for (const method of methods) {
+    const lost = method.input === undefined ? undefined : lossy(method.input, "input");
+    if (lost) {
+      throw new Error(
+        `probe "${method.title}" of ${nameOf(tester)}: input is not plain JSON (${lost}) — inputs differing only in it would merge into one run`,
+      );
+    }
     const key = JSON.stringify(method.input ?? null);
     groups.set(key, [...(groups.get(key) ?? []), method]);
   }
@@ -68,6 +77,29 @@ function group(methods: ProbeMethod[]): ProbeMethod[][] {
 
 const isPlain = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && Object.getPrototypeOf(value) === Object.prototype;
+
+/** Where JSON would drop or flatten `value` (functions, `undefined`, symbols, class instances); nothing if it keeps it. */
+function lossy(value: unknown, path: string): string | undefined {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return undefined;
+  if (typeof value === "number") return Number.isFinite(value) ? undefined : `${path} is ${value}`;
+  if (Array.isArray(value)) {
+    for (const [index, item] of value.entries()) {
+      const lost = lossy(item, `${path}[${index}]`);
+      if (lost) return lost;
+    }
+    return undefined;
+  }
+  if (isPlain(value)) {
+    if (Object.getOwnPropertySymbols(value).length) return `${path} has a symbol key`;
+    for (const [key, item] of Object.entries(value)) {
+      const lost = lossy(item, `${path}.${key}`);
+      if (lost) return lost;
+    }
+    return undefined;
+  }
+  const kind = typeof value === "object" ? `an instance of ${value.constructor?.name ?? "a null prototype"}` : `a ${typeof value}`;
+  return `${path} is ${kind}`;
+}
 
 /**
  * Request values of the same shape the server of `@aom-js/api` builds. Layers merge by field:
@@ -145,9 +177,9 @@ function stepsOf(route: AomRoute, refs: HandlerFunction[] | undefined): AomCurso
 const envelope = (route: AomRoute, fn: HandlerFunction) =>
   new AomCursor(AomApi.instance(fn), route.endpoint.$, route.path, route.endpoint);
 
-function describe(route: AomRoute, report: TesterReport) {
+function describe(route: AomRoute, report: TesterReport, routeErrors: string[]) {
   const lines = report.failures.map((f) => `  ✗ ${f.probe} → ${f.check}: ${f.error}`);
-  const tail = report.routeError instanceof Error ? `\n  route failed: ${report.routeError.message}` : "";
+  const tail = routeErrors.map((error) => `\n  route failed ${error}`).join("");
   return `probes ${route.endpoint.$}: ${report.failures.length} of ${report.results.length} failed\n${lines.join("\n")}${tail}`;
 }
 
@@ -159,8 +191,9 @@ function describe(route: AomRoute, report: TesterReport) {
 export async function runProbes(tester: object, router: Router, options: RunOptions = {}): Promise<TesterReport> {
   const route = router.routeOf(endpointFor(tester));
   const report = new TesterReport();
+  const routeErrors: string[] = [];
 
-  for (const probes of group(probesOf(tester))) {
+  for (const probes of group(tester, probesOf(tester))) {
     const values = request(options.values, probes[0]!.input);
     address(route, values.params as Record<string, unknown>);
     const steps = stepsOf(route, options.cursors);
@@ -170,10 +203,14 @@ export async function runProbes(tester: object, router: Router, options: RunOpti
     for (const [cls, value] of options.preset ?? []) context.state.set(cls, value);
     context.state.set(TesterReport, report);
 
+    // every input sees the error of its own run only
+    report.routeError = undefined;
     try {
       await context.run(steps);
     } catch (error) {
       report.routeError = error; // a failed route does not cancel the probes
+      const input = JSON.stringify(probes[0]!.input ?? {});
+      routeErrors.push(`(input ${input}): ${error instanceof Error ? error.message : String(error)}`);
     }
 
     for (const method of probes) {
@@ -197,7 +234,7 @@ export async function runProbes(tester: object, router: Router, options: RunOpti
     }
   }
 
-  if (report.failures.length) throw new Error(describe(route, report));
+  if (report.failures.length) throw new Error(describe(route, report, routeErrors));
   return report;
 }
 

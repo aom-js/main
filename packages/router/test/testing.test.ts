@@ -210,6 +210,34 @@ class ItemProbes {
   }
 }
 
+/** Two inputs, two runs: the first fails without a token, the second must not see its error. */
+@Tester(Items.Index)
+class TwoInputs {
+  @Probe("without a token the route fails")
+  static async failed(@Report() report: TesterReport) {
+    report.check("NO_TOKEN", (report.routeError as Error)?.message === "NO_TOKEN");
+  }
+
+  @Probe("with a token the route passes", { headers: { authorization: "token" } })
+  static async passed(@Report() report: TesterReport) {
+    report.check("no error of the other input", report.routeError === undefined);
+  }
+}
+
+/** A probe whose input JSON would lose `value`: inputs differing only in it would merge into one run. */
+let lossyRuns = 0;
+const lossy = (value: unknown) => {
+  @Tester(Items.Index)
+  class Lossy {
+    @Probe("lossy input", { query: { value } as never })
+    static async probe(@Report() report: TesterReport) {
+      lossyRuns += 1;
+      report.check("ran", true);
+    }
+  }
+  return Lossy;
+};
+
 /** `ItemID.PathID` alone sets nothing: only its `@After(ItemParam.Assign)` does. */
 const pathID = { cursors: [ItemID.PathID] };
 
@@ -228,6 +256,23 @@ describe("runProbes", () => {
 
     expect(report.checks).toBe(1);
     expect((report.routeError as Error).message).toBe("NO_TOKEN");
+  });
+
+  it("the route error of one input is not seen by the probes of another", async () => {
+    const report = await runProbes(TwoInputs, router);
+
+    expect(report.checks).toBe(2);
+  });
+
+  it.each([
+    ["a function", () => 1],
+    ["undefined", undefined],
+    ["a symbol", Symbol("lazy")],
+  ])("an input with %s is refused before the run", async (_, value) => {
+    lossyRuns = 0;
+
+    await expect(runProbes(lossy(value), router, cheap)).rejects.toThrow("not plain JSON");
+    expect(lossyRuns).toBe(0);
   });
 
   it("a preset instance cancels the creation and the hooks of its class", async () => {
