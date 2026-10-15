@@ -1,3 +1,5 @@
+import type { CreatedRecord } from "../common/context";
+
 export type CheckResult = { probe: string; check: string; ok: boolean; error?: string };
 
 /**
@@ -9,6 +11,9 @@ export class TesterReport {
 
   /** Error of the route run of the current input, if it failed. Probes run anyway; other inputs never see it. */
   routeError?: unknown;
+
+  /** Objects the route run of the current input created, as they entered the state. Diagnostics only. */
+  created?: CreatedRecord[];
 
   /** Title of the current probe; set by the runner before each one. */
   probe = "";

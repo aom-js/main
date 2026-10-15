@@ -23,6 +23,13 @@ export function circularInstanceError(chain: ClassConstructor[]) {
 }
 
 /**
+ * One object that entered the request state: its class, the step that asked for it (`by` — the
+ * hook, when a hook pulled it in) and inside whose creation it was built (`via`, from
+ * `AomCursor.creating`). Diagnostics only: the order of records is not a contract.
+ */
+export type CreatedRecord = { target: ClassConstructor; by: AomApi; via?: ClassConstructor };
+
+/**
  * Per-request execution context: request values, the map of validated instances, and
  * the bookkeeping that makes `\@This`/`\@State`/`lazy(...)` safe under concurrency. One
  * `RxContext` is created per `AomRoute.apply()` call and discarded at the end of the
@@ -59,6 +66,12 @@ export class RxContext {
   // instead of throwing CIRCULAR_INSTANCE_ERROR (`KI-ROUTER-19`).
   /** `waiter → targets` edges: which creations each class-creating branch is waiting on, used to turn mutual waiting into `CIRCULAR_INSTANCE_ERROR` instead of a hang. */
   waits = new Map<ClassConstructor, Set<ClassConstructor>>();
+
+  /**
+   * Objects created during the request, as they enter `state`. Only the probe runner
+   * (`\@aom-js/router/testing`) sets the array: a regular request neither has the field nor pays for it.
+   */
+  declare created?: CreatedRecord[];
 
   // started computations of lazy context values (see common/lazy.ts): the rejection or the
   // result is remembered until the end of the request — a second access to the same field

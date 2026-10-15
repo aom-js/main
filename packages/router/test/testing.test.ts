@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   After,
   AomApi,
+  Args,
   Before,
   Bridge,
   Controller,
@@ -80,6 +81,39 @@ class Visit {
   }
 }
 
+/** Built for `Car`'s constructor: its record carries `via: Car`. */
+class Engine {
+  power = 100;
+}
+
+/** Pulled in by `Car`'s own hook: its record names the hook as `by`. */
+class Wheels {
+  count = 4;
+}
+
+@Controller()
+class Car {
+  wheels?: Wheels;
+
+  constructor(@This(Engine) public engine: Engine) {}
+
+  @OnInstance()
+  static async Mount(@This() self: Car, @This(Wheels) wheels: Wheels) {
+    self.wheels = wheels;
+  }
+}
+
+/** Keeps the context of the last run: whether it has `created` depends on who runs the route. */
+@Controller()
+class Spy {
+  static context?: object;
+
+  @Middleware()
+  static async Look(@Args(({ context }) => context) context: object) {
+    Spy.context = context;
+  }
+}
+
 @Controller()
 @Before(Guard.Check)
 class Items {
@@ -92,6 +126,12 @@ class Items {
   @Before(ItemID.PathID)
   static async One(@This(Item) item: Item) {
     return { id: item.id };
+  }
+
+  @Get("/garage")
+  @Before(Spy.Look)
+  static async Garage(@This(Car) car: Car) {
+    return { power: car.engine.power, wheels: car.wheels?.count };
   }
 
   /** Fails the way an error response of `@aom-js/api` does: an `Error` with a numeric `status`. */
@@ -290,6 +330,28 @@ class AnyOutcome {
   }
 }
 
+@Tester(Items.Garage)
+class Garage {
+  @Probe("the car is built with its engine and wheels")
+  static async car(@Observe(Car) car: Car, @Report() report: TesterReport) {
+    report.check("engine and wheels", car.engine.power === 100 && car.wheels?.count === 4);
+  }
+}
+
+@Tester(Items.Garage)
+class GarageRed {
+  @Probe("fails on purpose")
+  static async red(@Report() report: TesterReport) {
+    report.check("red", false);
+  }
+}
+
+/** The map as `Class by step [via Class]` lines: who created what, without asserting the order. */
+const createdOf = (report: TesterReport) =>
+  (report.created ?? []).map(
+    ({ target, by, via }) => `${target.name} by ${by}${via ? ` via ${via.name}` : ""}`,
+  );
+
 /** `ItemID.PathID` alone sets nothing: only its `@After(ItemParam.Assign)` does. */
 const pathID = { cursors: [ItemID.PathID] };
 
@@ -356,6 +418,53 @@ describe("runProbes", () => {
     expect(failed).toContain("expects the route to pass → route: route ended with error NO_TOKEN");
     expect(failed).not.toContain("does not care how the route ended → route");
     await expect(runProbes(AnyOutcome, router, authorized)).resolves.toBeInstanceOf(TesterReport);
+  });
+
+  it("the map of created objects names the step that asked, or the hook for what the hook pulled in", async () => {
+    const created = createdOf(await runProbes(Garage, router, authorized));
+
+    expect(created).toContain("Car by Items.Garage");
+    expect(created).toContain("Wheels by Car.Mount via Car");
+    // steps' own classes too; the probe class instance is not part of the route run
+    expect([...created].sort()).toEqual([
+      "Car by Items.Garage",
+      "Engine by Items.Garage via Car",
+      "Guard by Guard.Check",
+      "Items by Items.Garage",
+      "Spy by Spy.Look",
+      "Wheels by Car.Mount via Car",
+    ]);
+  });
+
+  it("an object built for another's constructor carries via", async () => {
+    const created = createdOf(await runProbes(Garage, router, authorized));
+
+    expect(created).toContain("Engine by Items.Garage via Car");
+  });
+
+  it("a preset instance is not in the map of created objects", async () => {
+    const store = Object.assign(new Store(), { items: ["x"] });
+
+    const report = await runProbes(Preset, router, { ...cheap, preset: [[Store, store]] });
+
+    expect(report.created).toBeDefined();
+    expect(report.created!.map(({ target }) => target)).not.toContain(Store);
+  });
+
+  it("only the probe runner keeps the map: route.apply() has no created field", async () => {
+    const route = router.routeOf(Items.Garage);
+
+    await route.apply({ ...authorized.values } as never);
+    expect(Spy.context && "created" in Spy.context).toBe(false);
+
+    await runProbes(Garage, router, authorized);
+    expect(Array.isArray((Spy.context as { created?: unknown }).created)).toBe(true);
+  });
+
+  it("the failure message lists the map of created objects of the input", async () => {
+    await expect(runProbes(GarageRed, router, authorized)).rejects.toThrow(
+      /created \(input \{\}\): [^\n]*Engine by Items\.Garage via Car/,
+    );
   });
 
   it("a preset instance cancels the creation and the hooks of its class", async () => {

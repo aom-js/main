@@ -2,7 +2,7 @@ import type { ClassConstructor } from "@aom-js/core";
 
 import type { Router } from "../classes";
 import { AomApi } from "../common/api";
-import { RxContext } from "../common/context";
+import { RxContext, type CreatedRecord } from "../common/context";
 import { AomCursor } from "../common/cursor";
 import { compilePath, PATH_PARAM } from "../common/path";
 import { plain, type AomRoute } from "../common/route";
@@ -193,9 +193,25 @@ function stepsOf(route: AomRoute, refs: HandlerFunction[] | undefined): AomCurso
 const envelope = (route: AomRoute, fn: HandlerFunction) =>
   new AomCursor(AomApi.instance(fn), route.endpoint.$, route.path, route.endpoint);
 
-function describe(route: AomRoute, report: TesterReport, routeErrors: string[]) {
+/** What one input's run left behind, for the failure message. */
+type RunTrace = { input: string; error?: string; created: CreatedRecord[] };
+
+/** At most this many created objects per input in the failure message. */
+const CREATED_SHOWN = 20;
+
+function createdLine({ input, created }: RunTrace) {
+  const shown = created
+    .slice(0, CREATED_SHOWN)
+    .map(({ target, by, via }) => `${target.name} by ${by}${via ? ` via ${via.name}` : ""}`);
+  const more = created.length > CREATED_SHOWN ? `, … ${created.length - CREATED_SHOWN} more` : "";
+  return `\n  created (input ${input}): ${shown.join(", ") || "nothing"}${more}`;
+}
+
+function describe(route: AomRoute, report: TesterReport, runs: RunTrace[]) {
   const lines = report.failures.map((f) => `  ✗ ${f.probe} → ${f.check}: ${f.error}`);
-  const tail = routeErrors.map((error) => `\n  route failed ${error}`).join("");
+  const tail = runs
+    .map((run) => (run.error ? `\n  route failed (input ${run.input}): ${run.error}` : "") + createdLine(run))
+    .join("");
   return `probes ${route.endpoint.$}: ${report.failures.length} of ${report.results.length} failed\n${lines.join("\n")}${tail}`;
 }
 
@@ -207,7 +223,7 @@ function describe(route: AomRoute, report: TesterReport, routeErrors: string[]) 
 export async function runProbes(tester: object, router: Router, options: RunOptions = {}): Promise<TesterReport> {
   const route = router.routeOf(endpointFor(tester));
   const report = new TesterReport();
-  const routeErrors: string[] = [];
+  const runs: RunTrace[] = [];
 
   for (const probes of group(tester, probesOf(tester))) {
     const values = request(options.values, probes[0]!.input);
@@ -218,16 +234,21 @@ export async function runProbes(tester: object, router: Router, options: RunOpti
     const context = new RxContext(values, route);
     for (const [cls, value] of options.preset ?? []) context.state.set(cls, value);
     context.state.set(TesterReport, report);
+    // the map of created objects: only this runner sets it — preset ones are already in state
+    context.created = [];
 
-    // every input sees the error of its own run only
+    // every input sees the error and the map of its own run only
+    const run: RunTrace = { input: JSON.stringify(probes[0]!.input ?? {}), created: [] };
+    runs.push(run);
     report.routeError = undefined;
     try {
       await context.run(steps);
     } catch (error) {
       report.routeError = error; // a failed route does not cancel the probes
-      const input = JSON.stringify(probes[0]!.input ?? {});
-      routeErrors.push(`(input ${input}): ${error instanceof Error ? error.message : String(error)}`);
+      run.error = error instanceof Error ? error.message : String(error);
     }
+    // a copy: what the probes themselves create (their own class) is not the route's
+    report.created = run.created = [...context.created];
 
     for (const method of probes) {
       report.probe = method.title;
@@ -255,7 +276,7 @@ export async function runProbes(tester: object, router: Router, options: RunOpti
     }
   }
 
-  if (report.failures.length) throw new Error(describe(route, report, routeErrors));
+  if (report.failures.length) throw new Error(describe(route, report, runs));
   return report;
 }
 

@@ -378,6 +378,7 @@ export class AomApi extends AomCore {
       // hooks passed — only now does the instance become shared: @State, @This and cursors
       // from other branches can see it. If a hook rejected, nothing goes into state
       context.state.set(target, instance);
+      context.created?.push({ target, by: cursor.$, via: cursor.creating.at(-1) });
       return instance;
     })().finally(() => context.inflight.delete(target));
 
