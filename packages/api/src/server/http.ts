@@ -1,7 +1,7 @@
 import http from "node:http";
 import { parse } from "node:url";
 import Stream, { Readable } from "node:stream";
-import { Router, AomRoute, lazy, type HTTPMethods } from "@aom-js/router";
+import { Router, AomRoute, compilePath, lazy, type HTTPMethods } from "@aom-js/router";
 
 //
 import {
@@ -39,7 +39,8 @@ class RouteMatcher {
   private routes: Map<string, AomRoute[]> = new Map();
   // per path template: the anchored pattern and the parameter names in capture-group order. Both
   // are derived from the template alone, so they are compiled once at registration instead of on
-  // every request; several methods sharing one path share one entry.
+  // every request; several methods sharing one path share one entry. The grammar is the router's
+  // (`compilePath`): the probe runner of `@aom-js/router/testing` checks addresses by the same rules.
   private compiled: Map<string, { pattern: RegExp; paramNames: string[] }> = new Map();
 
   addRoute(route: AomRoute) {
@@ -51,39 +52,9 @@ class RouteMatcher {
     }
 
     if (!this.compiled.has(route.path)) {
-      this.compiled.set(route.path, RouteMatcher.compilePath(route.path));
+      this.compiled.set(route.path, compilePath(route.path));
     }
     this.routes.get(method)!.push(route);
-  }
-
-  /**
-   * Compiles a path template into one anchored regexp plus the parameter names, in the order their
-   * capture groups appear: `/orgs/:orgId(\d+)/users/:userId` becomes
-   * `/^\/orgs\/(\d+)\/users\/([^\/]+)$/` and `["orgId", "userId"]`.
-   *
-   * A parameter's own validator pattern is inlined into the route pattern, so a value that does not
-   * satisfy it makes the whole path miss this route - there is deliberately no second per-parameter
-   * check after the match (the old one was unreachable, `KI-API-01`).
-   *
-   * Everything that is not a parameter is literal path text and gets escaped, so a route template
-   * stays a path rather than a regexp of its own: `/file.json` matches only `/file.json`, not
-   * `/fileXjson` (`KI-API-19`). A parameter's validator is the one place where regexp syntax is
-   * meant literally, and the alternation below lets that branch win before the escaping one.
-   */
-  private static compilePath(path: string): { pattern: RegExp; paramNames: string[] } {
-    const paramNames: string[] = [];
-    const pattern = path.replace(
-      /:([^/()]+)(?:\(([^)]+)\))?|[.*+?^${}()|[\]\\]/g,
-      (whole, name?: string, validator?: string) => {
-        // second branch: a regexp metacharacter sitting in the literal part of the path
-        if (name === undefined) return `\\${whole}`;
-
-        paramNames.push(name);
-        return `(${validator ?? "[^/]+"})`;
-      },
-    );
-
-    return { pattern: new RegExp(`^${pattern}$`), paramNames };
   }
 
   match(
