@@ -2,6 +2,7 @@ import { ExecutionPhase } from "@aom-js/core";
 import type { ClassConstructor } from "@aom-js/core";
 
 import { AomApi } from "../common/api";
+import type { AomRoute } from "../common/route";
 import type { HandlerFunction } from "../common/types";
 import { Args } from "../decorators/arguments";
 import type { HttpContextValues } from "../types";
@@ -80,21 +81,35 @@ export function Observe<T extends object>(target: ClassConstructor<T>) {
 /** The verdict collector of the current run. */
 export const Report = () => Observe(TesterReport);
 
+/** Which routes a probe class checks: one endpoint, or every route a predicate matches. */
+export type RouteMatch = { match: (route: AomRoute) => boolean };
+
 /**
- * Probe class → the endpoint it is bound to. The method reference itself is kept, not its name:
+ * Probe class → its target. For an endpoint the method reference itself is kept, not its name:
  * the runner finds the route by the identity of the `AomApi` object.
  */
-const testers = new WeakMap<object, HandlerFunction>();
+const testers = new WeakMap<object, { endpoint: HandlerFunction } | RouteMatch>();
 
-/** The endpoint a probe class is bound to by `\@Tester`, if it is one. */
-export const endpointOf = (tester: object) => testers.get(tester);
+/** The endpoint a probe class is bound to by `\@Tester(endpoint)`, if it is one. */
+export const endpointOf = (tester: object) => {
+  const target = testers.get(tester);
+  return target && "endpoint" in target ? target.endpoint : undefined;
+};
+
+/** The route predicate of a sweep probe class (`\@Tester({ match })`), if it is one. */
+export const matchOf = (tester: object) => {
+  const target = testers.get(tester);
+  return target && "match" in target ? target.match : undefined;
+};
 
 /** Whether `cls` is a probe class (`\@Tester`). The registry itself stays inside the package. */
 export const isTester = (cls: object): boolean => testers.has(cls);
 
 /**
  * Binds a probe class to an endpoint: `\@Tester(OrgRoles.Index)`. An endpoint identifies one
- * route of a router, so the runner finds the route itself — together with its address.
+ * route of a router, so the runner finds the route itself — together with its address. A sweep
+ * class takes a predicate instead, `\@Tester({ match: (route) => … })`, and runs with `runAcross`
+ * on every route it matches.
  *
  * A reference, not a string: a string would not survive a rename. A side benefit — the import
  * goes from the probe to the production class and never back.
@@ -102,6 +117,8 @@ export const isTester = (cls: object): boolean => testers.has(cls);
  * This is a class aggregator, a sibling of `\@Controller()` rather than its consumer: it runs the
  * deferred decorators itself and does not declare the class a controller.
  */
-export function Tester(endpoint: HandlerFunction): ClassDecorator {
-  return aggregate((cls) => testers.set(cls, endpoint));
+export function Tester(target: HandlerFunction | RouteMatch): ClassDecorator {
+  return aggregate((cls) =>
+    testers.set(cls, typeof target === "function" ? { endpoint: target } : { match: target.match }),
+  );
 }

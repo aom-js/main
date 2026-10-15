@@ -14,6 +14,7 @@ import {
   OnInstance,
   OpenApi,
   Params,
+  Query,
   Router,
   This,
 } from "@aom-js/router";
@@ -24,6 +25,8 @@ import {
   Tester,
   TesterReport,
   isTester,
+  routesOf,
+  runAcross,
   runProbes,
   runSteps,
 } from "@aom-js/router/testing";
@@ -620,3 +623,118 @@ describe("runSteps", () => {
     );
   });
 });
+
+// ─── runAcross: one probe class across many routes ──────────────────────────────────────
+
+/** Every GET route of the fixture under /items: Index, One, Pair, Garage, Gone. */
+const itemsGet = (route: { method: string; path: string }) => route.method === "get" && route.path.startsWith("/items");
+
+/** Values a route needs to reach its endpoint: a token, and the path parameters it has. */
+const itemValues = (route: { path: string }) => ({
+  headers: { authorization: "token" },
+  params: route.path.includes(":id") ? { id: "1" } : route.path.includes(":a") ? { a: "1", b: "2" } : {},
+});
+
+let sweepRuns = 0;
+
+@Tester({ match: itemsGet })
+class Sweep {
+  @Probe("the route ran up to its endpoint")
+  static async ran(@Report() report: TesterReport) {
+    sweepRuns += 1;
+    report.check("ran", true);
+  }
+}
+
+/** `any`: the outcome is checked by the probe itself — an error must belong to its own route. */
+@Tester({ match: itemsGet })
+class SweepErrors {
+  @Probe("sees only the error of its own route", undefined, { route: "any" })
+  static async own(@Report() report: TesterReport) {
+    report.check("no route error", report.routeError === undefined);
+  }
+}
+
+/** Fails on every route with a distinct check per value set: the message must stay bounded. */
+@Tester({ match: itemsGet })
+class SweepRed {
+  @Probe("fails everywhere")
+  static async red(@Query() query: Record<string, string>, @Report() report: TesterReport) {
+    report.check(`value ${query.n}`, false);
+  }
+}
+
+const gone = new Map([[Items.Gone, "answers 404 on purpose"]]);
+
+describe("runAcross", () => {
+  it("a predicate class walks every matched route, and every result names its route", async () => {
+    sweepRuns = 0;
+    const report = await runAcross(Sweep, router, { values: itemValues, skip: gone });
+
+    expect(sweepRuns).toBe(4);
+    expect(report.results.map((r) => r.route).sort()).toEqual([
+      "GET /items",
+      "GET /items/garage",
+      "GET /items/id-:id([0-9]+)",
+      "GET /items/pair/:a([0-9-]+)-:b",
+    ]);
+  });
+
+  it("the route error of one route is not seen by the probes of another", async () => {
+    const failed = String(await runAcross(SweepErrors, router, { values: itemValues }).catch((error: Error) => error));
+
+    expect(failed).toContain("1 of 5 failed on 1 route");
+    expect(failed).toContain("✗ sees only the error of its own route → no route error: condition not met\n      GET /items/gone");
+  });
+
+  it("drift: a matched route with neither values nor a skip is a loud error before any run", async () => {
+    sweepRuns = 0;
+    const values = (route: { path: string }) => (route.path === "/items/garage" ? undefined : itemValues(route));
+
+    await expect(runAcross(Sweep, router, { values, skip: gone })).rejects.toThrow(
+      "1 matched route has no values and no skip: GET /items/garage",
+    );
+    expect(sweepRuns).toBe(0);
+  });
+
+  it("a skip for a route the class does not match is stale and refused", async () => {
+    await expect(
+      runAcross(Sweep, router, { values: itemValues, skip: new Map([...gone, [Lonely.Index, "not under /items"]]) }),
+    ).rejects.toThrow("skip names Lonely.Index, which the class does not match");
+  });
+
+  it("runProbes refuses a predicate class, runAcross refuses an endpoint class", async () => {
+    await expect(runProbes(Sweep, router)).rejects.toThrow("has a route predicate — run it with runAcross");
+    await expect(runAcross(Loaded, router, { values: itemValues })).rejects.toThrow(
+      "is bound to one endpoint — run it with runProbes",
+    );
+  });
+
+  it("routesOf: the endpoint route of a point class, the matched routes of a sweep class", () => {
+    expect(routesOf(Loaded, router)).toEqual([router.routeOf(Items.Index)]);
+    expect(routesOf(Sweep, [router]).map(({ path }) => path).sort()).toEqual([
+      "/items",
+      "/items/garage",
+      "/items/gone",
+      "/items/id-:id([0-9]+)",
+      "/items/pair/:a([0-9-]+)-:b",
+    ]);
+    expect(routesOf(Stray, router)).toEqual([]);
+  });
+
+  it("the failure message is grouped by probe and check, routes listed under each, and bounded", async () => {
+    const values = (route: { path: string }) =>
+      Array.from({ length: 30 }, (_, n) => ({ ...itemValues(route), query: { n: String(n) } }));
+
+    const failed = String(await runAcross(SweepRed, router, { values, skip: gone }).catch((error: Error) => error));
+    const lines = failed.split("\n");
+
+    expect(lines[0]).toBe("Error: probes SweepRed: 120 of 120 failed on 4 routes");
+    expect(lines[1]).toBe("  ✗ fails everywhere → value 0: condition not met");
+    // routes in the router's own order
+    expect(lines[2]).toBe("      GET /items, GET /items/id-:id([0-9]+), GET /items/garage, GET /items/pair/:a([0-9-]+)-:b");
+    expect(lines.at(-1)).toBe("  … 10 more failing checks");
+    expect(lines.length).toBeLessThanOrEqual(1 + 20 * 2 + 1);
+  });
+});
+

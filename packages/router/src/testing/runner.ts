@@ -8,7 +8,7 @@ import { compilePath, PATH_PARAM } from "../common/path";
 import { plain, type AomRoute } from "../common/route";
 import type { HandlerFunction } from "../common/types";
 import type { HttpContextValues } from "../types";
-import { endpointOf, probeMeta, type RouteOutcome } from "./decorators";
+import { endpointOf, matchOf, probeMeta, type RouteOutcome } from "./decorators";
 import { TesterReport } from "./report";
 
 export type RunOptions = {
@@ -53,6 +53,9 @@ function expected(route: RouteOutcome, error: unknown): boolean {
 /** The endpoint of a probe class; without `@Tester` its parameters would silently be `undefined`. */
 function endpointFor(tester: object): HandlerFunction {
   const endpoint = endpointOf(tester);
+  if (!endpoint && matchOf(tester)) {
+    throw new Error(`probe class ${nameOf(tester)} has a route predicate — run it with runAcross`);
+  }
   if (!endpoint) {
     throw new Error(`probe class ${nameOf(tester)}: no @Tester() — probe parameters would arrive undefined`);
   }
@@ -225,10 +228,33 @@ export async function runProbes(tester: object, router: Router, options: RunOpti
   const report = new TesterReport();
   const runs: RunTrace[] = [];
 
-  for (const probes of group(tester, probesOf(tester))) {
+  await probeRoute(route, group(tester, probesOf(tester)), report, runs, {
+    values: options.values,
+    steps: () => stepsOf(route, options.cursors),
+    preset: options.preset,
+  });
+
+  if (report.failures.length) throw new Error(describe(route, report, runs));
+  return report;
+}
+
+/**
+ * The probes of one class on one route: a fresh request context per distinct input, the route's
+ * steps, then every probe of that input in the same context, outside the route. Results are
+ * stamped with the route; the error and the created map of one run are never seen by another.
+ */
+async function probeRoute(
+  route: AomRoute,
+  groups: ProbeMethod[][],
+  report: TesterReport,
+  runs: RunTrace[],
+  options: { values?: Partial<HttpContextValues>; steps: () => AomCursor[]; preset?: RunOptions["preset"] },
+) {
+  report.route = where(route);
+  for (const probes of groups) {
     const values = request(options.values, probes[0]!.input);
     address(route, values.params as Record<string, unknown>);
-    const steps = stepsOf(route, options.cursors);
+    const steps = options.steps();
 
     // the runner owns the context: preset and report are in the state before the first step
     const context = new RxContext(values, route);
@@ -275,8 +301,104 @@ export async function runProbes(tester: object, router: Router, options: RunOpti
       }
     }
   }
+}
 
-  if (report.failures.length) throw new Error(describe(route, report, runs));
+/** Every route of `routers` a probe class checks: its endpoint's route, or the routes its predicate matches. */
+export function routesOf(tester: object, routers: Router | Router[]): AomRoute[] {
+  const all = [routers].flat().flatMap((router) => router.routes);
+  const endpoint = endpointOf(tester);
+  if (endpoint) {
+    const $ = AomApi.instance(endpoint);
+    return all.filter((route) => route.endpoint.$ === $);
+  }
+  const match = matchOf(tester);
+  if (!match) throw new Error(`probe class ${nameOf(tester)}: no @Tester() — it checks no route`);
+  return all.filter((route) => match(route));
+}
+
+export type AcrossOptions = {
+  /**
+   * Request values each matched route is run with — one set or several (a run per set). A route
+   * the class matches without values and without a `skip` reason is drift: a loud error.
+   */
+  values: (route: AomRoute) => Partial<HttpContextValues> | Partial<HttpContextValues>[] | undefined;
+  /** The route's own cursors to run; the whole chain by default. */
+  steps?: (route: AomRoute) => AomCursor[];
+  /** Instances put into the state before every run, as in `runProbes`. */
+  preset?: RunOptions["preset"];
+  /** Endpoints the class matches but must not run, with the reason; a stale entry is an error. */
+  skip?: Map<HandlerFunction, string>;
+};
+
+/** At most this many failing checks, and this many routes under each, in the `runAcross` message. */
+const CHECKS_SHOWN = 20;
+const ROUTES_SHOWN = 10;
+
+/** Failures grouped «probe → check → routes»: one line per check, its routes under it; bounded. */
+function grouped(tester: object, report: TesterReport) {
+  const groups = new Map<string, Set<string>>();
+  for (const f of report.failures) {
+    const key = `  ✗ ${f.probe} → ${f.check}: ${f.error}`;
+    groups.set(key, (groups.get(key) ?? new Set()).add(f.route ?? ""));
+  }
+  const routes = new Set(report.failures.map((f) => f.route));
+  const head = `probes ${nameOf(tester)}: ${report.failures.length} of ${report.results.length} failed on ${routes.size} route${routes.size === 1 ? "" : "s"}`;
+  const lines = [...groups].slice(0, CHECKS_SHOWN).flatMap(([check, on]) => {
+    const list = [...on];
+    const more = list.length > ROUTES_SHOWN ? `, … ${list.length - ROUTES_SHOWN} more` : "";
+    return [check, `      ${list.slice(0, ROUTES_SHOWN).join(", ")}${more}`];
+  });
+  const rest = groups.size > CHECKS_SHOWN ? [`  … ${groups.size - CHECKS_SHOWN} more failing checks`] : [];
+  return [head, ...lines, ...rest].join("\n");
+}
+
+/**
+ * Runs a sweep probe class (`\@Tester({ match })`) on every route of `routers` it matches: each
+ * route with its own values (several sets — several runs), in a context of its own, so an error
+ * of one route is never seen by the probes of another. Drift — a matched route with neither
+ * values nor a skip reason — and a stale skip are errors before any run. Throws if any probe is
+ * red, with failures grouped by probe and check; otherwise returns the report (results carry `route`).
+ */
+export async function runAcross(
+  tester: object,
+  routers: Router | Router[],
+  options: AcrossOptions,
+): Promise<TesterReport> {
+  if (endpointOf(tester)) {
+    throw new Error(`probe class ${nameOf(tester)} is bound to one endpoint — run it with runProbes`);
+  }
+  const routes = routesOf(tester, routers);
+  const groups = group(tester, probesOf(tester));
+
+  const skip = new Map([...(options.skip ?? [])].map(([endpoint, reason]) => [AomApi.instance(endpoint), reason]));
+  const stale = [...skip.keys()].filter(($) => !routes.some((route) => route.endpoint.$ === $));
+  if (stale.length) {
+    throw new Error(`probes ${nameOf(tester)}: skip names ${stale.join(", ")}, which the class does not match`);
+  }
+
+  const plan = routes
+    .filter((route) => !skip.has(route.endpoint.$))
+    .map((route) => ({ route, values: options.values(route) }));
+  const drift = plan.filter(({ values }) => values === undefined).map(({ route }) => where(route));
+  if (drift.length) {
+    const what = drift.length === 1 ? "1 matched route has" : `${drift.length} matched routes have`;
+    throw new Error(`probes ${nameOf(tester)}: ${what} no values and no skip: ${drift.join(", ")}`);
+  }
+
+  const report = new TesterReport();
+  for (const { route, values } of plan) {
+    const steps = () => {
+      const own = options.steps?.(route) ?? route.cursors;
+      const foreign = own.find((step) => !route.cursors.includes(step));
+      if (foreign) throw new Error(`${where(route)}: ${foreign.$} is not a step of this route`);
+      return route.cursors.filter((cursor) => own.includes(cursor));
+    };
+    for (const set of [values!].flat()) {
+      await probeRoute(route, groups, report, [], { values: set, steps, preset: options.preset });
+    }
+  }
+
+  if (report.failures.length) throw new Error(grouped(tester, report));
   return report;
 }
 

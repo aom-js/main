@@ -1,6 +1,7 @@
 import type { CreatedRecord } from "../common/context";
 
-export type CheckResult = { probe: string; check: string; ok: boolean; error?: string };
+/** One verdict; `route` — `METHOD /path` of the run it was made in. */
+export type CheckResult = { probe: string; check: string; ok: boolean; error?: string; route?: string };
 
 /**
  * Collects the verdicts of one run. Brings no assertion library of its own — it takes a ready
@@ -17,6 +18,9 @@ export class TesterReport {
 
   /** Title of the current probe; set by the runner before each one. */
   probe = "";
+
+  /** `METHOD /path` of the current run; set by the runner before each route. */
+  route = "";
 
   /** How many assertions were made in total. Zero for one probe fails that probe. */
   private counter = 0;
@@ -45,19 +49,21 @@ export class TesterReport {
         check: name,
         ok: assertion,
         ...(assertion ? {} : { error: "condition not met" }),
+        ...this.where(),
       });
       return this;
     }
 
     try {
       assertion();
-      this.results.push({ probe: this.probe, check: name, ok: true });
+      this.results.push({ probe: this.probe, check: name, ok: true, ...this.where() });
     } catch (error) {
       this.results.push({
         probe: this.probe,
         check: name,
         ok: false,
         error: error instanceof Error ? error.message : String(error),
+        ...this.where(),
       });
     }
     return this;
@@ -65,6 +71,10 @@ export class TesterReport {
 
   /** A record that the probe itself broke the rules — not about the code under check. */
   violation(probe: string, what: string, error: string) {
-    this.results.push({ probe, check: what, ok: false, error });
+    this.results.push({ probe, check: what, ok: false, error, ...this.where() });
+  }
+
+  private where() {
+    return this.route ? { route: this.route } : {};
   }
 }
