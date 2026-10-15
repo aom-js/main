@@ -12,7 +12,7 @@
 
 ## Публичный API
 
-Экспорт — `src/index.ts`: `decorators`, `specials`, `types`, `classes`, `common/openapi`, `common/classes`, `common/types`, `common/lazy`. Файлы `common/references.ts` и `constants/errors.ts` в реэкспорт не входят — контейнеры ссылок и коды ошибок доступны только как типы в сигнатурах и как строки в сообщениях `Error`.
+Экспорт — `src/index.ts`: `decorators`, `specials`, `types`, `classes`, `common/openapi`, `common/classes`, `common/types`, `common/lazy`, `compilePath` из `common/path`. Второй путь пакета — `@aom-js/router/testing` (`src/testing/index.ts`): зонды, §«Зонды». Файлы `common/references.ts` и `constants/errors.ts` в реэкспорт не входят — контейнеры ссылок и коды ошибок доступны только как типы в сигнатурах и как строки в сообщениях `Error`.
 
 Число в колонке «Используется приложением» — количество файлов `test/src`, импортирующих символ из `"@aom-js/router"` (не количество применений: например, у `This` 154 импорта при 646 применениях `@This(`); после числа — путь к файлу-образцу со строкой импорта.
 
@@ -26,6 +26,7 @@
 | `AomCursor`                                               | `new AomCursor($: AomApi, origin: AomApi, prefix: string, endpoint?: AomEndpoint)`; `$`, `origin`, `prefix`, `endpoint`, `index`; `via?`, `viaGroup?`; `parameters(): AomCursorParameter[]`; `toJSON(created?): AomCursorJSON` | Единица исполнения цепочки; при создании перепривязывается и реализует `delayStack`                                                                                                                                                                            | да, как тип (`test/src/modules/tickets/api/routes/tickets/init/controllers/value.ts`)           |
 | `AomRoute`                                                | `router; endpoint; path; method; markers: MarkerType; cursors: AomCursor[]; apply(context: HttpContextValues): Promise<any>`; `toJSON(): AomRouteJSON` | Готовый маршрут                                                                                                                                                                                                                                                | да (`test/src/common/controllers/protected.ts` (`AomRoute`))                                    |
 | `TagsRules`                                               | `enum { IGNORE, MERGE, REPLACE }`                                                                                                                        | Правило слияния тегов                                                                                                                                                                                                                                          | нет                                                                                             |
+| `compilePath`                                             | `compilePath(path: string): { pattern: RegExp; paramNames: string[] }`                                                                                   | Грамматика адреса: шаблон пути → якорный regexp и имена параметров в порядке групп; литерал экранируется (`KI-API-19`), валидатор `:name(…)` встраивается (`KI-API-01`). Одна на сервер `@aom-js/api` и прогонщик зондов (`packages/router/src/common/path.ts`) | нет (через `Server`; `test/test/integration/late-writes.test.ts`)                               |
 | `RxContext`                                               | `values; state: ClassInstanceMap; route; run(cursors); value(key)`                                                                                       | Контекст одного исполнения маршрута: `state` — только проверенные хуками инстансы; `pending`/`inflight`/`waits` — служебные карты идущих созданий; `value(key)` разворачивает ленивое поле `values`. **Не экспортируется** (`common/classes.ts` (`RxContext`)) | нет                                                                                             |
 | `FwdContainer` / `ThisRefContainer` / `RouteRefContainer` | `exec(constructor?)`                                                                                                                                     | Контейнеры отложенных ссылок. **Не экспортируются** (`common/references.ts` (`FwdContainer`, `ThisRefContainer`, `RouteRefContainer`)), создаются фабриками                                                                                                    | нет                                                                                             |
 
@@ -105,6 +106,9 @@
 | `src/classes/router.ts`               | Обход дерева контроллеров по бриджам, сборка `routes`/`sockets`, регистрация в OpenAPI | `Router`, приватный `build`                                                                                         |
 | `src/classes/openapi.ts`              | Накопление `paths`/`tags`/`securitySchemes`/`schemas` по курсорам, `toJSON()`          | `OpenApi`, `registerPath`, `storeSecurityScheme`, `schemaExtract`                                                   |
 | `src/common/classes.ts`               | Модель пакета: мета-класс, курсор, маршрут, контекст исполнения                        | `AomApi`, `AomCursor`, `AomRoute`, `RxContext`, `TagsRules`, `AomApiElement`, `AomHttpOpenApi`, `AomHttpParameters` |
+| `src/common/route.ts`                 | Маршрут и обход раскладки курсоров                                                     | `AomRoute`, `plain` (функция модуля, не экспортируется из пакета)                                                   |
+| `src/common/path.ts`                  | Грамматика адреса                                                                      | `compilePath` (публичный), `PATH_PARAM` (внутренний)                                                                |
+| `src/testing/*.ts`                    | Путь `@aom-js/router/testing`: зонды                                                   | `Tester`, `Probe`, `Observe`, `Report`, `isTester`, `TesterReport`, `runProbes`, `runSteps`                         |
 | `src/common/references.ts`            | Контейнеры отложенных ссылок                                                           | `RefContainer` (приватный), `FwdContainer`, `ThisRefContainer`, `RouteRefContainer`                                 |
 | `src/common/lazy.ts`                  | Ленивая обёртка для полей `HttpContextValues`                                          | `LazyValue`, `lazy`, `Lazy<T>`                                                                                      |
 | `src/common/openapi.ts`               | Типы деклараций OpenAPI (схема — класс, контейнер ссылки или объект)                   | `OpenApiPossibleSchema`, `OpenApiResponse`, `OpenApiPathParameters`                                                 |
@@ -194,41 +198,23 @@ Evidence: `packages/router/src/decorators/middlewares/index.ts`; `packages/route
 
 Было (дефект, `KI-ROUTER-03`): объекты курсоров классового уровня были **общими** для всех маршрутов контроллера и его бриджей — `AomRoute` мутировал их (`endpoint`, `index`), и `RouteRef` внутри такого курсора после сборки нескольких маршрутов указывал на последний собранный, а не на «свой». Исправлено: `AomRoute` создаёт для каждого маршрута собственные курсоры поверх общих, не трогая исходные (`packages/router/src/common/route.ts` (`AomRoute`), комментарий на месте). Курсор class-level middleware, попавший в `Router.build` без эндпоинта (например, через `@DelayRefStack(RouteRef(...))`), при попытке реализовать `RouteRef` в `realizeDelay` теперь получает управляемую ошибку `ROUTE_REF_DELAY_ERROR`, а не `TypeError` — см. §«Отложенные ссылки».
 
-### Раскладка курсоров и порядок исполнения (`AomRoute.plain`)
+### Раскладка курсоров и порядок исполнения (`plain`)
 
 Конструктор маршрута пересоздаёт полученные курсоры классового уровня под свой `endpoint` (не мутируя исходные — `KI-ROUTER-03`), добавляет курсор самого эндпоинта последним и раскладывает всё рекурсивно; затем нумерует курсоры и на каждом вызывает объявленные маркеры (`packages/router/src/common/route.ts` (`AomRoute`)).
 
-`packages/router/src/common/route.ts` (`AomRoute.plain`)
+Раскладку делает функция модуля `plain` (`packages/router/src/common/route.ts` (`plain`)) — до 2026-10-15 приватный метод `AomRoute.plain`. Из пакета она не экспортируется; кроме конструктора, её зовёт только прогонщик зондов, чтобы развернуть один шаг (§«Зонды»).
 
 ```ts
-  private plain(cursors: AomCursor[]) {
-    cursors.forEach((cursor) => {
-      // перепривязка контекста к потомку выполняется в конструкторе AomCursor (resolveFor)
-
-      // сначала загоним в качестве значений собственные миддлвари текущего курсора
-      this.plain(
-        cursor.$.element.pre_middlewares.map(
-          (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint),
-        ),
-      );
-
-      // затем поместим сам курсор, который может быть как миддлварей так и
-      this.cursors.push(cursor);
-
-      this.plain(
-        cursor.$.element.post_middlewares.map(
-          (middleware) => new AomCursor(middleware, cursor.$, cursor.prefix, cursor.endpoint),
-        ),
-      );
-
-      // если у текущего курсора есть nextpoint, то рекурсивно обработаем его, включив вероятные миддлвари и nextpoint-ы
-      if (cursor.$.element.nextpoint) {
-        this.plain([
-          new AomCursor(cursor.$.element.nextpoint, cursor.$, cursor.prefix, cursor.endpoint),
-        ]);
-      }
-    });
-  }
+export function plain(cursors: AomCursor[], into: AomCursor[] = []): AomCursor[] {
+  cursors.forEach((cursor) => {
+    plain(cursor.$.element.pre_middlewares.map(/* new AomCursor(..), via: Before */), into);
+    into.push(cursor);
+    plain(cursor.$.element.post_middlewares.map(/* new AomCursor(..), via: After */), into);
+    if (cursor.$.element.nextpoint) plain([/* new AomCursor(nextpoint, ..), via: Next */], into);
+  });
+  return into;
+}
+// псевдокод: map-функции сокращены
 ```
 
 Итоговый порядок курсоров одного маршрута — фиксированный:
@@ -591,10 +577,10 @@ Evidence: `packages/router/src/decorators/arguments/index.ts` (`Query`, `Body`, 
 | -------------- | ------------------------------------------------------------------------- |
 | `class-before` | `Router.build`: классовый `@Before`, в том числе пришедший через `@Bridge` |
 | `class-after`  | `Router.build`: классовый `@After` — встаёт **до** эндпоинта              |
-| `before`       | `AomRoute.plain`: методный `@Before` эндпоинта или шага                   |
+| `before`       | `plain`: методный `@Before` эндпоинта или шага                   |
 | `endpoint`     | конструктор `AomRoute`: сам обработчик                                    |
-| `after`        | `AomRoute.plain`: методный `@After`                                       |
-| `next`         | `AomRoute.plain`: раскрытие `@Next`; `viaGroup` — `AomApi.toString` шага, чей `@Next` раскрыт |
+| `after`        | `plain`: методный `@After`                                       |
+| `next`         | `plain`: раскрытие `@Next`; `viaGroup` — `AomApi.toString` шага, чей `@Next` раскрыт |
 
 Курсоры, созданные на запросе (`@Run()`-`next()`, хуки `@OnInstance`), `via` не имеют: содержимое подцепочек `@Run` проекцией не покрывается.
 
@@ -743,9 +729,67 @@ export default new Server(settings, router, i18nizer);
 
 Правила применения роутера на стороне приложения — `test/docs/principles.md` §«Композиция через декораторы», §«DI через @This и жизненный цикл инстансов»; трассировки конкретных запросов — `test/docs/request-lifecycle.md`.
 
+## Зонды (`@aom-js/router/testing`)
+
+Зонд — статический метод, который выполняется **в контексте запроса, но вне его маршрута**. Роутер разрешает ему аргументы и создаёт инстансы тем же механизмом, что и шагам маршрута, поэтому зонду видно всё, что запрос накопил: инстансы контроллеров, условия шеллов, собранные запросы. Шагом маршрута зонд не является: в `route.cursors` не входит и на сборку маршрутов не влияет. Своего механизма исполнения у компонента нет — контекст `RxContext` создаёт прогонщик внутри пакета, наружу ни контекст, ни новый метод `AomRoute` не уходят (решение владельца 2026-10-15, задача `aom-main-oiy`). Обоснование приёма — `test/docs/probes.md`, `test/docs/testing-invariants.md` §7. Код — `packages/router/src/testing/`, самопроверки — `packages/router/test/testing.test.ts`.
+
+Зонд нужен тогда и только тогда, когда проверяемое существует только во время запроса (что накопили шаги, включая хуки `@OnInstance()`); порядок шагов и маркеры проверяются по `router.routes`, SQL шелла — снапшотом. Зонд вызывается **из** обычного теста.
+
+```ts
+// test/src/modules/orgs/api/routes/roles/init/probes.ts
+import { Probe, Observe, Report, Tester, type TesterReport } from "@aom-js/router/testing";
+
+@Tester(OrgRoles.Index)
+export class RolesIndexProbes {
+  @Probe("список ролей сужен по текущей организации")
+  static async scoping(
+    @Observe(RolesShells) shells: RolesShells,
+    @Observe(CurrentOrg) { org }: CurrentOrg,
+    @Report() report: TesterReport,
+  ) {
+    const sql = shells.roles.prepare().getFormattedQuery();
+    report.check(`в запросе есть id текущей организации ${org.id}`, sql.includes(org.id));
+  }
+}
+
+// probes.test.ts рядом
+const report = await runProbes(RolesIndexProbes, router, {
+  cursors: [RolesData.PrepareQuery],
+  preset: [[CurrentOrg, { org: { id: CURRENT_ORG_ID } }]],
+});
+```
+
+| Имя | Смысл |
+|---|---|
+| `@Tester(endpoint)` | привязывает класс зондов к эндпоинту ссылкой `Класс.метод`; агрегатор класса, брат `@Controller()` (выполняет `$._.apply()`), но контроллером класс не делает |
+| `@Probe(title, input?)` | метод — зонд; `input` — частичные `HttpContextValues` поверх значений прогона; зонды с разным входом идут разными прогонами |
+| `@Observe(Class)` | инстанс из `state`; в отличие от `@This` **не создаёт** — отсутствие роняет зонд («шаг не выполнялся») |
+| `@Report()` | `TesterReport`: `check(name, boolean \| () => void)`, `results`, `failures`, `checks`, `routeError` |
+| `isTester(cls)` | класс ли это зондов — для проверки «ни один класс зондов не стоит в маршруте»; сам реестр наружу не отдаётся |
+| `runProbes(tester, router, options?)` | маршрут — `router.routeOf(endpoint)`; на каждый вход — свежий `RxContext`, `preset` и отчёт кладутся в `state` до прогона, шаги — `context.run(steps)` (ошибка → `report.routeError`, зонды выполняются всё равно), каждый зонд — отдельным `context.run` на том же контексте; бросает, если есть красные |
+| `runSteps(route, values?, steps = route.cursors)` | выбранные шаги маршрута в свежем контексте и в порядке маршрута, без записи в `route.cursors`; шаг обязан быть курсором этого маршрута; результат и ошибка — как у `route.apply()` (сквозные проверки: `test/test/integration/late-writes.test.ts`) |
+
+Опции `runProbes`: `values` (по полям накладываются на пустые значения той же формы, что собирает сервер; заголовки прогона и зонда складываются), `cursors` (шаги ссылками; каждый разворачивается со своими `@Before/@After/@Next` той же `plain` и берётся во всех местах маршрута; классовые хуки так не подтягиваются — их называют явно), `preset` (`[Класс, инстанс][]`; `instanceWithHooks` сначала смотрит в `state`, поэтому подстановка отменяет и создание, и хуки — так частичный прогон обходится без базы).
+
+Адрес: значения `params` подставляются в шаблон пути по `PATH_PARAM`, готовый адрес сверяется с `compilePath(route.path)` — теми же правилами, по которым сервер довёл бы запрос до маршрута. Прогоны реентерабельны: ни один не пишет в `route.cursors`.
+
+| Сообщение | Причина |
+|---|---|
+| `no @Tester() — probe parameters would arrive undefined` | класс не прошёл через агрегатор |
+| `@Observe(X): no instance in the request state` | маршрут не создал `X`: шаг не выполнялся, срез узкий или защита снята |
+| `probe made no assertions` | ранний `return` или ветка без `check` |
+| `probe returned a value` | в теле зонда `return` со значением |
+| `has no @Probe() methods` | в классе нет зондов |
+| `ROUTE_OF_NOT_FOUND_ERROR` / `ROUTE_OF_AMBIGUOUS_ERROR` | эндпоинта нет в этом роутере / его выполняют несколько маршрутов |
+| `path parameter "x" is not set` / `the route has no path parameters x` | недостающий / лишний параметр адреса |
+| `… does not match the route path` | сервер не довёл бы такой адрес до этого маршрута |
+| `X is not a step of route …` / `… is not a step of this route` | в `cursors` шаг, которого маршрут не выполняет / в `runSteps` курсор другого маршрута |
+
+Изоляция держится на направлении импорта (`test/test/probes-isolation.test.ts`): `@aom-js/router/testing` импортируют только файлы зондов. Не входит (отдельные задачи): сквозной зонд по предикату, карта созданных инстансов `RxContext.created`, проверка покрытия.
+
 ## Сборка и потребление
 
-Сборка: `bun run build:router` в корне ядра (то же, что `bun --filter @aom-js/router build`). Скрипт чистит `dist/`, запускает `tsc` трижды — `tsconfig.build.json` (CommonJS → `dist/cjs`), `tsconfig.build.mjs.json` (ESM → `dist/mjs`), `tsconfig.build.types.json` (только декларации → `dist/types`) — и завершается `node ../../scripts/post-build.js`, который дописывает расширения относительным импортам и кладёт `dist/cjs/package.json`. Сам `package.json` пакета генерируется `main/scripts/prebuild.js`: скрипт мержит `package.version.json` + `package.src.json` пакета с общим `scripts/jsons/package.dist.json` (`scripts/files.js:3`, `scripts/prebuild.js:19-27`), поэтому `main: "./src/index.ts"` из `package.src.json` в итоговом манифесте перекрывается `main: "./dist/cjs/index.js"` из dist-манифеста. Править нужно `package.src.json` и `scripts/jsons`, а не сгенерированный `package.json`.
+Сборка: `bun run build:router` в корне ядра (то же, что `bun --filter @aom-js/router build`). Скрипт чистит `dist/`, запускает `tsc` трижды — `tsconfig.build.json` (CommonJS → `dist/cjs`), `tsconfig.build.mjs.json` (ESM → `dist/mjs`), `tsconfig.build.types.json` (только декларации → `dist/types`) — и завершается `node ../../scripts/post-build.js`, который дописывает расширения относительным импортам и кладёт `dist/cjs/package.json`. Сам `package.json` пакета генерируется `main/scripts/prebuild.js`: скрипт мержит `package.version.json` + `package.src.json` пакета с общим `scripts/jsons/package.dist.json` (`scripts/files.js:3`, `scripts/prebuild.js:19-27`), поэтому `main: "./src/index.ts"` из `package.src.json` в итоговом манифесте перекрывается `main: "./dist/cjs/index.js"` из dist-манифеста. Править нужно `package.src.json` и `scripts/jsons`, а не сгенерированный `package.json`. `exports` сливаются: `"."` задаёт шаблон, `package.src.json` router добавляет `"./testing"` (`dist/{mjs,cjs,types}/testing/index.*`); `smoke.js` грузит каждую точку входа через `require()` и `import()`, алиас `@aom-js/router/testing` в `main/vitest.config.ts` стоит раньше корневого.
 
 Приложение подключает пакет симлинком `test/node_modules/@aom-js/router → main/packages/router` и импортирует **собранный** `dist`, поэтому правки `src` не видны приложению без `bun run build`. Тесты ядра, наоборот, идут по `src` через алиасы `main/vitest.config.ts` (блок `resolve.alias`). На диске `dist` собран 25 августа и уже содержит незакоммиченные правки (см. блок `✏️` выше), `src/common/classes.ts` датирован 15 августа — пересборка не требуется. Полная схема сборки монорепо и dist-потребления — `main/docs/architecture.md`.
 
@@ -764,6 +808,8 @@ export default new Server(settings, router, i18nizer);
 | `test/lazy-values.test.ts`            | Ленивые значения контекста: одна фабрика на все обращения `@Body` в запросе (несколько параметров и отдельный курсор `@Before`); фабрика не вызывается, если поле не запрошено; отказ (`reject` и синхронный `throw`) отдаётся всем обращениям и не перезапускает фабрику; готовое (не ленивое) значение работает как раньше                                                                                                                                                                                                                                                                                                                      |
 | `test/cursor-kinds.test.ts` | Словари проекции — ровно значения спеки; `@CursorKind` пишет вид в мета-инстанс, наследник получает его без ошибки; значение вне словаря и повтор — `CURSOR_KIND_DEFINE_ERROR` |
 | `test/parameter-descriptors.test.ts` | Дескрипторы 16 встроенных декораторов аргументов и `{kind: "other"}` у `Args(h)`; `resolveTarget` для класса, `FwdRef`, `ThisRef` на унаследованном шаге, `RouteRef` с эндпоинтом и без; цель `cursor.parameters()` равна внедрённой на исполнении; `RouteRef` в `@DelayRefStack` — только на эндпоинте |
+| `test/path.test.ts` | `compilePath`: имена параметров в порядке групп, валидатор в шаблоне, литерал экранирован (`KI-API-19`) |
+| `test/testing.test.ts` | Зонды на роутере-фикстуре: полный и частичный прогон, `preset` отменяет создание и хуки, упавший маршрут не отменяет зонды, `route.cursors` не пишется ни одним прогоном (в том числе одновременными), развёртка шага со своим `@After`, проверка адреса грамматикой сервера, все отказы компонента; `runSteps` — выбранные шаги, чужой курсор, неверный адрес |
 | `test/route-projection.test.ts` | `via`/`viaGroup` всех 6 видов; `Router.routeOf` и обе ошибки, поиск без регистрации мета-инстанса; форма и детерминизм `toJSON`; параметры (`this`, `values` с полями из `$.openApi` и схемы тела), `creates`/`hooks` |
 
 ### Пробелы
