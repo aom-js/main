@@ -132,6 +132,31 @@ describe("BaseAccessController.CheckLayerPass (KI-API-13)", () => {
   });
 });
 
+describe("BaseAccessController.generateAccessMap: moduleIdent (KI-ORGS-42)", () => {
+  class TestAccess extends BaseAccessController {}
+  const grants = (moduleIdent?: string) => ({
+    fullAccess: false,
+    modulesAccess: [{ ...(moduleIdent ? { moduleIdent } : {}), elements: [{ ident: "P" }] }],
+  });
+
+  it("moduleIdent не задан - гранты не берутся, даже без ключа moduleIdent", () => {
+    const access = new TestAccess();
+    access.generateAccessMap(["a"], [grants() as never]);
+    expect(access.accessMap.structure).toEqual({});
+  });
+
+  it("moduleIdent задан - берутся только гранты своего модуля", () => {
+    const access = new TestAccess();
+    access.moduleIdent = "m";
+    access.generateAccessMap(["a"], [grants("m"), grants("n")]);
+    expect(Object.keys(access.accessMap.structure)).toEqual(["P"]);
+    const other = new TestAccess();
+    other.moduleIdent = "m";
+    other.generateAccessMap(["a"], [grants("n")]);
+    expect(other.accessMap.structure).toEqual({});
+  });
+});
+
 describe("parseJsonBody (KI-API-16)", () => {
   it("Content-Length больше лимита - отказ до чтения потока", async () => {
     const req = fakeRequest({ "content-type": "application/json", "content-length": "1000" }, []);

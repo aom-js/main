@@ -81,7 +81,7 @@ export class BaseAccessController {
   /** Meta-class (`AomCore` subclass) used to attach access metadata to middlewares/endpoints. Must be overridden. */
   static readonly AccessCore: typeof AomAccessCore;
 
-  /** Identifier of the module this controller instance is guarding; must be set by the application (e.g. in a subclass constructor) before `generateAccessMap` runs. */
+  /** Identifier of the module this controller instance is guarding; must be set by the application (e.g. by a step before the one that calls `generateAccessMap`); while unset, roles grant nothing but `fullAccess`. */
   moduleIdent!: string;
 
   accessMap!: AomAccessMapStructure; // access map
@@ -135,7 +135,8 @@ export class BaseAccessController {
    *
    * @param allowedAccessTypes - access types active for this request; each is set to `true` on `activeAccessTypes`
    * @param userRoles - roles to fold into `accessMap`; a role with `fullAccess` makes every check
-   * pass, otherwise only entries for `this.moduleIdent` contribute to `accessMap.structure`
+   * pass, otherwise only entries for `this.moduleIdent` contribute to `accessMap.structure` (none
+   * while `moduleIdent` is unset)
    */
   generateAccessMap(allowedAccessTypes: string[], userRoles: AomAccessToModulesStructure[]) {
     // set the allowed set from the passed-in values
@@ -159,7 +160,10 @@ export class BaseAccessController {
             _.reduce(
               role.modulesAccess,
               (result: AomAccessIdentElement[], value) =>
-                result.concat(value.moduleIdent === this.moduleIdent ? value.elements : []),
+                // without a module there are no grants: a grant lacking `moduleIdent` must not match `undefined`
+                result.concat(
+                  this.moduleIdent && value.moduleIdent === this.moduleIdent ? value.elements : [],
+                ),
               [],
             ),
             "ident",
