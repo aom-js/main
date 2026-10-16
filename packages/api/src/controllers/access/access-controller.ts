@@ -301,7 +301,7 @@ export class BaseAccessController {
           // consider the extra layer passed if it has full access
           // or the extension list names this specific layer
           const extraIdentPassed =
-            accessMap.fullAccess || accessMap.structure[originIdent]?.extra.includes(extraIdent);
+            accessMap.fullAccess || !!accessMap.structure[originIdent]?.extra?.includes(extraIdent);
           self.layerPassed = self.layerPassed || extraIdentPassed;
         }
       });

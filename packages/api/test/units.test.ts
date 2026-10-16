@@ -15,8 +15,21 @@ import {
   BaseRootController,
   RouteElement,
   RoutesStructure,
+  AomAccessCore,
+  AomAccessMarkerElement,
 } from "@aom-js/api";
-import { Bridge, Controller, Get, Next, OpenApi, Router, This, type HttpContextValues } from "@aom-js/router";
+import {
+  Before,
+  Bridge,
+  Controller,
+  Get,
+  Middleware,
+  Next,
+  OpenApi,
+  Router,
+  This,
+  type HttpContextValues,
+} from "@aom-js/router";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
 // код ошибки не экспортируется из пакета (constants не входят в публичный API) - берём напрямую из src
 import { API_ERROR_423_DATA_LOCKED } from "../src/constants/messages/errors";
@@ -154,6 +167,81 @@ describe("BaseAccessController.generateAccessMap: moduleIdent (KI-ORGS-42)", () 
     other.moduleIdent = "m";
     other.generateAccessMap(["a"], [grants("n")]);
     expect(other.accessMap.structure).toEqual({});
+  });
+});
+
+describe("BaseAccessController: экстра-слой на настоящем роутере", () => {
+  // роли и типы запроса — до вызова маршрута; шаг Setup строит из них карту
+  let types: string[] = [];
+  let roles: object[] = [];
+
+  class TestCore extends AomAccessCore {}
+  @Controller()
+  class TestAccess extends BaseAccessController {
+    static readonly markerName = "test-access";
+    static readonly allowedAccessTypes = ["a", "b"];
+    static readonly AccessMarker = AomAccessMarkerElement;
+    static readonly AccessCore = TestCore;
+  }
+
+  @Controller()
+  class Layers {
+    @Middleware()
+    @TestAccess.SetExtraAccess("a")
+    static async Layer() {}
+  }
+
+  @Controller()
+  @Before(Root.Setup)
+  class Root {
+    @Middleware()
+    static async Setup(@This(TestAccess) access: TestAccess) {
+      access.enabled = true;
+      access.moduleIdent = "m";
+      access.generateAccessMap(types, roles as never);
+    }
+
+    @Get("/x")
+    @TestAccess.ExtraAccess(Layers.Layer)
+    @TestAccess.TypesRequired("a", "b")
+    static async X(@This(TestAccess) access: TestAccess) {
+      return { layerPassed: access.layerPassed };
+    }
+  }
+
+  const route = new Router(Root, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } })).routeOf(
+    Root.X,
+  );
+  const grant = (extra?: string[]) => ({
+    fullAccess: false,
+    modulesAccess: [{ moduleIdent: "m", elements: [{ ident: "Root.X", ...(extra ? { extra } : {}) }] }],
+  });
+  const layerOf = async (requestTypes: string[], requestRoles: object[]) => {
+    types = requestTypes;
+    roles = requestRoles;
+    return ((await route.apply(context())) as { layerPassed: boolean }).layerPassed;
+  };
+
+  it("маркер точки хранит слой с типами слоя", () => {
+    expect(route.markers["test-access"].accessPoints).toEqual([
+      expect.objectContaining({ ident: "Root.X", extra: [expect.objectContaining({ ident: "Layers.Layer", accessTypes: ["a"] })] }),
+    ]);
+  });
+
+  it("грант точки со слоем - слой пройден", async () => {
+    expect(await layerOf(["a"], [grant(["Layers.Layer"])])).toBe(true);
+  });
+
+  it("грант точки без extra - слой не пройден, без исключения", async () => {
+    expect(await layerOf(["a"], [grant()])).toBe(false);
+  });
+
+  it("fullAccess - слой пройден", async () => {
+    expect(await layerOf(["a"], [{ fullAccess: true, modulesAccess: [] }])).toBe(true);
+  });
+
+  it("проверяемые типы вне типов слоя - гейт пройден, слой нет", async () => {
+    expect(await layerOf(["b"], [grant(["Layers.Layer"])])).toBe(false);
   });
 });
 

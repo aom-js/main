@@ -27,7 +27,7 @@ export type ActiveAccessTypes = Partial<Record<AccessTypes | string, boolean>>;
 export type IAomAccessPoint = { prefix?: string; method?: string; path?: string };
 
 /** Access map structure keyed by access point identifier, each entry listing its granted extra layers. */
-export type AomAccessPlainStructure = Record<string, { extra: string[] }>;
+export type AomAccessPlainStructure = Record<string, { extra?: string[] }>;
 
 /**
  * The resolved access map for the current request: either full access, or a structure of
