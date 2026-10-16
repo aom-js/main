@@ -1,25 +1,25 @@
 # Архитектура ядра aom.js
 
-Обзор монорепо `@aom-js/*`: состав пакетов, их зависимости, общая модель метаданных, путь от класса-контроллера до HTTP-сервера и документа OpenAPI, сборка и потребление ядра приложением. Состояние на 2026-09-02.
-Документ — точка входа: механика каждого пакета описана в его `readme.md`, здесь только карта и сквозные вещи. Ядро и приложение лежат соседними каталогами `main/` и `test/` в `/Users/scarych/devel/aom.js/`; в текстах ядра пути даются от корня ядра, ссылки на приложение — с префиксом `test/`.
+Обзор монорепо `@aom-js/*`: состав пакетов, их зависимости, общая модель метаданных, путь от класса-контроллера до HTTP-сервера и документа OpenAPI, сборка и потребление ядра приложением, правила правки ядра.
+Документ — точка входа: механика каждого пакета описана в его `readme.md`, здесь только карта и сквозные вещи. Ядро и приложение лежат соседними каталогами `main/` и `test/` одного рабочего пространства; в текстах ядра пути даются от корня ядра, ссылки на приложение — с префиксом `test/`.
 Читать после: `packages/core/readme.md`, `packages/router/readme.md`, `test/docs/architecture.md`. Термины — `test/docs/README.md#словарь`.
 
 ## Состав монорепо и граф зависимостей
 
-Монорепо — `bun`-workspaces с единственным шаблоном `packages/*` (`package.json` (`workspaces`)). Восемь пакетов, все публикуются под скоупом `@aom-js`.
+Монорепо — `bun`-workspaces с единственным шаблоном `packages/*` (`package.json` (`workspaces`)). Пакет — каталог `packages/<pkg>`; все публикуются под скоупом `@aom-js`.
 
-| Пакет                | Версия | Назначение                                                                    | Зависит от            | Кем используется                       | Используется приложением                                               |
-| -------------------- | ------ | ----------------------------------------------------------------------------- | --------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
-| `@aom-js/core`       | 0.0.4  | Реестр мета-инстансов и фабрики legacy-декораторов с отложенным исполнением   | —                     | schemer, router, transfer, holder, api | да (`test/src/modules/tickets/api/routes/tickets/init/aom.ts`, 1 файл) |
-| `@aom-js/schemer`    | 0.0.11 | Класс = DTO + JSON Schema + валидация; сборщик компонентов                    | core                  | router, transfer, api, codegen         | да (80 файлов)                                                         |
-| `@aom-js/router`     | 0.0.1  | Карта HTTP/WS-маршрутов из классов-контроллеров и её исполнение               | core, schemer         | api                                    | да (208 файлов)                                                        |
-| `@aom-js/api`        | 0.0.1  | HTTP-сервер на `node:http`, билдеры, базовые контроллеры, ответы, локализация | core, schemer, router | —                                      | да (121 файл)                                                          |
-| `@aom-js/transfer`   | 0.0.7  | Изоляторы/исполнители и RPC поверх абстрактной шины                           | core, schemer         | codegen                                | да (11 файлов)                                                         |
-| `@aom-js/holder`     | 0.0.1  | Отложенное применение сторонних декораторов на конечном потомке               | core                  | —                                      | нет (симлинк есть, импортов нет)                                       |
-| `@aom-js/codegen`    | 0.0.1  | Генерация исходников aom-классов из дескриптора изолятора                     | schemer, transfer     | —                                      | нет (симлинка нет)                                                     |
-| `@aom-js/visualizer` | 0.0.1  | Граф API по дереву контроллеров и его рендер в самодостаточную HTML-страницу  | core, schemer, router | api                                    | нет (используется через `BaseVisualizerController` из api)             |
+| Пакет                | Версия | Назначение                                                                    | Зависит от                        | Кем используется                                   | Используется приложением                                       |
+| -------------------- | ------ | ----------------------------------------------------------------------------- | --------------------------------- | -------------------------------------------------- | -------------------------------------------------------------- |
+| `@aom-js/core`       | 0.0.4  | Реестр мета-инстансов и фабрики legacy-декораторов с отложенным исполнением   | —                                 | schemer, router, transfer, holder, visualizer, api | да (`test/src/modules/tickets/api/routes/tickets/init/aom.ts`) |
+| `@aom-js/schemer`    | 0.0.11 | Класс = DTO + JSON Schema + валидация; сборщик компонентов                    | core                              | router, transfer, visualizer, api, codegen         | да                                                             |
+| `@aom-js/router`     | 0.0.1  | Карта HTTP/WS-маршрутов из классов-контроллеров и её исполнение               | core, schemer                     | visualizer, api                                    | да (зонды — `@aom-js/router/testing`)                          |
+| `@aom-js/api`        | 0.0.1  | HTTP-сервер на `node:http`, билдеры, базовые контроллеры, ответы, локализация | core, schemer, router, visualizer | —                                                  | да                                                             |
+| `@aom-js/transfer`   | 0.0.7  | Изоляторы/исполнители и RPC поверх абстрактной шины                           | core, schemer                     | codegen                                            | да                                                             |
+| `@aom-js/holder`     | 0.0.1  | Отложенное применение сторонних декораторов на конечном потомке               | core                              | —                                                  | нет (симлинк есть, импортов нет)                               |
+| `@aom-js/codegen`    | 0.0.1  | Генерация исходников aom-классов из дескриптора изолятора                     | schemer, transfer                 | —                                                  | нет (симлинк есть, импортов нет)                               |
+| `@aom-js/visualizer` | 0.0.1  | Граф API по дереву контроллеров и его рендер в самодостаточную HTML-страницу  | core, schemer, router             | api                                                | нет (используется через `BaseVisualizerController` из api)     |
 
-Версии — из `packages/<pkg>/package.version.json`, зависимости — из `packages/<pkg>/package.src.json` (`dependencies`, ссылки внутри монорепо — `workspace:*`). Счётчики файлов приложения получены `grep -rl "@aom-js/<pkg>" test/src`.
+Версии — из `packages/<pkg>/package.version.json`, зависимости — из `packages/<pkg>/package.src.json` (`dependencies`, ссылки внутри монорепо — `workspace:*`). Сколько файлов приложения импортирует пакет — `grep -rl "@aom-js/<pkg>" test/src | wc -l` из корня рабочего пространства.
 
 ```mermaid
 graph TD
@@ -30,40 +30,46 @@ graph TD
   transfer["@aom-js/transfer"]
   holder["@aom-js/holder"]
   codegen["@aom-js/codegen"]
+  visualizer["@aom-js/visualizer"]
 
   core --> schemer
   core --> router
   core --> transfer
   core --> holder
+  core --> visualizer
   core --> api
   schemer --> router
   schemer --> transfer
+  schemer --> visualizer
   schemer --> api
   schemer --> codegen
   transfer --> codegen
+  router --> visualizer
   router --> api
+  visualizer --> api
 
   classDef unused fill:#eee,stroke:#999,stroke-dasharray:4 3;
   class holder,codegen unused;
 ```
 
-Пунктиром — пакеты, которые приложение не потребляет.
+Пунктиром — пакеты, которые приложение не потребляет ни напрямую, ни через другие пакеты.
 
 Внешние зависимости:
 
-| Пакет      | Внешние runtime-зависимости                                                              |
-| ---------- | ---------------------------------------------------------------------------------------- |
-| `core`     | нет (`dependencies: {}`)                                                                 |
-| `schemer`  | `class-transformer`; `class-validator`; `class-validator-jsonschema`; `reflect-metadata` |
-| `router`   | `openapi3-ts`; `reflect-metadata`; `rxjs`                                                |
-| `api`      | `ws`; `dayjs`; `es-toolkit`; `reflect-metadata`                                          |
-| `transfer` | `rxjs`; `reflect-metadata`                                                               |
-| `holder`   | `reflect-metadata`                                                                       |
-| `codegen`  | нет внешних (только `@aom-js/schemer`, `@aom-js/transfer`)                               |
+| Пакет        | Внешние runtime-зависимости                                                              |
+| ------------ | ---------------------------------------------------------------------------------------- |
+| `core`       | нет (`dependencies: {}`)                                                                 |
+| `schemer`    | `class-transformer`; `class-validator`; `class-validator-jsonschema`; `reflect-metadata` |
+| `router`     | `openapi3-ts`; `reflect-metadata`; `rxjs`                                                |
+| `api`        | `ws`; `dayjs`; `es-toolkit`; `reflect-metadata`                                          |
+| `transfer`   | `rxjs`; `reflect-metadata`                                                               |
+| `holder`     | `reflect-metadata`                                                                       |
+| `codegen`    | нет внешних (только `@aom-js/schemer`, `@aom-js/transfer`)                               |
+| `visualizer` | `reflect-metadata`                                                                       |
 
 `core` действительно свободен от внешних зависимостей, но общий набор шире, чем предполагали черновики (см. «Расхождения с историческими заметками»).
 
-Граф раскладывается на три слоя. Внизу — `core`: механизм метаданных, ничего не знающий ни про HTTP, ни про схемы. Средний слой — три независимые друг от друга специализации этого механизма: `schemer` (описание данных), `router` (карта и исполнение маршрутов, поверх `schemer` ради компонентов OpenAPI) и `transfer` (межпроцессные вызовы). Наверху — потребители: `api` собирает из `router` работающий сервис, `codegen` из `transfer`+`schemer` — исходники клиента. `holder` стоит сбоку: он расширяет `core` и ни от кого больше не зависит.
+Граф раскладывается на три слоя. Внизу — `core`: механизм метаданных, ничего не знающий ни про HTTP, ни про схемы. Средний слой — три независимые друг от друга специализации этого механизма: `schemer` (описание данных), `router` (карта и исполнение маршрутов, поверх `schemer` ради компонентов OpenAPI) и `transfer` (межпроцессные вызовы). Наверху — потребители: `visualizer` строит из дерева контроллеров `router` граф API, `api` собирает из `router` работающий сервис (страницу графа отдаёт его `BaseVisualizerController`), `codegen` из `transfer`+`schemer` — исходники клиента. `holder` стоит сбоку: он расширяет `core` и ни от кого больше не зависит.
 
 ## Модель метаданных AomCore
 
@@ -226,7 +232,7 @@ sequenceDiagram
 > Последствия: постобработка, объявленная на классе, видит состояние до вызова обработчика. Особенность, открытый вопрос закрыт — оставлено как есть.
 > См. `KI-ROUTER-02` в `test/docs/known-issues.md`.
 
-Порядок курсоров, `RxContext.run`, состояние и `@This`, отложенные ссылки, маркеры и `OpenApi.registerPath` подробно — `packages/router/readme.md` §«Ключевые механизмы».
+Порядок курсоров, `RxContext.run`, состояние и `@This`, отложенные ссылки, маркеры и `OpenApi.registerPath` подробно — `packages/router/readme.md` §«Ключевые механизмы». Итоговый порядок шагов маршрута и класс, на котором исполняется каждый шаг, в уме не выводятся: их даёт проекция цепочки (`Router.routeOf`, `toJSON`, `@CursorKind`) — [`packages/router/readme.md` §«Метаданные цепочки»](../packages/router/readme.md#метаданные-цепочки-tojson-routeof-cursorkind).
 
 ## Роль schemer
 
@@ -242,7 +248,7 @@ sequenceDiagram
 
 ## api: Server и батарейки
 
-`@aom-js/api` — прикладной слой поверх router: всё, что нужно, чтобы из карты маршрутов получить работающий сервис. Ядро пакета — `Server` (`packages/api/src/server/http.ts` (`Server`)): оборачивает `node:http`, строит `RouteMatcher` по `router.routes`/`router.sockets` (`http.ts` (`Server.constructor`)), разбирает адрес запроса через `parseRequestUrl` (`http.ts` (`parseRequestUrl`), см. дефект ниже), парсит query/headers/cookies и тело (`content-type` — по части до `;`, без учёта регистра: `charset=utf-8` не мешает, `packages/api/src/server/body.ts` (`parseJsonBody`)), вызывает `route.apply(...)` и сериализует результат: строка → `text/html` (без экранирования — см. открытый вопрос ниже), `Readable` → `stream.pipeline` (источник разрушается при ошибке/обрыве клиента), `ErrorMessage`/чужая ошибка → безопасный статус 200–999 через единый `catch`, иначе JSON 200 (`http.ts` (`Server.constructor`)). Запросы `upgrade` уходят в socket-маршруты той же схемой разбора адреса (`http.ts` (`Server.constructor`)). `I18nizer` подменяет коды сообщений на локализованный текст уже в сериализованном ответе (`packages/api/src/server/i18nizer.ts` (`I18nizer.localize`)).
+`@aom-js/api` — прикладной слой поверх router: всё, что нужно, чтобы из карты маршрутов получить работающий сервис. Ядро пакета — `Server` (`packages/api/src/server/http.ts` (`Server`)): оборачивает `node:http`, строит `RouteMatcher` по `router.routes`/`router.sockets` (`http.ts` (`Server.constructor`)), разбирает адрес запроса через `parseRequestUrl` (`http.ts` (`parseRequestUrl`), см. дефект ниже), парсит query/headers/cookies и тело (`content-type` — по части до `;`, без учёта регистра: `charset=utf-8` не мешает, `packages/api/src/server/body.ts` (`parseJsonBody`)), вызывает `route.apply(...)` и сериализует результат: строка → `text/plain; charset=utf-8`, если обработчик не выставил `Content-Type` сам (`KI-API-17`), `Readable` → `stream.pipeline` (источник разрушается при ошибке/обрыве клиента), `ErrorMessage`/чужая ошибка → безопасный статус 200–999 через единый `catch`, иначе JSON 200 (`http.ts` (`Server.constructor`)). Запросы `upgrade` уходят в socket-маршруты той же схемой разбора адреса (`http.ts` (`Server.constructor`)). `I18nizer` подменяет коды сообщений на локализованный текст уже в сериализованном ответе (`packages/api/src/server/i18nizer.ts` (`I18nizer.localize`)).
 
 Билдеры (`BodyBuilder`, `QueryStringBuilder`, `HeadersBuilder`, `CookieBuilder`, `ParamsBuilder`, `ResponseBuilder`) — фабрики контроллеров из класса-схемы: наследник получает `static schema`, а базовый класс через `ThisRef`+`DelayRefStack` забирает схему потомка, валидирует данные и кладёт результат в поле инстанса, попутно регистрируя описание OpenAPI (`packages/api/src/builders/query-string.ts` (`SafeOriginParameters`, `QueryStringBuilderConstructor.Query`), `packages/api/src/builders/common.ts` (`PlainBuildersBase.JSONSchema`); состав barrel-а — `packages/api/src/builders/index.ts`). Именно этот паттерн и потребовал `resolveFor` (см. «Состояние рабочего дерева»).
 
@@ -258,7 +264,7 @@ sequenceDiagram
 
 Ответы — `ErrorMessage` (Error + `toJSON` + `JSONSchema`, `packages/api/src/responses/error-message.ts` (`ErrorMessage`)) и семейство `*Response` со статусами 303–500: `SeeOtherResponse`, `AuthRequiredResponse`, `PaymentRequiredResponse`, `AccessDenyResponse`, `NotFoundResponse`, `ConflictResponse`, `WrongDataResponse`, `LockedResponse`, `FailedDependencyResponse`, `PayloadTooLargeResponse`, `ServerErrorResponse`, `ErrorWithStatusResponse` (`packages/api/src/responses/error-responses.ts` (`SeeOtherResponse`, `AuthRequiredResponse`, `PaymentRequiredResponse`, `AccessDenyResponse`, `NotFoundResponse`, `ConflictResponse`, `WrongDataResponse`, `LockedResponse`, `FailedDependencyResponse`, `PayloadTooLargeResponse`, `ServerErrorResponse`, `ErrorWithStatusResponse`)). Успешные — `CommonResponse`, `MessageResponse`, `DataResponse`, `NumberResponse`, `BooleanResponse`, `StringResponse` (`packages/api/src/responses/data-responses.ts` (`CommonResponse`, `MessageResponse`, `DataResponse`, `NumberResponse`, `BooleanResponse`, `StringResponse`)).
 
-Пакет прошёл ревью и три раунда аудита безопасности (2026-09-14): было — не покрыт тестами и не подключён к тестовому окружению монорепо (`KI-API-11`); исправлено — алиас `@aom-js/api` добавлен в `vitest.config.ts` (`resolve.alias`), `packages/api/test/server.test.ts` (585 строк) и `units.test.ts` (107 строк) дают 53 теста на `Server`/`RouteMatcher`, `checkLocales`, `BodyBuilder.JSONSchema`, коды 423/424 и `CheckLayerPass` (`bunx vitest run packages/api` — 2 файла, 53 теста). Заодно закрыты `KI-API-02` (частично), `KI-API-03, 04, 05, 06, 08, 12, 13`; `KI-API-01` и `KI-API-09` — решения автора (валидатор параметра пути и так встроен в regexp; коды ошибок ядра и SSE оставлены как есть).
+Пакет прошёл ревью и три раунда аудита безопасности (2026-09-14): было — не покрыт тестами и не подключён к тестовому окружению монорепо (`KI-API-11`); исправлено — алиас `@aom-js/api` добавлен в `vitest.config.ts` (`resolve.alias`), тесты `packages/api/test/*.test.ts` покрывают `Server`/`RouteMatcher`, `checkLocales`, `BodyBuilder.JSONSchema`, коды 423/424 и `CheckLayerPass` (прогон — `bunx vitest run packages/api`). Заодно закрыты `KI-API-02` (частично), `KI-API-03, 04, 05, 06, 08, 12, 13`; `KI-API-01` и `KI-API-09` — решения автора (валидатор параметра пути и так встроен в regexp; коды ошибок ядра и SSE оставлены как есть).
 
 Отдельно аудит нашёл и закрыл разбор адреса запроса: было — `/../..` ронял процесс (HIGH), затем authority-form (`//evil.com/admin`), абсолютная форма (`http://evil.com/admin`) и обратный слэш (WHATWG считает его тем же `/`) позволяли хосту из запроса подменить путь маршрутизации в обход фильтра прокси/WAF (MEDIUM); исправлено — `parseRequestUrl` (`http.ts` (`parseRequestUrl`)) фиксирует хост константой и меняет только `pathname`/`search` через сеттеры, минуя общий алгоритм разрешения относительных ссылок. Также закрыт баг с многобайтовым UTF-8 на границе TCP-чанков в теле запроса (`packages/api/src/server/body.ts` (`parseJsonBody`), сборка через `Buffer`). Оба вопроса, остававшихся к автору, закрыты 2026-09-21: тело запроса теперь читается лениво и с лимитом размера (`KI-API-16` — `packages/api/src/server/body.ts` (`parseJsonBody`), по умолчанию 1 МиБ, переопределяется `AomServerSettings.bodyLimit` и декоратором `@BodyOptions`), а строковый результат обработчика по умолчанию уходит как `text/plain`, чтобы браузер не исполнял попавшие в него данные как разметку (`KI-API-17` — `http.ts` (`Server`)).
 
@@ -288,40 +294,39 @@ sequenceDiagram
 
 ## Сборка, тесты и инструменты монорепо
 
-**Сборка.** `bun run build` собирает пакеты строго по графу зависимостей и заканчивается smoke-проверкой: `build:core → build:schemer → build:router → build:transfer → build:codegen → build:holder → build:api → smoke` (`package.json` (`scripts.build`)). Порядок важен: пакеты собираются по `dist` соседей, а не по их `src`.
+**Сборка.** `bun run build` собирает пакеты строго по графу зависимостей и заканчивается smoke-проверкой: `build:core → build:schemer → build:router → build:transfer → build:codegen → build:holder → build:visualizer → build:api → smoke` (`package.json` (`scripts.build`)), цепочка обрывается на первой упавшей сборке. Порядок важен: пакеты собираются по `dist` соседей, а не по их `src`.
 
 Перед сборкой `scripts/prebuild.js` генерирует в каждом пакете `package.json` и три `tsconfig.build*.json`, склеивая `package.version.json` + `package.src.json` + `scripts/jsons/package.dist.json` (`scripts/prebuild.js`, `scripts/files.js`). Эти файлы в git не входят — в репозитории лежат только исходные `package.src.json`/`package.version.json`.
 
-Каждый пакет собирается тремя проходами `tsc` (`dist/cjs`, `dist/mjs`, `dist/types`) и завершается `scripts/post-build.js` (`scripts/jsons/package.dist.json`, поле `scripts.build`). Post-build делает две вещи: дописывает `.js` относительным импортам (в исходниках они намеренно без расширений) и кладёт `dist/cjs/package.json` с `{"type":"commonjs"}`, потому что сам пакет объявлен как `"type": "module"` (`scripts/post-build.js`). Неразрешимый импорт — ошибка сборки с ненулевым кодом (`scripts/post-build.js`). Поле `exports` в собранном `package.json` разводит `import`/`require` на `dist/mjs` и `dist/cjs` с соответствующими типами.
+Сборка пакета начинается с `rm -rf dist/` (скрипт `prebuild` в `scripts/jsons/package.dist.json`), затем три прохода `tsc` (`dist/cjs`, `dist/mjs`, `dist/types`) и `scripts/post-build.js` (там же, поле `scripts.build`). Post-build делает две вещи: дописывает расширение .js относительным импортам (в исходниках они намеренно без расширений) и кладёт `packages/<pkg>/dist/cjs/package.json` с `{"type":"commonjs"}`, потому что сам пакет объявлен как `"type": "module"` (`scripts/post-build.js`). Неразрешимый импорт — ошибка сборки с ненулевым кодом (`scripts/post-build.js`). Поле `exports` в собранном `package.json` разводит `import`/`require` на `dist/mjs` и `dist/cjs` с соответствующими типами.
 
-`scripts/smoke.js` собирает временный каталог-потребитель с симлинками на все пакеты и грузит каждый через `require()` и `import()`, проверяя непустой набор экспортов (`scripts/smoke.js`). Это единственная проверка, которая ходит в `dist`: тесты работают по алиасам в `src`.
+`scripts/smoke.js` собирает временный каталог-потребитель с симлинками на все пакеты и грузит каждую точку входа — ключи `exports` собранного `package.json`, в том числе `@aom-js/router/testing` — через `require()` и `import()`, проверяя непустой набор экспортов (`scripts/smoke.js`). Это единственная проверка ядра, которая исполняет `dist`: тесты работают по алиасам в `src`.
 
 Особенность TS 7: сборочный конфиг CJS сочетает `module: "commonjs"` с унаследованным `moduleResolution: "bundler"` — комбинация невалидна для TS 5, но этот файл читает только воркспейсный `tsc`, не IDE (`scripts/jsons/tsconfig.build.json` (`module`), `tsconfig.base.json` (`moduleResolution`)).
 
-**Тесты.** `bun run test` → `vitest run`. Конфигурация принудительно отключает `oxc` и транспилирует через `unplugin-swc` с `legacyDecorator` и `decoratorMetadata` — иначе не эмитится `design:type` (`vitest.config.ts` (`oxc`, `plugins`)). Алиасы `@aom-js/* → packages/*/src` заданы для семи пакетов, включая `@aom-js/api` (`vitest.config.ts` (`resolve.alias`); было отсутствие — `KI-API-11` закрыт). Глобальный `reflect-metadata` подключается в `vitest.setup.ts`.
+**Тесты.** `bunx vitest run` из корня ядра — то же, что `bun run test` → `vitest run`: `bunx` берёт локальный `node_modules/.bin/vitest`, результат совпадает. Один пакет — `bunx vitest run packages/<pkg>`; число файлов и тестов печатает сам прогон. Тесты — `packages/*/test/**/*.test.ts` (`vitest.config.ts` (`test.include`)). Конфигурация принудительно отключает `oxc` и транспилирует через `unplugin-swc` с `legacyDecorator` и `decoratorMetadata` — иначе не эмитится `design:type` (`vitest.config.ts` (`oxc`, `plugins`)). Алиасы `@aom-js/* → packages/*/src` заданы для всех пакетов и для подпути `@aom-js/router/testing`; подпуть стоит раньше корневого `@aom-js/router`, потому что vite берёт первый совпавший префикс (`vitest.config.ts` (`resolve.alias`)). Глобальный `reflect-metadata` подключается в `vitest.setup.ts`.
 
-Прогон на 2026-09-02: 21 файл, 120 passed, 3 expected fail (123 всего) — это состояние устарело: волна правок 2026-09-14 (`docs/superpowers/plans/2026-09-13-known-issues-plan.md`) закрыла все три `it.fails` и добавила тесты. Ниже — core/holder/router/transfer/schemer/api/codegen, пересчитано 2026-09-21 (`./node_modules/.bin/vitest run`; `bunx vitest` резолвит собственную непривязанную к проекту копию и даёт ложные расхождения — не использовать); монорепо целиком: 32 файла, 419 тестов.
+Ожидаемо падающих тестов (`it.fails`) в ядре нет (`grep -rn "it\.fails" packages/*/test` — пусто): дефект ядра — запись `KI-*` в реестре, исправленный — обычный проходящий тест (см. «Как менять ядро»). Тестовый каркас заложен планом `docs/superpowers/plans/2026-07-20-test-coverage.md` (исторический документ, см. раздел расхождений).
 
-| Пакет        | Файлов тестов | Тестов | `it.fails` |
-| ------------ | ------------- | ------ | ---------- |
-| `core`       | 4             | 38     | —          |
-| `schemer`    | 5             | 88     | —          |
-| `router`     | 7             | 62     | —          |
-| `transfer`   | 8             | 57     | —          |
-| `codegen`    | 3             | 61     | —          |
-| `holder`     | 1             | 5      | —          |
-| `api`        | 3             | 87     | —          |
-| `visualizer` | 1             | 21     | —          |
+**Ворота.** Кроме тестов и сборки со smoke:
 
-`it.fails` — приём для намеренно зафиксированных дефектов: тест специально падает «наоборот» (зелёный, пока дефект жив). На 2026-09-14 в core, holder, router, schemer, transfer и api таких тестов не осталось (`grep -rn "it\.fails" main/packages/*/test/*.ts` — пусто): нулевые ограничения схем (`KI-SCHEMER-01`, было `packages/schemer/test/render.test.ts` («minValue: 0 попадает в схему как minimum: 0»)) и гонка `@This` (`KI-ROUTER-01`, было `packages/router/test/router-exec.test.ts` («два @This одного класса в одном методе дают один инстанс и один вызов @OnInstance»)) закрыты вместе с неперенoсом `@Delay` (`KI-HOLDER-01`, было `packages/holder/test/holder.test.ts` («Delay на родителе + Apply на потомке переносит класс-декораторы родителя»)) — все три теста стали обычными проходящими. `api` тестов никогда не имел вообще (`KI-API-11`) — после ревью и трёх раундов аудита безопасности пакет получил `server.test.ts` (585 строк) и `units.test.ts` (107 строк), покрывающие `Server`/`RouteMatcher`, `checkLocales`, `BodyBuilder.JSONSchema`, коды 423/424 и `CheckLayerPass`. Тестовый каркас заложен планом `docs/superpowers/plans/2026-07-20-test-coverage.md` (исторический документ, см. раздел расхождений).
+- `bunx tsc -p tsconfig.json --noEmit` — типы исходников всех пакетов (`tsconfig.json` (`include`)) на общей базе `tsconfig.base.json`. Запускается после `bun run build`: пакеты импортируют друг друга по имени через workspace-симлинки `packages/<pkg>/node_modules/@aom-js/*`, и типы соседей читаются из их `dist/types`.
+- `node scripts/lint-ratchet.js` — храповик eslint: число замечаний (ошибки + предупреждения) по каждому файлу сравнивается с базой `scripts/lint-ratchet.json`. Новое замечание — красный с именем файла; исправленное — тоже красный, пока число в базе не уменьшат, поэтому база не отстаёт от кода. Рост числа в базе — решение, объяснённое в коммите.
 
-**Прочее.** `bun run lint` / `lint:fix` — eslint 10 с `typescript-eslint`, `bun run format` / `format:check` — prettier, `bun run clean` — удаление `dist` по всем пакетам (`package.json` (`scripts`)).
+**Прочее.** `bun run lint` / `lint:fix` — полный вывод eslint 10 с `typescript-eslint`, `bun run format` / `format:check` — prettier, `bun run clean` — удаление `dist` по всем пакетам (`package.json` (`scripts`)).
 
 ## Как приложение потребляет ядро
 
-Приложение подключает ядро симлинками в `test/node_modules/@aom-js/<pkg> → ../../../main/packages/<pkg>`. Слинкованы шесть пакетов: `api`, `core`, `holder`, `router`, `schemer`, `transfer`; `codegen` не слинкован. `test/tsconfig.json` включает `preserveSymlinks: true` и `moduleResolution: "bundler"` (`test/tsconfig.json` (`moduleResolution`, `preserveSymlinks`)), поэтому импорт резолвится через поля `types`/`module` собранного `package.json`, то есть в `dist/types` и `dist/mjs`.
+Приложение подключает ядро через `bun link` — все пакеты `packages/*`, включая `codegen` и `visualizer`. Из корня рабочего пространства:
 
-Отсюда главный инвариант работы с ядром: **приложение исполняет `dist`, а не `src`; после любой правки `packages/<pkg>/src` нужен `bun run build:<pkg>` (или `bun run build` в корне ядра), иначе изменение просто не видно.**
+```bash
+for p in main/packages/*/; do (cd "$p" && bun link); done                       # зарегистрировать каждый пакет
+for p in main/packages/*/; do (cd test && bun link "@aom-js/$(basename "$p")"); done # подключить их в приложении
+```
+
+Результат — симлинки `test/node_modules/@aom-js/<pkg> → ../../../main/packages/<pkg>` (`ls -l test/node_modules/@aom-js/`); в `test/package.json` записей `@aom-js/*` не появляется (см. дефект ниже). `test/tsconfig.json` включает `preserveSymlinks: true` и `moduleResolution: "bundler"` (`test/tsconfig.json` (`moduleResolution`, `preserveSymlinks`)), поэтому импорт резолвится через поля `types`/`module` собранного `package.json`, то есть в `dist/types` и `dist/mjs`.
+
+Отсюда главный инвариант работы с ядром: **приложение исполняет `dist`, а не `src`; после любой правки `packages/<pkg>/src` нужен `bun run build:<pkg>` (или `bun run build` в корне ядра), иначе изменение просто не видно.** `paths` на исходники ядра в `test/tsconfig.json` не вводить (решение владельца): Bun читает `paths` того же файла — на них работает `@/*` приложения, — и рантайм ушёл бы с `dist` на `src`.
 
 ```bash
 # из корня ядра: пересобрать один пакет
@@ -330,22 +335,50 @@ bun run build:router
 bun run build
 ```
 
-Пересобирать нужно и зависимые пакеты: `dist` каждого пакета собран по `dist` соседей, поэтому правка в `core` без последующей сборки `router`/`api` оставит их старую копию типов.
+Пересобирать нужно и зависимые пакеты: `dist` каждого пакета собран по `dist` соседей, поэтому правка в `core` без последующей сборки `router`/`api` оставит их старую копию типов. Сборка пакета начинается со стирания его `dist` (см. «Сборка, тесты и инструменты монорепо»): упавшая сборка оставляет пакет без `dist` или с неполным `dist`, и ни приложение, ни зависимые пакеты его не загрузят, а пакеты после него в цепочке `bun run build` остаются несобранными. После исправления — снова `bun run build` целиком.
+
+**Страж свежести `dist`.** Preload приложения `test/test/helpers/setup.ts` (подключён в `test/bunfig.toml`, им же грузится `bun run manifests`) роняет прогон, если в каком-то пакете ядра файл `src` новее самого свежего файла `dist/mjs`: сообщение «dist ядра устарел» с командой пересборки. Страж не обходить — пересобирать.
 
 > ⚠️ Дефект: `@aom-js/*` отсутствуют в `dependencies` приложения — связь держится только на симлинках.
-> Evidence: `test/package.json` не содержит ни одной записи `@aom-js/*`; `test/node_modules/@aom-js/` состоит из шести симлинков в `main/packages/`.
+> Evidence: `test/package.json` не содержит ни одной записи `@aom-js/*`; `test/node_modules/@aom-js/` — симлинки в `main/packages/`.
 > Последствия: чистая установка зависимостей приложения не восстанавливает ядро; версии не зафиксированы.
 > См. `KI-BOOT-07` в `test/docs/known-issues.md`.
 
-Что приложение реально берёт из каждого пакета: router — почти всё (208 файлов, декораторы маршрутов и композиции), api — батарейки и билдеры (121 файл), schemer — `@ComponentSchema`, `PropertySchema.*` и четыре mapped-types (80 файлов), transfer — `Transfer`/`Isolator`/`Executor`/`ResponseTopic`/`CustomTopic` (11 файлов), core — один прикладной мета-класс (1 файл), holder — ничего.
+Что приложение реально берёт из каждого пакета: router — почти всё (декораторы маршрутов и композиции, в зондах — `@aom-js/router/testing`), api — батарейки и билдеры, schemer — `@ComponentSchema`, `PropertySchema.*` и четыре mapped-types, transfer — `Transfer`/`Isolator`/`Executor`/`ResponseTopic`/`CustomTopic`, core — один прикладной мета-класс, holder и codegen — ничего, visualizer — через `BaseVisualizerController` из api. Число файлов на пакет — командой под таблицей пакетов; частоты декораторов в `test/src`:
 
-Частоты декораторов в `test/src` (по `grep`): `@This` 646, `@Before` 290, `@Controller` 263, `@Middleware` 238, `@ComponentSchema` 149, `@Next` 114, `@Bridge` 70, `@Isolator` 4. Разбивка `PropertySchema.*`: `Type` 111, `String` 81, `Enum` 33, `Boolean` 24, `Date` 12, `Number` 9, `Any` 1.
+```bash
+# из корня рабочего пространства
+grep -rhoE "@(This|Before|Controller|Middleware|ComponentSchema|Next|Bridge|Isolator)\(" test/src | sort | uniq -c | sort -rn
+grep -rhoE "PropertySchema\.[A-Za-z]+" test/src | sort | uniq -c | sort -rn
+```
 
 Со стороны приложения порядок загрузки, статики в `config/aom` и таблица серверов — `test/docs/architecture.md` §«Связь с ядром»; пошаговая пересборка — `test/docs/cookbook.md` §«Пересборка ядра».
 
+## Как менять ядро
+
+Правила правки `packages/*/src`. Ворота описаны в «Сборка, тесты и инструменты монорепо», здесь — порядок.
+
+- **Тест** — в `packages/<pkg>/test/*.test.ts`, через публичный API: пакет импортируется по имени `@aom-js/<pkg>` (алиас на `src`). Классы-фикстуры объявляются в самом файле теста, класс со своим набором декораторов — внутри `it`: реестр мета-инстансов (`AomCore.instancesMap` — `WeakMap` на мета-классе под ключом `Symbol.for`) между тестами не сбрасывается.
+- **Детерминизм.** Фальшивые таймеры глобально не включать (`vi.useFakeTimers` на весь прогон): фаза `DELAY` (`setTimeout(..., 0)`), тайминговые тесты router (`router-exec`, `router-instance-safety`) и `MemoryBus` из `packages/transfer/test/memory-bus.ts` рассчитаны на реальное время. `Server` из api начинает слушать порт прямо в конструкторе — в тестах `port: 0` и закрытие через `server.server.close()`. Упал тайминговый тест — прогон повторить один раз; повторное падение разбирать как дефект.
+- **Дефект** — запись `KI-*` в реестре `test/docs/known-issues.md` (общий для обоих репозиториев: `KI-CORE-*`, `KI-ROUTER-*`, `KI-API-*`, …), а не ожидаемо падающий тест `it.fails`. Тест на исправление сначала увидеть красным по причине из записи, затем обновить запись (статус, evidence, закрепляющий тест) — чек-лист `test/docs/testing.md#определение-готовности`.
+- **Не удалять** `@Run`, `@State` (`packages/router/src/decorators/arguments/index.ts` (`Run`, `State`)) и `RouteRef` (`packages/router/src/specials/references.ts` (`RouteRef`)) — решение владельца.
+
+Порядок проверки правки:
+
+```bash
+# из корня ядра
+bunx vitest run                               # тесты ядра по src
+bun run build                                 # сборка по графу + smoke точек входа
+bunx tsc -p tsconfig.json --noEmit            # типы всех пакетов, после сборки
+node scripts/lint-ratchet.js                  # храповик eslint
+cd ../test && bun test && bun run test:types  # приложение на свежем dist
+```
+
+Правка сборки цепочки или проекции в router — ещё `bun run manifests` в приложении (`test/docs/testing.md#проекция-цепочки-и-дамп`).
+
 ## Состояние рабочего дерева
 
-Раздел — единственный источник истины по незакоммиченным правкам **исходного кода** ядра. HEAD — `40dc0e3` «правки перед концептуальным фиксом ядра». По `packages/*/src` и `packages/*/test` (pathspec обязательно в форме `:(glob)packages/*/src/**` — в обычном pathspec `*` не пересекает `/`, и шаблон не совпадает ни с одним файлом) `git status --short` даёт шесть изменённых файлов и один неотслеживаемый; `git diff --stat` по тому же pathspec — 49 вставок, 29 удалений. Файлы документации (`readme.md` пакетов, `docs/*.md`, этот документ) в таблицу не входят: они пишутся отдельно от кода.
+Раздел — единственный источник истины по незакоммиченным правкам **исходного кода** ядра. HEAD — `40dc0e3` «правки перед концептуальным фиксом ядра». По `packages/*/src` и `packages/*/test` (pathspec обязательно в форме `:(glob)packages/*/src/**` — в обычном pathspec `*` не пересекает `/`, и шаблон не совпадает ни с одним файлом) `git status --short` даёт 6 изменённых файлов и один неотслеживаемый; `git diff --stat` по тому же pathspec — 49 вставок, 29 удалений. Файлы документации (`readme.md` пакетов, `docs/*.md`, этот документ) в таблицу не входят: они пишутся отдельно от кода.
 
 | Файл                                                  | Что изменено                                                                                                                                                                                                                                                                                                                                                                                                                                 | В `dist`? |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
@@ -373,7 +406,7 @@ grep -l resolveFor main/packages/core/dist/{mjs,cjs}/defines/core.js
 
 ## Расхождения с историческими заметками
 
-`main/docs/*.md`, `main/readme.md` и планы в `docs/superpowers/plans/` — исторические заметки. Их утверждения фиксируются здесь, а не переносятся в текст как факт. Расхождения по отдельным пакетам — в readme соответствующих пакетов.
+`main/docs/*.md` (кроме этого документа) и `main/readme.md` под его баннером — исторические заметки автора. `docs/superpowers/` — место планов и ревью ядра (`plans/`, `specs/`), планы приложения — `test/specs/`; план — запись на свою дату, а не описание текущего кода. Утверждения заметок и планов фиксируются здесь, а не переносятся в текст как факт. Расхождения по отдельным пакетам — в readme соответствующих пакетов.
 
 | Заметка                                                           | Утверждение                                                                                        | Фактически                                                                                                                                                                    | Evidence                                                                                                                                                                                               |
 | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -384,7 +417,7 @@ grep -l resolveFor main/packages/core/dist/{mjs,cjs}/defines/core.js
 | `docs/lazy-evaluations.md`                                        | «наиболее корректным способом запуска lazy-декораторов является использование `setTimer`»          | Основная отложенная фаза — `LAST`, синхронная, запускается агрегатором; `setTimeout` остался только у `DELAY`                                                                 | `packages/core/src/defines/callstack.ts` (`AomCallstackQueue.constructor`, `AomCallstackQueue.run`), `packages/router/src/decorators/controllers/index.ts` (`Controller`)                              |
 | `docs/correct-extends.md`                                         | Перенос родительских декораторов всегда идёт в конец очереди потомка — «здесь следует подумать»    | Реализовано: `InheritPlacement.PREPEND` вставляет родительский блок в начало очереди с сохранением порядка, `SKIP` отменяет перенос                                           | `packages/core/src/defines/types.ts` (`InheritPlacement`), `core.ts` (`AomCallstackQueue.transferTo`)                                                                                                  |
 | `docs/openapi.md`                                                 | Схема собирается «на базе рутового контроллера»                                                    | Документ собирает `OpenApi` через `SchemasCollector`, а `Router` регистрирует в нём маршруты; корневой контроллер только отдаёт готовый JSON                                  | `packages/router/src/classes/router.ts` (`Router.constructor`), `packages/router/src/classes/openapi.ts` (`OpenApi.collector`), `packages/api/src/controllers/root.ts` (`BaseRootController.JSONDocs`) |
-| `docs/superpowers/plans/2026-07-20-test-coverage.md:14`           | «Имя `@aom-js/api` … сейчас его НЕ существует, нигде на него не ссылаться»                         | Пакет существует и является основным потребителем router в приложении (121 файл)                                                                                              | `packages/api/package.src.json` (`name`), `packages/api/src/index.ts`                                                                                                                                  |
+| `docs/superpowers/plans/2026-07-20-test-coverage.md:14`           | «Имя `@aom-js/api` … сейчас его НЕ существует, нигде на него не ссылаться»                         | Пакет существует и является основным потребителем router в приложении                                                                                              | `packages/api/package.src.json` (`name`), `packages/api/src/index.ts`                                                                                                                                  |
 | `docs/superpowers/plans/2026-07-20-test-coverage.md:18,31,86-100` | Команды через `yarn` (`yarn test`, `yarn workspace … build`)                                       | Все скрипты переведены на `bun`                                                                                                                                               | `package.json` (`scripts`)                                                                                                                                                                             |
 
 ## Открытые вопросы
@@ -395,7 +428,7 @@ grep -l resolveFor main/packages/core/dist/{mjs,cjs}/defines/core.js
 
 > ❓ Открытый вопрос: `@aom-js/holder` и `@aom-js/codegen` собираются и тестируются, но приложением не используются (ключевой сценарий holder теперь работает, `KI-HOLDER-01` закрыт). Пакеты остаются как задел или их следует исключить из сборочного конвейера?
 
-> ❓ Открытый вопрос закрыт (2026-09-14): `@aom-js/api` был самым крупным по площади пакетом ядра без тестов и без алиаса в `vitest.config.ts` (`KI-API-11`) — пакет получил алиас и 53 теста (`server.test.ts`, `units.test.ts`), проверяется как остальное ядро.
+> ❓ Открытый вопрос закрыт (2026-09-14): `@aom-js/api` был самым крупным по площади пакетом ядра без тестов и без алиаса в `vitest.config.ts` (`KI-API-11`) — пакет получил алиас и тесты (`packages/api/test/*.test.ts`), проверяется как остальное ядро.
 >
 > ✅ Решено (`KI-API-16`, 2026-09-21): лимит нужен в самом пакете. Тело разбирается лениво — только когда обработчик впервые читает `@Body`, поэтому проверка доступа отсекает запрос, не читая тела вовсе; размер ограничен `DEFAULT_BODY_LIMIT` (1 МиБ), `AomServerSettings.bodyLimit` или маркером `@BodyOptions` на маршруте.
 >
