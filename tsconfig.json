@@ -1,19 +1,11 @@
 {
+  // Проверка типов исходников всех пакетов одной командой: bunx tsc -p tsconfig.json --noEmit
+  // (verify.sh, после сборки — импорты между пакетами читают dist/types). Сборка идёт
+  // пакетными tsconfig.build*.json; настройки — общая база (node10 в TS 7 удалён, aom-main-x00).
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "target": "es2019",
-    // "sourceMap": true,
-    // "baseUrl": "packages",
-    "incremental": false,
-    "esModuleInterop": true,
-    "inlineSourceMap": true
+    // bun не поднимает @types/node в корень — берём из пакета
+    "typeRoots": ["./packages/core/node_modules/@types"]
   },
-  "paths": { "*": ["./packages/*"] },
-  "include": ["packages"],
-  "exclude": ["build", "node_modules", "sample", "**/*.spec.ts", "test/**"]
+  "include": ["packages/*/src"]
 }
