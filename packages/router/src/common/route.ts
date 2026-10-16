@@ -156,7 +156,7 @@ export class AomRoute {
    * import { Router, OpenApi } from "@aom-js/router";
    *
    * const router = new Router(RootController, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
-   * const route = router.routes.find((r) => r.method === "get" && r.path === "/hello")!;
+   * const route = router.routeOf(RootController.hello);
    * const result = await route.apply({
    *   ctx: {}, req: {}, res: {}, body: {}, files: {},
    *   query: {}, params: {}, cookies: {}, headers: {}, session: {},

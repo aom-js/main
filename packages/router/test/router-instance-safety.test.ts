@@ -31,12 +31,6 @@ const makeContext = (partial: Partial<HttpContextValues> = {}): HttpContextValue
   ...partial,
 });
 
-async function call(router: Router, method: string, path: string, ctx: HttpContextValues) {
-  const route = router.routes.find((r) => r.method === method && r.path === path);
-  if (!route) throw new Error(`route not found: ${method} ${path}`);
-  return route.apply(ctx);
-}
-
 // сигнал вместо таймера: сценарии гонок воспроизводятся точками синхронизации, а не паузами
 function signal() {
   let done!: () => void;
@@ -85,7 +79,7 @@ describe("router: непроверенный инстанс не виден чу
     }
 
     const router = new Router(App, makeDocs());
-    expect(await call(router, "get", "/state-map", makeContext())).toBe("PRIVATE-TOKEN");
+    expect(await router.routeOf(App.stateMap).apply(makeContext())).toBe("PRIVATE-TOKEN");
     expect(snapshot).toBeUndefined(); // во время хуков карта Auth не содержала
   });
 
@@ -124,7 +118,7 @@ describe("router: непроверенный инстанс не виден чу
     }
 
     const router = new Router(App, makeDocs());
-    await expect(call(router, "get", "/foreign-middleware", makeContext())).rejects.toThrow("401");
+    await expect(router.routeOf(App.foreignMiddleware).apply(makeContext())).rejects.toThrow("401");
     expect(log).toEqual(["Auth.Verify:deny", "work:401"]);
   });
 
@@ -155,7 +149,7 @@ describe("router: непроверенный инстанс не виден чу
     }
 
     const router = new Router(Auth, makeDocs());
-    const error = await call(router, "get", "/audit", makeContext()).catch((e: Error) => e);
+    const error = await router.routeOf(Auth.audit_).apply(makeContext()).catch((e: Error) => e);
     expect((error as Error).message).toContain("CIRCULAR_INSTANCE_ERROR");
     expect((error as Error).message).toContain("Auth");
     expect(captured).toEqual([]);
@@ -191,7 +185,7 @@ describe("router: непроверенный инстанс не виден чу
     }
 
     const router = new Router(Auth, makeDocs());
-    const error = await call(router, "get", "/link", makeContext()).catch((e: Error) => e);
+    const error = await router.routeOf(Auth.link_).apply(makeContext()).catch((e: Error) => e);
     expect((error as Error).message).toContain("CIRCULAR_INSTANCE_ERROR");
     expect((error as Error).message).toContain("Profile");
     expect(captured).toEqual([]);
@@ -219,8 +213,8 @@ describe("router: непроверенный инстанс не виден чу
 
     const router = new Router(App, makeDocs());
     const authorized = makeContext({ headers: { authorization: "ok" } });
-    expect(await call(router, "get", "/verified", authorized)).toBe(true);
-    await expect(call(router, "get", "/verified", makeContext())).rejects.toThrow("401");
+    expect(await router.routeOf(App.verified).apply(authorized)).toBe(true);
+    await expect(router.routeOf(App.verified).apply(makeContext())).rejects.toThrow("401");
   });
 });
 
@@ -263,7 +257,7 @@ describe("router: собственный код класса работает в
     }
 
     const router = new Router(Auth, makeDocs());
-    expect(await call(router, "get", "/own", makeContext())).toEqual([
+    expect(await router.routeOf(Auth.own).apply(makeContext())).toEqual([
       "self:true",
       "Privileged:PRIVATE-TOKEN",
       "Deep:PRIVATE-TOKEN",
@@ -299,7 +293,7 @@ describe("router: циклические зависимости инстансо
     }
 
     const router = new Router(A, makeDocs());
-    const error = await call(router, "get", "/hooks-cycle", makeContext()).catch((e: Error) => e);
+    const error = await router.routeOf(A.hooksCycle).apply(makeContext()).catch((e: Error) => e);
     expect((error as Error).message).toContain("CIRCULAR_INSTANCE_ERROR");
     expect((error as Error).message).toContain("A -> B -> A");
     expect(captured).toEqual([]);
@@ -323,7 +317,7 @@ describe("router: циклические зависимости инстансо
     }
 
     const router = new Router(A, makeDocs());
-    const error = await call(router, "get", "/ctor-hook-cycle", makeContext()).catch(
+    const error = await router.routeOf(A.ctorHookCycle).apply(makeContext()).catch(
       (e: Error) => e,
     );
     expect((error as Error).message).toContain("CIRCULAR_INSTANCE_ERROR");
@@ -350,7 +344,7 @@ describe("router: циклические зависимости инстансо
     }
 
     const router = new Router(App, makeDocs());
-    const error = await call(router, "get", "/ctor-cycle", makeContext()).catch((e: Error) => e);
+    const error = await router.routeOf(App.ctorCycle).apply(makeContext()).catch((e: Error) => e);
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain("CIRCULAR_INSTANCE_ERROR");
     expect((error as Error).message).toContain("B -> A -> B");
@@ -376,7 +370,7 @@ describe("router: циклические зависимости инстансо
     }
 
     const router = new Router(App, makeDocs());
-    const error = await call(router, "get", "/pair-cycle", makeContext()).catch((e: Error) => e);
+    const error = await router.routeOf(App.pairCycle).apply(makeContext()).catch((e: Error) => e);
     expect((error as Error).message).toContain("CIRCULAR_INSTANCE_ERROR");
   });
 
@@ -425,7 +419,7 @@ describe("router: циклические зависимости инстансо
     // гонка со временем: до исправления запрос не завершался вовсе, и тест должен падать
     // по несовпадению, а не висеть до таймаута vitest
     const outcome = await Promise.race([
-      call(router, "get", "/forgotten-edge", makeContext()).then(
+      router.routeOf(App.forgottenEdge).apply(makeContext()).then(
         () => "resolved",
         (e: Error) => e.message,
       ),
@@ -476,7 +470,7 @@ describe("router: @This(class) в конструкторе зависимого 
 
     const router = new Router(App, makeDocs());
     const authorized = makeContext({ headers: { authorization: "ok" } });
-    expect(await call(router, "get", "/dependent", authorized)).toBe("SECRET/true");
+    expect(await router.routeOf(App.dependent).apply(authorized)).toBe("SECRET/true");
     // конструктор дождался хука и увидел заполненный им инстанс, а не пустой
     expect(log).toEqual(["Auth.Verify", "Dependent:true"]);
   });
@@ -509,7 +503,7 @@ describe("router: @This(class) в конструкторе зависимого 
     }
 
     const router = new Router(App, makeDocs());
-    await expect(call(router, "get", "/denied", makeContext())).rejects.toThrow("401");
+    await expect(router.routeOf(App.denied).apply(makeContext())).rejects.toThrow("401");
     // ни конструктор зависимого класса, ни эндпоинт не выполнялись вовсе
     expect(log).toEqual([]);
   });
@@ -546,7 +540,7 @@ describe("router: @This(class) в конструкторе зависимого 
 
     const router = new Router(App, makeDocs());
     // наружу Auth выходит проверенным, но внутри его ветки создания Sidecar увидел его до проверки
-    expect(await call(router, "get", "/sidecar", makeContext())).toBe(true);
+    expect(await router.routeOf(App.sidecar).apply(makeContext())).toBe(true);
     expect(seen).toBe(false);
   });
 
@@ -573,7 +567,7 @@ describe("router: @This(class) в конструкторе зависимого 
     }
 
     const router = new Router(App, makeDocs());
-    const error = await call(router, "get", "/both", makeContext()).catch((e: Error) => e);
+    const error = await router.routeOf(App.both).apply(makeContext()).catch((e: Error) => e);
     expect((error as Error).message).toContain("CIRCULAR_INSTANCE_ERROR");
   });
 });

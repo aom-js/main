@@ -181,9 +181,7 @@ describe("router: ссылки на унаследованные статики"
     class App {}
 
     const router = new Router(App, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
-    const call = (path: string) => router.routes.find((route) => route.path === path)!.apply(context());
-
-    expect(await call("/a")).toBe("a");
-    expect(await call("/b")).toBe("b");
+    expect(await router.routeOf(A.Index).apply(context())).toBe("a");
+    expect(await router.routeOf(B.Index).apply(context())).toBe("b");
   });
 });

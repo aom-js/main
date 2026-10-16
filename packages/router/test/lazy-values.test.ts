@@ -28,12 +28,6 @@ const makeContext = (partial: Partial<HttpContextValues> = {}): HttpContextValue
   ...partial,
 });
 
-async function call(router: Router, method: string, path: string, ctx: HttpContextValues) {
-  const route = router.routes.find((r) => r.method === method && r.path === path);
-  if (!route) throw new Error(`route not found: ${method} ${path}`);
-  return route.apply(ctx);
-}
-
 describe("router: ленивые значения контекста (lazy/@Body)", () => {
   it("одна фабрика на все обращения @Body в запросе: два параметра метода и отдельный курсор маршрута", async () => {
     let calls = 0;
@@ -61,10 +55,7 @@ describe("router: ленивые значения контекста (lazy/@Body
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(
-      router,
-      "get",
-      "/body",
+    const result = await router.routeOf(App.handler).apply(
       makeContext({
         body: lazy(() => {
           calls += 1;
@@ -89,10 +80,7 @@ describe("router: ленивые значения контекста (lazy/@Body
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(
-      router,
-      "get",
-      "/no-body",
+    const result = await router.routeOf(App.handler).apply(
       makeContext({
         query: { q: "x" },
         body: lazy(() => {
@@ -119,10 +107,7 @@ describe("router: ленивые значения контекста (lazy/@Body
 
     const router = new Router(App, makeDocs());
     await expect(
-      call(
-        router,
-        "get",
-        "/reject",
+      router.routeOf(App.handler).apply(
         makeContext({
           body: lazy(() => {
             calls += 1;
@@ -148,10 +133,7 @@ describe("router: ленивые значения контекста (lazy/@Body
 
     const router = new Router(App, makeDocs());
     await expect(
-      call(
-        router,
-        "get",
-        "/throw",
+      router.routeOf(App.handler).apply(
         makeContext({
           body: lazy(() => {
             calls += 1;
@@ -174,7 +156,7 @@ describe("router: ленивые значения контекста (lazy/@Body
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(router, "get", "/plain", makeContext({ body: { a: 1 } }));
+    const result = await router.routeOf(App.handler).apply(makeContext({ body: { a: 1 } }));
     expect(result).toEqual({ a: 1 });
   });
 });

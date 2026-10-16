@@ -202,15 +202,15 @@ describe("BaseRootController.Index: копия маршрутов на запр�
     class App {}
 
     const router = new Router(App, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
-    const listed = async (path: string) => {
-      const route = router.routes.find((r) => r.method === "get" && r.path === path)!;
+    const listed = async (endpoint: Function) => {
+      const route = router.routeOf(endpoint);
       const result = (await route.apply(context())) as RoutesStructure<RouteElement>;
       return result.routes.map((element) => element.path);
     };
 
-    expect(await listed("/narrow")).not.toContain("/narrow");
+    expect(await listed(Narrow.Index)).not.toContain("/narrow");
     // роутер один на все запросы: сужение одного запроса не должно в нём остаться
     expect(router.routes.map((route) => route.path)).toContain("/narrow");
-    expect(await listed("/")).toContain("/narrow");
+    expect(await listed(Root.Index)).toContain("/narrow");
   });
 });

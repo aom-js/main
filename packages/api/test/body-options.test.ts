@@ -14,7 +14,7 @@ describe("api: @BodyOptions", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const route = router.routes.find((r) => r.path === "/limited")!;
+    const route = router.routeOf(App.limited);
     expect(route.markers[BODY_OPTIONS_MARKER]).toEqual({ limit: 2048 });
   });
 
@@ -26,7 +26,7 @@ describe("api: @BodyOptions", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const route = router.routes.find((r) => r.path === "/plain")!;
+    const route = router.routeOf(App.plain);
     expect(route.markers[BODY_OPTIONS_MARKER]).toBeUndefined();
   });
 
@@ -44,7 +44,7 @@ describe("api: @BodyOptions", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const route = router.routes.find((r) => r.path === "/override-down")!;
+    const route = router.routeOf(App.endpoint);
     expect(route.markers[BODY_OPTIONS_MARKER]).toEqual({ limit: 1024 });
   });
 
@@ -62,7 +62,7 @@ describe("api: @BodyOptions", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const route = router.routes.find((r) => r.path === "/override-up")!;
+    const route = router.routeOf(App.endpoint);
     expect(route.markers[BODY_OPTIONS_MARKER]).toEqual({ limit: 8192 });
   });
 });

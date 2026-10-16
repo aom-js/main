@@ -13,12 +13,6 @@ const makeContext = (partial: Partial<HttpContextValues> = {}): HttpContextValue
   ...partial,
 });
 
-async function call(router: Router, method: string, path: string, ctx: HttpContextValues) {
-  const route = router.routes.find((r) => r.method === method && r.path === path);
-  if (!route) throw new Error(`route not found: ${method} ${path}`);
-  return route.apply(ctx);
-}
-
 describe("router: исполнение запроса", () => {
   it("миддлвари выполняются до эндпоинта; undefined продолжает цепочку; результат эндпоинта — ответ", async () => {
     const calls: string[] = [];
@@ -41,7 +35,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(router, "get", "/hello", makeContext({ query: { name: "aom" } }));
+    const result = await router.routeOf(App.hello).apply(makeContext({ query: { name: "aom" } }));
     expect(result).toBe("hi aom");
     expect(calls).toEqual(["guard", "endpoint"]);
   });
@@ -88,7 +82,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(router, "get", "/ping", makeContext());
+    const result = await router.routeOf(App.ping).apply(makeContext());
     expect(result).toBe("ok");
     // Before: родитель первым (PREPEND); After: родитель последним (APPEND, как раньше)
     expect(calls).toEqual([
@@ -121,7 +115,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(router, "get", "/secure", makeContext());
+    const result = await router.routeOf(App.secure).apply(makeContext());
     expect(result).toEqual({ denied: true });
     expect(calls).toEqual([]);
   });
@@ -135,7 +129,7 @@ describe("router: исполнение запроса", () => {
       }
     }
     const router = new Router(App, makeDocs());
-    await expect(call(router, "get", "/fail", makeContext())).rejects.toMatchObject({
+    await expect(router.routeOf(App.fail).apply(makeContext())).rejects.toMatchObject({
       message: "boom",
       status: 418,
     });
@@ -150,7 +144,7 @@ describe("router: исполнение запроса", () => {
       }
     }
     const router = new Router(App, makeDocs());
-    await expect(call(router, "get", "/throw", makeContext())).rejects.toThrow("crashed");
+    await expect(router.routeOf(App.explode).apply(makeContext())).rejects.toThrow("crashed");
   });
 
   it("Body и Query извлекают значения по ключу и целиком", async () => {
@@ -162,8 +156,7 @@ describe("router: исполнение запроса", () => {
       }
     }
     const router = new Router(App, makeDocs());
-    const result = await call(
-      router, "get", "/echo",
+    const result = await router.routeOf(App.echo).apply(
       makeContext({ body: { a: 1 }, query: { q: "x" } }),
     );
     expect(result).toEqual({ body: { a: 1 }, q: "x" });
@@ -197,11 +190,11 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const first = await call(router, "get", "/me", makeContext({ query: { user: "alice" } }));
+    const first = await router.routeOf(App.me).apply(makeContext({ query: { user: "alice" } }));
     expect(first).toEqual({ who: "alice" });
     expect(hookLog).toEqual(["init:alice"]); // хук вызван однократно
 
-    const second = await call(router, "get", "/me", makeContext({ query: { user: "bob" } }));
+    const second = await router.routeOf(App.me).apply(makeContext({ query: { user: "bob" } }));
     expect(second).toEqual({ who: "bob" }); // новый запрос — новый инстанс
     expect(hookLog).toEqual(["init:alice", "init:bob"]);
   });
@@ -231,10 +224,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(
-      router,
-      "get",
-      "/x",
+    const result = await router.routeOf(App.x).apply(
       makeContext({ query: { p: "fromP", c: "fromC" } }),
     );
     expect(result).toBe("P:fromC");
@@ -264,7 +254,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(router, "get", "/pair", makeContext({ query: { user: "x" } }));
+    const result = await router.routeOf(App.pair).apply(makeContext({ query: { user: "x" } }));
     expect(result).toEqual({ same: true });
     expect(hooks).toBe(1);
   });
@@ -292,7 +282,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(router, "get", "/deps", makeContext());
+    const result = await router.routeOf(App.deps).apply(makeContext());
     expect(result).toEqual({ same: true });
     expect(created).toBe(1);
   });
@@ -331,9 +321,9 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    await expect(call(router, "get", "/secret", makeContext())).rejects.toThrow("401");
+    await expect(router.routeOf(App.secret).apply(makeContext())).rejects.toThrow("401");
     const authorized = makeContext({ headers: { authorization: "ok" } });
-    expect(await call(router, "get", "/secret", authorized)).toBe("secret");
+    expect(await router.routeOf(App.secret).apply(authorized)).toBe("secret");
   });
 
   it("два @This класса с падающим конструктором: конструктор вызван один раз, запрос отклонён его ошибкой", async () => {
@@ -355,7 +345,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    await expect(call(router, "get", "/broken", makeContext())).rejects.toThrow("ctor-boom");
+    await expect(router.routeOf(App.broken).apply(makeContext())).rejects.toThrow("ctor-boom");
     expect(created).toBe(1);
   });
 
@@ -375,7 +365,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const result = await call(router, "get", "/state", makeContext());
+    const result = await router.routeOf(App.state).apply(makeContext());
     expect(result.slow).toBeInstanceOf(Slow);
     expect(result.fromState).toBeUndefined();
     expect(result.raw).toBeUndefined();
@@ -414,7 +404,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    expect(await call(router, "get", "/sequence", makeContext())).toEqual(["Slow:ctor", "Slow.Check"]);
+    expect(await router.routeOf(App.sequence).apply(makeContext())).toEqual(["Slow:ctor", "Slow.Check"]);
   });
 
   it("перехваченная ошибка хука-проверки не пускает следующий курсор того же класса без авторизации", async () => {
@@ -455,10 +445,10 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    await expect(call(router, "get", "/secret", makeContext())).rejects.toThrow("401");
+    await expect(router.routeOf(App.secret).apply(makeContext())).rejects.toThrow("401");
     expect(checks).toBe(1); // отказ запомнен до конца запроса: Auth.Required получает ту же ошибку
     const authorized = makeContext({ headers: { authorization: "ok" } });
-    expect(await call(router, "get", "/secret", authorized)).toBe("secret");
+    expect(await router.routeOf(App.secret).apply(authorized)).toBe("secret");
   });
 
   it("отказ хука-проверки запоминается до конца запроса: соседний хук не пересоздаёт класс в фоне", async () => {
@@ -495,7 +485,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    await expect(call(router, "get", "/audit", makeContext())).rejects.toThrow("401");
+    await expect(router.routeOf(App.audit).apply(makeContext())).rejects.toThrow("401");
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(checks).toBe(1);
   });
@@ -527,7 +517,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    expect(await call(router, "get", "/again", makeContext())).toEqual({
+    expect(await router.routeOf(App.again).apply(makeContext())).toEqual({
       first: "ctor-boom-1",
       second: "ctor-boom-1",
       created: 1,
@@ -553,7 +543,7 @@ describe("router: исполнение запроса", () => {
     }
 
     const router = new Router(App, makeDocs());
-    const error = await call(router, "get", "/replayed", makeContext()).then(
+    const error = await router.routeOf(App.index).apply(makeContext()).then(
       () => {
         throw new Error("ожидали CURSOR_NOT_EXECUTABLE_ERROR");
       },
