@@ -202,7 +202,7 @@ describe("BaseRootController.Index: копия маршрутов на запр�
     class App {}
 
     const router = new Router(App, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
-    const listed = async (endpoint: Function) => {
+    const listed = async (endpoint: typeof Root.Index | typeof Narrow.Index) => {
       const route = router.routeOf(endpoint);
       const result = (await route.apply(context())) as RoutesStructure<RouteElement>;
       return result.routes.map((element) => element.path);
