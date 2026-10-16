@@ -1,7 +1,10 @@
 import type { CreatedRecord } from "../common/context";
 
-/** One verdict; `route` — `METHOD /path` of the run it was made in. */
-export type CheckResult = { probe: string; check: string; ok: boolean; error?: string; route?: string };
+/**
+ * One verdict; `route` — `METHOD /path` of the run it was made in, `set` — which of the route's
+ * value sets that run used, when `runAcross` gave the route several.
+ */
+export type CheckResult = { probe: string; check: string; ok: boolean; error?: string; route?: string; set?: string };
 
 /**
  * Collects the verdicts of one run. Brings no assertion library of its own — it takes a ready
@@ -21,6 +24,9 @@ export class TesterReport {
 
   /** `METHOD /path` of the current run; set by the runner before each route. */
   route = "";
+
+  /** Label of the current value set (`#n` and its query) when the route runs several; empty otherwise. */
+  set = "";
 
   /** How many assertions were made in total. Zero for one probe fails that probe. */
   private counter = 0;
@@ -75,6 +81,6 @@ export class TesterReport {
   }
 
   private where() {
-    return this.route ? { route: this.route } : {};
+    return { ...(this.route ? { route: this.route } : {}), ...(this.set ? { set: this.set } : {}) };
   }
 }

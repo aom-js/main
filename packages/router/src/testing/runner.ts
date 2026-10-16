@@ -248,9 +248,10 @@ async function probeRoute(
   groups: ProbeMethod[][],
   report: TesterReport,
   runs: RunTrace[],
-  options: { values?: Partial<HttpContextValues>; steps: () => AomCursor[]; preset?: RunOptions["preset"] },
+  options: { values?: Partial<HttpContextValues>; steps: () => AomCursor[]; preset?: RunOptions["preset"]; set?: string },
 ) {
   report.route = where(route);
+  report.set = options.set ?? "";
   for (const probes of groups) {
     const values = request(options.values, probes[0]!.input);
     address(route, values.params as Record<string, unknown>);
@@ -339,7 +340,7 @@ function grouped(tester: object, report: TesterReport) {
   const groups = new Map<string, Set<string>>();
   for (const f of report.failures) {
     const key = `  ✗ ${f.probe} → ${f.check}: ${f.error}`;
-    groups.set(key, (groups.get(key) ?? new Set()).add(f.route ?? ""));
+    groups.set(key, (groups.get(key) ?? new Set()).add(f.set ? `${f.route} ${f.set}` : (f.route ?? "")));
   }
   const routes = new Set(report.failures.map((f) => f.route));
   const head = `probes ${nameOf(tester)}: ${report.failures.length} of ${report.results.length} failed on ${routes.size} route${routes.size === 1 ? "" : "s"}`;
@@ -395,8 +396,11 @@ export async function runAcross(
       if (foreign) throw new Error(`${where(route)}: ${foreign.$} is not a step of this route`);
       return route.cursors.filter((cursor) => own.includes(cursor));
     };
-    for (const set of [values!].flat()) {
-      await probeRoute(route, groups, report, [], { values: set, steps, preset: options.preset });
+    const sets = [values!].flat();
+    for (const [n, set] of sets.entries()) {
+      // several sets on one route: the failure says which one, `route` stays `METHOD /path`
+      const label = sets.length > 1 ? `#${n + 1} ${JSON.stringify(set.query ?? {})}` : undefined;
+      await probeRoute(route, groups, report, [], { values: set, steps, preset: options.preset, set: label });
     }
   }
 

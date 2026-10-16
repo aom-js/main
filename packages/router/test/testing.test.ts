@@ -748,10 +748,28 @@ describe("runAcross", () => {
 
     expect(lines[0]).toBe("Error: probes SweepRed: 120 of 120 failed on 4 routes");
     expect(lines[1]).toBe("  ✗ fails everywhere → value 0: condition not met");
-    // routes in the router's own order
-    expect(lines[2]).toBe("      GET /items, GET /items/id-:id([0-9]+), GET /items/garage, GET /items/pair/:a([0-9-]+)-:b");
+    // routes in the router's own order, each with the value set it failed on
+    const set = '#1 {"n":"0"}';
+    expect(lines[2]).toBe(
+      `      GET /items ${set}, GET /items/id-:id([0-9]+) ${set}, GET /items/garage ${set}, GET /items/pair/:a([0-9-]+)-:b ${set}`,
+    );
     expect(lines.at(-1)).toBe("  … 10 more failing checks");
     expect(lines.length).toBeLessThanOrEqual(1 + 20 * 2 + 1);
+  });
+
+  it("several value sets on a route: the failure names the set it failed on, the route stays one", async () => {
+    @Tester({ match: (route) => route.method === "get" && route.path === "/items" })
+    class SweepHalf {
+      @Probe("only the second set is red")
+      static async half(@Query() query: Record<string, string>, @Report() report: TesterReport) {
+        report.check("n is 1", query.n === "1");
+      }
+    }
+    const values = (route: { path: string }) => ["1", "2"].map((n) => ({ ...itemValues(route), query: { n } }));
+
+    const failed = String(await runAcross(SweepHalf, router, { values }).catch((error: Error) => error));
+    expect(failed).toContain("1 of 2 failed on 1 route\n");
+    expect(failed).toContain('\n      GET /items #2 {"n":"2"}');
   });
 });
 
