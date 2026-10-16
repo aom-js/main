@@ -20,8 +20,18 @@ export declare interface AomRouteJSON {
   method: string;
   /** Path template as declared — data, not an access key. */
   path: string;
-  /** Per marker: `ident`s of the access points it collected (`accessPoints[].ident`), without their content. */
-  markers: Record<string, { accessPoints: string[] }>;
+  /**
+   * Per marker: `ident`s of the access points it collected (`accessPoints[].ident`); the marker's
+   * `accessTypes` when it has them; `extra` — layers of the points that have any, by point `ident`.
+   */
+  markers: Record<
+    string,
+    {
+      accessPoints: string[];
+      accessTypes?: string[];
+      extra?: Record<string, Array<{ ident: string; accessTypes: string[] }>>;
+    }
+  >;
   /** In execution order. */
   steps: AomCursorJSON[];
 }
@@ -168,14 +178,28 @@ export class AomRoute {
   }
 
   /**
-   * Projection of this route (`JSON.stringify(route)`): method, path, access-point `ident`s by
-   * marker and the steps in execution order. Computed on demand, executes nothing.
+   * Projection of this route (`JSON.stringify(route)`): method, path, access-point `ident`s,
+   * access types and point layers by marker, and the steps in execution order. Computed on demand, executes nothing.
    */
   toJSON(): AomRouteJSON {
     const markers: AomRouteJSON["markers"] = {};
     Object.entries(this.markers).forEach(([name, marker]) => {
-      const points: Array<{ ident: string }> = Array.isArray(marker?.accessPoints) ? marker.accessPoints : [];
-      markers[name] = { accessPoints: points.map(({ ident }) => ident) };
+      type Layer = { ident: string; accessTypes: string[] };
+      const points: Array<{ ident: string; extra?: Layer[] }> = Array.isArray(marker?.accessPoints)
+        ? marker.accessPoints
+        : [];
+      const projection: AomRouteJSON["markers"][string] = { accessPoints: points.map(({ ident }) => ident) };
+      if (Array.isArray(marker?.accessTypes)) projection.accessTypes = [...marker.accessTypes];
+      const layered = points.filter(({ extra }) => extra?.length);
+      if (layered.length) {
+        projection.extra = Object.fromEntries(
+          layered.map(({ ident, extra = [] }) => [
+            ident,
+            extra.map((layer) => ({ ident: layer.ident, accessTypes: [...layer.accessTypes] })),
+          ]),
+        );
+      }
+      markers[name] = projection;
     });
     // one set for the whole route: a class is created by the first step that needs it
     const created = new Set<unknown>();

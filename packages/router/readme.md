@@ -589,7 +589,7 @@ Evidence: `packages/router/src/decorators/arguments/index.ts` (`Query`, `Body`, 
 **`toJSON()`** у `Router`, `AomRoute`, `AomCursor` — один сериализатор для дампа и для сравнений: `JSON.stringify(router)` — дамп, `router.routeOf(X).toJSON()` — проекция маршрута.
 
 - `Router` → `{version: 1, routes}`, маршруты отсортированы по `method path`;
-- `AomRoute` → `{method, path, markers, steps}`; `markers` — по каждому маркеру `{accessPoints: string[]}`, только `ident` точек доступа без содержимого;
+- `AomRoute` → `{method, path, markers, steps}`; `markers` — по каждому маркеру `{accessPoints: string[]}` (только `ident` точек доступа), плюс `accessTypes` маркера, если они у него есть, и `extra` — слои точек по `ident` точки (`{ident, accessTypes}[]`), только у точек со слоями;
 - `AomCursor` → `{i, step, origin, via, viaGroup?, kind?, parameters, creates, hooks}`: `step`/`origin` — `AomApi.toString` шага и точки прикрепления, `kind` — только объявленный `@CursorKind`; `parameters` — `{kind: "this", subject}`, `{kind: "state", subject?}`, `{kind: "values", source, fields?}`, `{kind: "other", name?}` или просто `{kind}`; `fields` — имена из `$.openApi` шага после `realizeDelay` (параметры по `in`, параметры пути, свойства верхнего уровня схемы тела), иначе строковый ключ декоратора; `creates` — классы, чей инстанс этот шаг создаёт первым в маршруте (свой класс, затем цели `@This`; за каждым — рекурсивно цели `@This` его конструктора, как их создаёт `AomApi.instanceWithHooks`), `hooks` — их `@OnInstance`-хуки.
 
 ```ts

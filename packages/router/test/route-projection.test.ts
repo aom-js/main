@@ -12,6 +12,7 @@ import {
   Controller,
   CursorKind,
   Get,
+  Marker,
   Middleware,
   Next,
   Nextpoint,
@@ -24,6 +25,8 @@ import {
   Router,
   This,
   ThisRef,
+  UseMarker,
+  type AomRoute,
   type RefFunction,
 } from "@aom-js/router";
 
@@ -219,6 +222,35 @@ describe("router: toJSON", () => {
     expect(steps().filter((step) => step.kind)).toEqual([
       expect.objectContaining({ step: "Filters.Where", kind: "filter" }),
     ]);
+  });
+
+  it("markers: ident точек, типы маркера и слои точек — только если они есть", () => {
+    @Controller()
+    class Marks {
+      @Marker()
+      static access(route: AomRoute) {
+        route.markers.access = {
+          accessTypes: ["a"],
+          accessPoints: [
+            { ident: "P", title: "P", extra: [{ ident: "L", title: "L", accessTypes: ["a"] }] },
+            { ident: "Q", title: "Q", extra: [] },
+          ],
+        };
+        route.markers.bare = { accessPoints: [{ ident: "R", title: "R" }] };
+      }
+    }
+    @Controller()
+    class App {
+      @Get("/")
+      @UseMarker(Marks.access)
+      static async Index() {}
+    }
+
+    const [route] = JSON.parse(JSON.stringify(new Router(App, makeDocs()))).routes;
+    expect(route.markers).toEqual({
+      access: { accessPoints: ["P", "Q"], accessTypes: ["a"], extra: { P: [{ ident: "L", accessTypes: ["a"] }] } },
+      bare: { accessPoints: ["R"] },
+    });
   });
 
   it("параметры: @Query со схемой — поля, @This(X) и @This(ThisRef) — subject", () => {
