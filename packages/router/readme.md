@@ -22,7 +22,7 @@
 | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `Router`                                                  | `new Router(root: ClassType, docs: OpenApi)`; `routes: AomRoute[]`; `sockets: AomRoute[]`; `routeOf(endpoint: Function): AomRoute`; `toJSON(): AomRouterJSON` | Обход дерева контроллеров по бриджам, сборка маршрутов, регистрация их в OpenAPI                                                                                                                                                                               | да (`test/src/modules/*/api/index.ts`)                                                          |
 | `OpenApi`                                                 | `new OpenApi(initData: OpenAPIObject)`; `registerPath(route)`; `toJSON()`; `static tagsSeparator = " > "`; `static readonly refPointerPrefix`            | Накопитель и генератор документа OpenAPI 3.1                                                                                                                                                                                                                   | да (`test/src/modules/*/api/init.ts`)                                                           |
-| `AomApi`                                                  | `class AomApi extends AomCore { openApi; element; delayStack; delayRealized; title?; description?; toString(); static instanceWithHooks(target, args) }` | Мета-класс роутера; `AomApi.instance(target, property?)` — доступ к реестру                                                                                                                                                                                    | да (`test/src/modules/orgs/api/routes/permissions/current-value.ts`) |
+| `AomApi`                                                  | `class AomApi extends AomCore { openApi; element; delayStack; delayRealized; title?; description?; toString(); static instanceWithHooks(target, args) }` | Мета-класс роутера; `AomApi.instance(target, property?)` — доступ к реестру                                                                                                                                                                                    | да (`test/src/modules/orgs/api/routes/permissions/init/controllers/current-value.ts`) |
 | `AomCursor`                                               | `new AomCursor($: AomApi, origin: AomApi, prefix: string, endpoint?: AomEndpoint)`; `$`, `origin`, `prefix`, `endpoint`, `index`; `via?`, `viaGroup?`; `parameters(): AomCursorParameter[]`; `toJSON(created?): AomCursorJSON` | Единица исполнения цепочки; при создании перепривязывается и реализует `delayStack`                                                                                                                                                                            | да, как тип (`test/src/modules/tickets/api/routes/tickets/init/controllers/value.ts`)           |
 | `AomRoute`                                                | `router; endpoint; path; method; markers: MarkerType; cursors: AomCursor[]; apply(context: HttpContextValues): Promise<any>`; `toJSON(): AomRouteJSON` | Готовый маршрут                                                                                                                                                                                                                                                | да (`test/src/common/controllers/protected.ts` (`AomRoute`))                                    |
 | `TagsRules`                                               | `enum { IGNORE, MERGE, REPLACE }`                                                                                                                        | Правило слияния тегов                                                                                                                                                                                                                                          | нет                                                                                             |
@@ -733,30 +733,45 @@ export default new Server(settings, router, i18nizer);
 
 Зонд — статический метод, который выполняется **в контексте запроса, но вне его маршрута**. Роутер разрешает ему аргументы и создаёт инстансы тем же механизмом, что и шагам маршрута, поэтому зонду видно всё, что запрос накопил: инстансы контроллеров, условия шеллов, собранные запросы. Шагом маршрута зонд не является: в `route.cursors` не входит и на сборку маршрутов не влияет. Своего механизма исполнения у компонента нет — контекст `RxContext` создаёт прогонщик внутри пакета, наружу ни контекст, ни новый метод `AomRoute` не уходят (решение владельца 2026-10-15, задача `aom-main-oiy`). Обоснование приёма — `test/docs/probes.md`, `test/docs/testing-invariants.md` §7. Код — `packages/router/src/testing/`, самопроверки — `packages/router/test/testing.test.ts`.
 
-Зонд нужен тогда и только тогда, когда проверяемое существует только во время запроса (что накопили шаги, включая хуки `@OnInstance()`); порядок шагов и маркеры проверяются по `router.routes`, SQL шелла — снапшотом. Зонд вызывается **из** обычного теста.
+Зонд нужен тогда и только тогда, когда проверяемое существует только во время запроса (что накопили шаги, включая хуки `@OnInstance()`); порядок шагов и маркеры читаются проекцией `router.routeOf(X).toJSON()` и дампом (§«Метаданные цепочки»), а не зондом. Зонд вызывается **из** обычного теста.
+
+Зонд приложения сверяет смысл запроса — хелперы `intentOf`, `sameIntent`, `builtFrom` приложения (`test/src/common/intent`), не пакета:
 
 ```ts
-// test/src/modules/orgs/api/routes/roles/init/probes.ts
+// test/src/modules/orgs/api/routes/roles/init/probes.ts (выдержка; прочие импорты опущены)
 import { Probe, Observe, Report, Tester, type TesterReport } from "@aom-js/router/testing";
+import { builtFrom, intentOf, sameIntent } from "@/common/intent";
 
 @Tester(OrgRoles.Index)
-export class RolesIndexProbes {
-  @Probe("список ролей сужен по текущей организации")
-  static async scoping(
+export class RolesIndexFilterProbes {
+  @Probe("список ролей с ?name=: подпись фильтра в смысле", {
+    query: { name: "роли" },
+  })
+  static async filtered(
     @Observe(RolesShells) shells: RolesShells,
-    @Observe(CurrentOrg) { org }: CurrentOrg,
+    @Observe(RolesData) data: RolesData,
+    @Observe(RolesFilterQuery) { query }: RolesFilterQuery,
+    @Observe(CurrentOrg) current: CurrentOrg,
     @Report() report: TesterReport,
   ) {
-    const sql = shells.roles.prepare().getFormattedQuery();
-    report.check(`в запросе есть id текущей организации ${org.id}`, sql.includes(org.id));
+    report.check(
+      `роли: контекст, активность и подпись name=${query.name ?? ""} — смысл целиком`,
+      sameIntent(intentOf(shells), {
+        roles: [
+          [Seals.currentOrg, { org: current.org.id }],
+          [Seals.active, { deletedAt: null }],
+          [RolesSigns.name, { name: { $ilike: `%${query.name ?? ""}%` } }],
+        ],
+      }),
+    );
+    // без этой проверки сборка из копии `unsign()` теряла бы фильтр при зелёном смысле
+    report.check("главный запрос собран шагом маршрута", builtFrom(data.query, shells));
   }
 }
 
-// probes.test.ts рядом
-const report = await runProbes(RolesIndexProbes, router, {
-  cursors: [RolesData.PrepareQuery],
-  preset: [[CurrentOrg, { org: { id: CURRENT_ORG_ID } }]],
-});
+// probes.test.ts рядом (выдержка): частичный прогон без базы, «кто спрашивает» — preset
+const list: RunOptions = { cursors: [RolesData.PrepareQuery], preset };
+const report = await runProbes(RolesIndexFilterProbes, router, list);
 ```
 
 | Имя | Смысл |
@@ -831,7 +846,7 @@ cd main && bun run test          # весь монорепо
 cd main && bunx vitest run packages/router
 ```
 
-Текущий результат по пакету (`bunx vitest run packages/router`, проверено 2026-10-15): 12 файлов, 162 теста проходят, `it.fails` нет.
+Число файлов и тестов пакета печатает сам прогон `bunx vitest run packages/router`; ожидаемо падающих `it.fails` нет.
 
 ## Расхождения с историческими заметками
 
