@@ -2,14 +2,14 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FORBIDDEN } from "./links-rules";
+import { FORBIDDEN, commentLines } from "./links-rules";
 
 /**
  * Сторож сцепки «код ↔ документация» ядра: в комментариях и названиях тестов нет меток решений,
  * номеров задач и строк, путей к документам вне docs; пути и якоря живых docs ядра открываются.
  * Ядро не читает файлы приложения: ссылки, уходящие в `../test`, проверяет сторож приложения.
- * Правило сцепки — `../test/docs/testing.md#определение-готовности`. Разбор комментариев — своя копия из
- * `test/test/helpers/links.ts` приложения; запрещённые ссылки — `links-rules.ts`, его сверяет сторож приложения.
+ * Правило сцепки — `../test/docs/README.md#пометки-в-документах`. Разбор комментариев и запрещённые ссылки —
+ * `links-rules.ts`; сторож приложения сверяет их со своими копиями (`test/test/links-code.test.ts`).
  */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SKIP = new Set(["node_modules", "dist", "manifests"]);
@@ -31,256 +31,6 @@ const packages = readdirSync(join(ROOT, "packages"), { withFileTypes: true })
   .filter((e) => e.isDirectory())
   .map((e) => e.name);
 
-// ───────────────────────── комментарии и названия тестов ─────────────────────────
-
-const TEST_NAMES = new Set(["describe", "it", "test"]);
-/** Модификаторы, у которых свои скобки до вызова с названием: `test.each(таблица)("название", …)`. */
-const MOD_WITH_ARGS = new Set(["each", "if", "skipIf", "todoIf"]);
-/** После этих слов `/` начинает регулярное выражение, а не деление. */
-const REGEX_AFTER_WORD = new Set([
-  "return",
-  "typeof",
-  "case",
-  "do",
-  "else",
-  "in",
-  "of",
-  "yield",
-  "await",
-  "void",
-  "delete",
-  "throw",
-  "new",
-  "instanceof",
-]);
-const REGEX_AFTER_CHAR = "(,=:[!&|?{};+-*%<>~^";
-/** Строка вида ` * текст` вне блока: продолжение JSDoc (после `*` — пробел или конец строки, чтобы не путать с `*gen()`). */
-const JSDOC_LINE = /[ \t]*\*(?=[ \t\r\n]|$)([^\n]*)/y;
-const MOD = /\s*\.\s*(\w+)/y;
-
-/**
- * Индекс после парной `)` для `(` в позиции `from`; строки пропускаются по кавычкам.
- * Предел: вложенные шаблоны не разбираются (таблица `each` с обратной кавычкой внутри `${…}`).
- */
-function skipParens(src: string, from: number): number {
-  if (src[from] !== "(") return -1;
-  let depth = 0;
-  for (let i = from; i < src.length; i++) {
-    const c = src[i];
-    if (c === '"' || c === "'" || c === "`") {
-      for (i++; i < src.length && src[i] !== c; i++) if (src[i] === "\\") i++;
-    } else if (c === "(") depth++;
-    else if (c === ")" && --depth === 0) return i + 1;
-  }
-  return -1;
-}
-
-/** Позиция открывающей кавычки названия для вызова `describe|it|test[.мод…](` в позиции `from`, иначе -1. */
-function titleQuote(src: string, from: number): number {
-  const skipWs = (p: number) => {
-    while (/\s/.test(src[p] ?? "")) p++;
-    return p;
-  };
-  let p = from;
-  while (/\w/.test(src[p] ?? "")) p++;
-  for (;;) {
-    MOD.lastIndex = p;
-    const m = MOD.exec(src);
-    if (!m) break;
-    p = MOD.lastIndex;
-    if (MOD_WITH_ARGS.has(m[1])) {
-      p = skipParens(src, skipWs(p));
-      if (p < 0) return -1;
-    }
-  }
-  p = skipWs(p);
-  if (src[p] !== "(") return -1;
-  p = skipWs(p + 1);
-  return /["'`]/.test(src[p] ?? "") ? p : -1;
-}
-
-/**
- * Текст комментариев (`//` вне строк, блочные, строки JSDoc ` * …`) и первый строковый аргумент
- * `describe|it|test` (с `.each`, `.skip`, `.only`, …) — всё, на что действует правило сцепки.
- * Содержимое строк, шаблонов и регулярных выражений не читается: `"http://…"` — не комментарий.
- * Пустые строки комментария пропускаются; блочный комментарий отдаёт строки со своими номерами.
- * Предел: построчный разбор без полного синтаксического дерева — `/` после `)` и `}` считается делением.
- */
-function commentLines(source: string): { line: number; text: string }[] {
-  const out: { line: number; text: string }[] = [];
-  const emit = (line: number, text: string) => {
-    const t = text.trim();
-    if (t) out.push({ line, text: t });
-  };
-  const n = source.length;
-  const open: number[] = []; // глубина `{` для каждого незакрытого `${` шаблона
-  let i = 0;
-  let line = 1;
-  let depth = 0;
-  let prev = ""; // последний значащий символ кода
-  let word = ""; // последнее слово, если prev — его конец
-  let titleAt = -1;
-  let lineStart = true;
-
-  /** Строка в кавычках; для названия теста отдаёт текст. Возвращает индекс после закрывающей. */
-  const quoted = (q: string, from: number, title: boolean): number => {
-    const start = line;
-    let text = "";
-    let j = from;
-    while (j < n) {
-      const c = source[j];
-      if (c === "\\") {
-        if (source[j + 1] === "\n") line++;
-        text += source.slice(j, j + 2);
-        j += 2;
-        continue;
-      }
-      if (c === q) {
-        j++;
-        break;
-      }
-      if (c === "\n") {
-        if (q !== "`") break; // оборванная строка
-        line++;
-      }
-      text += c;
-      j++;
-    }
-    if (title) emit(start, text.replace(/\s+/g, " "));
-    return j;
-  };
-
-  /**
-   * Текст шаблона до закрывающей кавычки или `${`; после `${` разбор кода продолжает основной цикл.
-   * Заодно выставляет prev: закрытый шаблон — значение, открытое выражение — начало кода.
-   */
-  const template = (from: number): number => {
-    for (let j = from; j < n; j++) {
-      const c = source[j];
-      if (c === "\\") {
-        if (source[j + 1] === "\n") line++;
-        j++;
-      } else if (c === "\n") line++;
-      else if (c === "`") {
-        prev = "a";
-        return j + 1;
-      } else if (c === "$" && source[j + 1] === "{") {
-        open.push(depth);
-        prev = "{";
-        return j + 2;
-      }
-    }
-    prev = "a";
-    return n;
-  };
-
-  /** Индекс после регулярного выражения с флагами или -1, если до конца строки закрывающей `/` нет. */
-  const regex = (from: number): number => {
-    let inClass = false;
-    for (let j = from + 1; j < n; j++) {
-      const c = source[j];
-      if (c === "\n") return -1;
-      if (c === "\\") j++;
-      else if (c === "[") inClass = true;
-      else if (c === "]") inClass = false;
-      else if (c === "/" && !inClass) {
-        j++;
-        while (/[a-z]/.test(source[j] ?? "")) j++;
-        return j;
-      }
-    }
-    return -1;
-  };
-
-  while (i < n) {
-    if (lineStart) {
-      lineStart = false;
-      JSDOC_LINE.lastIndex = i;
-      const m = JSDOC_LINE.exec(source);
-      if (m) {
-        emit(line, m[1]);
-        i = JSDOC_LINE.lastIndex;
-        continue;
-      }
-    }
-    const c = source[i];
-    if (c === "\n") {
-      line++;
-      i++;
-      lineStart = true;
-      continue;
-    }
-    if (c === " " || c === "\t" || c === "\r") {
-      i++;
-      continue;
-    }
-    if (c === "/") {
-      const d = source[i + 1];
-      if (d === "/") {
-        const end = source.indexOf("\n", i);
-        const stop = end < 0 ? n : end;
-        emit(line, source.slice(i + 2, stop));
-        i = stop;
-        continue;
-      }
-      if (d === "*") {
-        const end = source.indexOf("*/", i + 2);
-        const stop = end < 0 ? n : end;
-        const body = source.slice(i + 2, stop).split("\n");
-        body.forEach((t, k) =>
-          emit(line + k, k === 0 ? t.replace(/^\*+/, "") : t.replace(/^\s*\*+/, "")),
-        );
-        line += body.length - 1;
-        i = stop + 2;
-        continue;
-      }
-      if (prev === "" || REGEX_AFTER_CHAR.includes(prev) || REGEX_AFTER_WORD.has(word)) {
-        const end = regex(i);
-        if (end > 0) {
-          i = end;
-          prev = "a";
-          word = "";
-          continue;
-        }
-      }
-    } else if (c === '"' || c === "'") {
-      i = quoted(c, i + 1, i === titleAt);
-      prev = "a";
-      word = "";
-      continue;
-    } else if (c === "`") {
-      if (i === titleAt) {
-        i = quoted(c, i + 1, true);
-        prev = "a";
-      } else i = template(i + 1);
-      word = "";
-      continue;
-    } else if (/[\w$]/.test(c)) {
-      let j = i + 1;
-      while (j < n && /[\w$]/.test(source[j])) j++;
-      const w = source.slice(i, j);
-      if (prev !== "." && TEST_NAMES.has(w)) titleAt = titleQuote(source, i);
-      prev = w[w.length - 1];
-      word = w;
-      i = j;
-      continue;
-    } else if (c === "{") depth++;
-    else if (c === "}") {
-      if (open.length && open[open.length - 1] === depth) {
-        open.pop();
-        i = template(i + 1);
-        word = "";
-        continue;
-      }
-      depth--;
-    }
-    prev = c;
-    word = "";
-    i++;
-  }
-  return out;
-}
-
 /** Файлы кода ядра для сторожа: `{src,test}` каждого пакета и `scripts`. */
 const codeFiles = [
   ...packages.flatMap((p) =>
@@ -293,7 +43,7 @@ describe("main: сцепка кода и docs", () => {
   it("main: в комментариях и названиях тестов нет запрещённых ссылок", () => {
     expect(codeFiles.length).toBeGreaterThan(0);
     const bad = codeFiles.flatMap((file) =>
-      commentLines(read(file)).flatMap(({ line, text }) =>
+      commentLines(read(file), file).flatMap(({ line, text }) =>
         FORBIDDEN.filter(({ rx }) => rx.test(text)).map(
           ({ rule }) => `${file}:${line} — ${rule}: ${text}`,
         ),
@@ -346,18 +96,12 @@ describe("main: сцепка кода и docs", () => {
     }
   };
 
-  /** Живые docs ядра; docs с пометкой «исторический» в первых пяти строках — история, их ссылки не проверяются. */
+  /** Живые docs ядра; исторические черновики тоже: их ссылки должны открываться (метки в них не проверяются — это дело приложения). */
   const liveDocs = [
     ...["readme.md", ...walk("docs", /\.md$/, false), ...walk("docs/cookbook", /\.md$/)],
     ...packages.map((p) => `packages/${p}/readme.md`),
   ]
     .filter((f) => existsSync(join(ROOT, f)))
-    .filter(
-      (f) =>
-        !read(f)
-          .split("\n", 5)
-          .some((l) => /историческ/i.test(l)),
-    )
     .sort();
 
   it("main: пути и якоря docs ядра внутри репозитория открываются", () => {
