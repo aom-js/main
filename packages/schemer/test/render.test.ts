@@ -174,7 +174,7 @@ describe("schemer: рендер JSON Schema", () => {
     expect($status?.schemaParams).toMatchObject({ enumName: "Status" });
   });
 
-  // KI-SCHEMER-NN: недекорированный промежуточный класс не наследовал ничего сам, и
+  // KI-SCHEMER-10: недекорированный промежуточный класс не наследовал ничего сам, и
   // targetConstructorToSchema поднимался по прототипам до предка, отдавая его description/свойства
   it("недекорированный промежуточный класс не подменяет схему потомка предком", () => {
     @ComponentSchema({ description: "base" })
@@ -212,7 +212,7 @@ describe("schemer: рендер JSON Schema", () => {
     expect(Object.keys(schema.properties ?? {})).toEqual(["a"]);
   });
 
-  // KI-SCHEMER-NN: у самого промежуточного класса тоже может быть своё @PropertySchema-свойство
+  // KI-SCHEMER-10: у самого промежуточного класса тоже может быть своё @PropertySchema-свойство
   // (без @ComponentSchema) — оно должно дойти до потомка наравне со свойствами дальнего предка
   it("недекорированный промежуточный класс со своим свойством — оно тоже доходит до потомка", () => {
     @ComponentSchema({ description: "base" })
