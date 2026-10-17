@@ -53,7 +53,7 @@ class MathExecutor extends MathService {
 await MathService.sum(2, 3); // 5 — ушло в топик "MathService.sum", вернулось из "reply_MathService.sum_k1_test-node"
 ```
 
-`publisher`/`subscriber` — единственное, что зависит от конкретной шины; сигнатуры и Kafka/NATS-примеры — `docs/isolators.md` §«Конфигурация». Изолируются только **статические** методы: карты топиков ключуются значением функции на конструкторе (`packages/transfer/src/defines/decorators.ts` (`DefineTopics`)).
+`publisher`/`subscriber` — единственное, что зависит от конкретной шины; сигнатуры — таблица «Типы» в [`packages/transfer/readme.md`](../../packages/transfer/readme.md#типы), NATS-адаптер приложения — там же, «Использование в приложении». Изолируются только **статические** методы: карты топиков ключуются значением функции на конструкторе (`packages/transfer/src/defines/decorators.ts` (`DefineTopics`)).
 
 > Исполняется: `packages/transfer/test/rpc.test.ts` → «вызов изолированного метода публикует сообщение и возвращает результат исполнителя».
 
