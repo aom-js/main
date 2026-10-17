@@ -1,7 +1,6 @@
-// Контракт: docs/superpowers/plans/2026-09-14-codegen-folding-design.md (раздел 3, 4, 7, 8).
-// Реализация — packages/schemer/src/defines/folding.ts (подзадача #1, параллельно с этим файлом).
-// Тесты пишутся по контракту документа, а не по реализации: пока её нет, файл красный
-// с ошибкой "нет экспорта foldSchemas", а не синтаксической.
+// Контракт: packages/schemer/readme.md#свёртка-схем-для-кодогенерации-foldschemas-1.
+// Реализация — packages/schemer/src/defines/folding.ts (`foldSchemas`).
+// Тесты пишутся по контракту формата, а не по реализации.
 import { describe, it, expect, vi } from "vitest";
 import {
   ComponentSchema,

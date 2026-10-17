@@ -732,7 +732,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
 // чтобы тесты не гоняли мегабайты ради превышения
 let guardedBodyRead = false;
 let interceptedStatus: number | undefined;
-// см. docs/cookbook/lazy-body-and-limits.md § «Порядок решает»: билдер тела, поставленный
+// см. docs/cookbook/lazy-body-and-limits.md#порядок-решает--важнейшая-оговорка: билдер тела, поставленный
 // в @Before раньше проверки доступа, снова читает тело первым
 let wrongOrderBodyRead = false;
 

@@ -31,7 +31,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["packages/*/test/**/*.test.ts"],
+    include: ["packages/*/test/**/*.test.ts", "scripts/*.test.ts"],
     setupFiles: ["./vitest.setup.ts"],
     coverage: {
       provider: "v8",

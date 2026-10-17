@@ -11,7 +11,7 @@ import {
   Middleware,
 } from "@aom-js/router";
 
-// значения — строки из спеки метаданных курсоров (раздел «Словари»): сериализация стабильна между версиями
+// значения закреплены: сериализация стабильна между версиями (словари — packages/router/readme.md#метаданные-цепочки-tojson-routeof-cursorkind)
 describe("router: словари видов", () => {
   it.each([
     ["AomCursorKind", AomCursorKind, {
@@ -31,7 +31,7 @@ describe("router: словари видов", () => {
       Endpoint: "endpoint", Before: "before", After: "after", Next: "next",
       ClassBefore: "class-before", ClassAfter: "class-after",
     }],
-  ])("%s — ровно значения спеки", (_name, dictionary, expected) => {
+  ])("%s — значения словаря закреплены", (_name, dictionary, expected) => {
     expect({ ...dictionary }).toEqual(expected);
   });
 });

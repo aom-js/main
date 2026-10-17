@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Transfer, Isolator, CustomTopic, Executor, IsQueue } from "@aom-js/transfer";
 import { MemoryBus } from "./memory-bus";
 
-// Рецепт: docs/cookbook/isolators.md § «Очередь исполнителей (@IsQueue)» — то же самое здесь исполняется тестом
+// Рецепт: docs/cookbook/isolators.md#очередь-исполнителей-isqueue — то же самое здесь исполняется тестом
 const bus = new MemoryBus();
 
 // перехватываем аргументы, с которыми Executor подписывается на топик — сама MemoryBus

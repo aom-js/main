@@ -185,7 +185,7 @@ describe("router: Router.routeOf", () => {
 describe("router: toJSON", () => {
   const json = JSON.parse(JSON.stringify(router));
 
-  it("ключи — ровно форма спеки", () => {
+  it("ключи — закреплённая форма дампа", () => {
     expect(Object.keys(json).sort()).toEqual(["routes", "version"]);
     expect(json.version).toBe(1);
     const routeKeys = new Set(json.routes.flatMap((r: object) => Object.keys(r)));

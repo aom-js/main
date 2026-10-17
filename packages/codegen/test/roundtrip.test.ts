@@ -1,5 +1,5 @@
-// Сквозной тест codegen (KI-CODEGEN-01), подзадача #5:
-// docs/superpowers/plans/2026-09-14-codegen-folding-design.md (разделы 3, 5, 6, 9, 10, 11).
+// Сквозной тест codegen (KI-CODEGEN-01); формат свёртки — packages/schemer/readme.md#свёртка-схем-для-кодогенерации-foldschemas-1,
+// восстановление DTO — packages/codegen/readme.md#восстановление-dto-из-собственного-формата-emitschemas.
 // Классы фикстуры → распределённый дескриптор (folding при декорировании) → emitService →
 // файлы в __generated__ → import() сгенерированного schemas.ts → foldSchemas(сгенерированные
 // классы) должен совпасть с descriptor.schemas; JSON Schema (render) каждого компонента —

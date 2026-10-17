@@ -245,7 +245,7 @@ export class AomApi extends AomCore {
   /**
    * Returns the instance of `target` for the current request, creating and validating
    * it if needed. This is the single place that implements the two-stage instance
-   * lifecycle described in the package readme (§"Instances, `state` and `\@OnInstance`"):
+   * lifecycle described in `packages/router/readme.md#инстансы-state-и-oninstance-aomapiinstancewithhooks`:
    *
    * 1. **Already validated** — `context.state` has it: return immediately.
    * 2. **Being created by this same branch** (`target` is in `cursor.creating`):

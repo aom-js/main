@@ -1,5 +1,4 @@
-// Фикстура сквозного теста codegen (../roundtrip.test.ts), см.
-// docs/superpowers/plans/2026-09-14-codegen-folding-design.md (подзадача #5, раздел 11).
+// Фикстура сквозного теста codegen (../roundtrip.test.ts).
 // По образцу приложения: IsUUID в decorators, Date nullable, Enum (isArray + enumName),
 // Type (isArray + цикл ссылок A→B→A), Pick/Partial/IntersectionType (включая вложенный mapped),
 // параметры @ComponentSchema, наследование компонент→компонент и один декоратор, который
