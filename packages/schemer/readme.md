@@ -81,7 +81,7 @@
 | `test/`                                                    | Vitest-файлы `render`, `runtime`, `mapped-types`, `collector`, `folding`; запускаются из корня ядра по алиасу на `src`                                                                | —                                                                                                         |
 | `package.json`, `package.src.json`, `tsconfig.build*.json` | Манифесты и три конфигурации сборки (cjs/mjs/types)                                                                                                                                          | —                                                                                                         |
 
-Файл помощника `decorate-property` в `src/defines/helpers` удалён — та же функция теперь объявлена прямо в `properties.ts`, единственном месте, где она используется.
+Файл `src/defines/helpers/decorate-property.ts` удалён — та же функция теперь объявлена прямо в `properties.ts`, единственном месте, где она используется.
 
 ## Ключевые механизмы
 
@@ -329,7 +329,7 @@ Evidence: `packages/schemer/src/defines/folding.ts` (`foldSchemas`), тесты 
 
 ### Легаси и мёртвый код
 
-Прежний мёртвый код пакета удалён вместе с породившими его причинами: неиспользуемое поле `AomSchemas.schemer`, никогда не наполнявшийся массив `errors` в `ComponentSchema` (и его недостижимая проверка), закомментированный черновик `ComponentConnect` — всё это было удалено вместе с рефакторингом `ComponentSchema` и `AomSchemas` (была общая запись `KI-SCHEMER-09` в `test/docs/known-issues.md`, теперь закрыта). Безусловный вызов `inherit(Function.prototype)`, регистрировавший пустой узел реестра для класса без родителя, ушёл вместе с подъёмом до ближайшего предка-компонента (`KI-SCHEMER-10`). Файл помощника `decorate-property` в `src/defines/helpers` удалён — функция перенесена в `properties.ts`, где используется.
+Прежний мёртвый код пакета удалён вместе с породившими его причинами: неиспользуемое поле `AomSchemas.schemer`, никогда не наполнявшийся массив `errors` в `ComponentSchema` (и его недостижимая проверка), закомментированный черновик `ComponentConnect` — всё это было удалено вместе с рефакторингом `ComponentSchema` и `AomSchemas` (была общая запись `KI-SCHEMER-09` в `test/docs/known-issues.md`, теперь закрыта). Безусловный вызов `inherit(Function.prototype)`, регистрировавший пустой узел реестра для класса без родителя, ушёл вместе с подъёмом до ближайшего предка-компонента (`KI-SCHEMER-10`). Файл `src/defines/helpers/decorate-property.ts` удалён — функция перенесена в `properties.ts`, где используется.
 
 > 🧱 Легаси (незначительное, не в реестре): `IsNullable` теперь экспортируется из пакета (`src/index.ts` реэкспортирует `./defines/helpers`), но `@aom-js/api` по-прежнему держит дословную копию (`packages/api/src/decorators/is-nullable.ts` (`IsNullable`)) вместо импорта из `@aom-js/schemer`. Раньше дублирование было вынужденным (schemer не экспортировал `IsNullable`), теперь — просто не убрано.
 
