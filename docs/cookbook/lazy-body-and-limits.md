@@ -9,7 +9,7 @@
 - `packages/api/test/body-options.test.ts` → `describe("api: @BodyOptions")`
 - `packages/router/test/lazy-values.test.ts` → `describe("router: ленивые значения контекста (lazy/@Body)")`
 
-Справочник по всем сигнатурам и internals — `packages/api/readme.md` §«Ленивое тело запроса и лимит размера» и `packages/router/readme.md` §«Ленивые значения контекста». Здесь — только то, что нужно, чтобы написать прикладной код и не наступить на грабли.
+Справочник по всем сигнатурам и internals — `packages/api/readme.md` §«Ленивое тело запроса и лимит размера» и `packages/router/readme.md` §«Ленивые значения контекста…». Здесь — только то, что нужно, чтобы написать прикладной код и не наступить на грабли.
 
 ---
 
@@ -268,6 +268,6 @@ const values: HttpContextValues = {
 ## Ссылки
 
 - Справочник по `Server`, `parseJsonBody`, `@BodyOptions`: `packages/api/readme.md` §«Ленивое тело запроса и лимит размера»
-- Справочник по `lazy`, `LazyValue`, `RxContext.value`: `packages/router/readme.md` §«Ленивые значения контекста»
+- Справочник по `lazy`, `LazyValue`, `RxContext.value`: `packages/router/readme.md` §«Ленивые значения контекста…»
 - Порядок исполнения курсоров маршрута целиком: `docs/architecture.md`
 - Тесты, исполняющие этот рецепт: `packages/api/test/server.test.ts`, `packages/api/test/units.test.ts`, `packages/api/test/body-options.test.ts`, `packages/router/test/lazy-values.test.ts`
