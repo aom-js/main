@@ -193,7 +193,7 @@ Evidence: `packages/holder/src/decorators.ts` (`Apply`); `packages/core/src/defi
 
 ### Expected-fail
 
-`it.fails`-тестов в пакете больше нет. До исправления «Delay на родителе + Apply на потомке переносит класс-декораторы родителя» (`test/holder.test.ts`) был помечен `it.fails` — находка #3 из `docs/superpowers/plans/2026-07-20-test-coverage-findings.md`, соответствовал `KI-HOLDER-01`. Дефект закрыт, тест переведён в обычный проходящий; политика характеризационных тестов — `test/docs/testing.md`.
+`it.fails`-тестов в пакете больше нет. До исправления «Delay на родителе + Apply на потомке переносит класс-декораторы родителя» (`test/holder.test.ts`) был помечен `it.fails` и соответствовал `KI-HOLDER-01`. Дефект закрыт, тест переведён в обычный проходящий; политика характеризационных тестов — `test/docs/testing.md`.
 
 ### Пробелы
 
@@ -228,7 +228,6 @@ bun run test -- packages/holder
 | `packages/holder/readme.md:1-3` (HEAD, заменён этим документом) | Пакет называется `@aom-js/mixer`, «Class decorators mixer»                            | Имя пакета — `@aom-js/holder`, мета-класс — `AomHolder`; сущности `mixer` в коде нет                                                                                                                                                                                                                 | `packages/holder/package.src.json` (`name`); `packages/holder/src/init.ts` (`AomHolder`)                                                                   |
 | `docs/holder.md`                                                | Очередь — свойство класса `AomMixer`, перенос очереди происходит при наследовании     | Класс называется `AomHolder` (не `AomMixer`); декораторы **свойств** переносятся через callstack узла (`AomNode.inherit`), очередь потомка наполняется исполнением перенесённых LAST-вызовов; **классовые** декораторы (`$.queue`) переносятся отдельно, вручную, в `Delay` (`KI-HOLDER-01`, закрыт) | `packages/holder/src/init.ts` (`AomHolder`); `packages/holder/src/decorators.ts` (`Delay`); `packages/core/src/defines/node.ts` (`AomNode.inherit`) |
 | `docs/holder.md`                                                | Пример конечной сущности `Contractors` через `@Apply(ComponentSchema(...), Entity())` | Класса `Contractors` в приложении нет; базовые сущности объявлены прямыми декораторами без холдера                                                                                                                                                                                                   | `test/src/common/schemas/postgres/base.ts` (`DefaultEntity`)                                                                                        |
-| `docs/superpowers/plans/2026-07-20-test-coverage.md`            | Запуск тестов: `yarn test packages/holder/test/holder.test.ts`                        | Репозиторий переехал на bun: `bun run test` (`vitest run`)                                                                                                                                                                                                                                           | `package.json` (`"test": "vitest run"`); коммит `ac30794` «change yarn to bun»                                                                   |
 
 ## Открытые вопросы
 

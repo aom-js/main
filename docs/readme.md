@@ -8,7 +8,6 @@
 | --- | --- | --- |
 | [`architecture.md`](architecture.md) | живой | карта ядра: пакеты, модель метаданных, сборка, как приложение потребляет ядро, как менять ядро; расхождения исторических заметок с кодом |
 | [`cookbook/`](cookbook/readme.md) | живой | рецепты прикладного кода со ссылками на тесты, где тот же код исполняется |
-| `superpowers/plans/` | планы | планы и ревью ядра — запись на свою дату, а не описание кода |
 | [`isolators.md`](isolators.md) | исторический | заметки об изоляторах; действующее — [`packages/transfer/readme.md`](../packages/transfer/readme.md) и [`packages/codegen/readme.md`](../packages/codegen/readme.md) |
 | `holder.md`, `schemer-flexible-render.md`, `lazy-evaluations.md`, `access-controller.md`, `codegen.md`, `core.md`, `correct-extends.md`, `e2e-test.md`, `i18nizer.md`, `on-instance-hook.md`, `openapi.md`, `todo.md`, `мысли-вслух.md` | исторический | черновики автора; в начале каждого — ссылка на актуальное описание |
 | `../packages/core/src/readme.md`, `../packages/router/src/readme.md` | исторический | ранние черновики пакетов core и router |
