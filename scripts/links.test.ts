@@ -2,13 +2,14 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { FORBIDDEN } from "./links-rules";
 
 /**
  * Сторож сцепки «код ↔ документация» ядра: в комментариях и названиях тестов нет меток решений,
  * номеров задач и строк, путей к документам вне docs; пути и якоря живых docs ядра открываются.
  * Ядро не читает файлы приложения: ссылки, уходящие в `../test`, проверяет сторож приложения.
- * Правило сцепки — `../test/docs/testing.md#определение-готовности`. Своя копия разбора из
- * `test/test/helpers/links.ts` приложения: только то, что нужно двум тестам.
+ * Правило сцепки — `../test/docs/testing.md#определение-готовности`. Разбор комментариев — своя копия из
+ * `test/test/helpers/links.ts` приложения; запрещённые ссылки — `links-rules.ts`, его сверяет сторож приложения.
  */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SKIP = new Set(["node_modules", "dist", "manifests"]);
@@ -279,62 +280,6 @@ function commentLines(source: string): { line: number; text: string }[] {
   }
   return out;
 }
-
-// ───────────────────────── запрещённые ссылки ─────────────────────────
-
-/** Границы слова для кириллицы: `\b` и `\w` в JS видят только латиницу. */
-const NOT_WORD_BEFORE = "(?<![\\p{L}\\p{N}_])";
-const NOT_WORD_AFTER = "(?![\\p{L}\\p{N}_])";
-
-/**
- * Тот же набор, что `test/test/helpers/links.ts` приложения (без правил только для docs: `where: "code"`
- * и `"both"` читаются здесь одинаково). Образцы — только в строках, не в комментариях.
- */
-const FORBIDDEN: readonly { rule: string; rx: RegExp }[] = [
-  { rule: "раздел §N", rx: /§\s?\d/u },
-  { rule: "знак §", rx: /§(?!\s?\d)/u },
-  { rule: "метка D-№", rx: /(?<![\p{L}\p{N}_-])D-\d+/u },
-  {
-    rule: "метка Н№/В№",
-    rx: new RegExp(`(?<![\\p{L}\\p{N}_-])[НВ]\\d{1,2}${NOT_WORD_AFTER}`, "u"),
-  },
-  {
-    rule: "метка М№/Р№",
-    rx: new RegExp(`(?<![\\p{L}\\p{N}_-])[МР]\\d{1,2}${NOT_WORD_AFTER}`, "u"),
-  },
-  {
-    rule: "метка M№/R№ латиницей",
-    rx: new RegExp(`(?<![\\p{L}\\p{N}_-])[MR]\\d{1,2}${NOT_WORD_AFTER}`, "u"),
-  },
-  // имена контейнеров docker (`aom-test-postgres`, `aom-test-nats`) — не задачи
-  {
-    rule: "задача трекера",
-    rx: new RegExp(
-      `${NOT_WORD_BEFORE}aom-(?:test|main)-(?!(?:postgres|nats)${NOT_WORD_AFTER})[a-z0-9]{3,}`,
-      "u",
-    ),
-  },
-  {
-    rule: "путь спеки или плана",
-    rx: new RegExp(`${NOT_WORD_BEFORE}specs/|superpowers|docs-refresh|\\.supergoal`, "u"),
-  },
-  {
-    // «HTTP-спека», «OpenAPI-спека» — внешний стандарт, не документ проекта: дефис перед словом отсекает;
-    // «план запроса» — план выполнения запроса БД, не документ: ловится только план с номером или названием
-    rule: "отсылка к плану или спеке",
-    rx: new RegExp(
-      `${NOT_WORD_BEFORE}(?:(?:задач[аеиу]|фаз[аеыу]|стади[яиюей]|этап[а-я]*) \\d` +
-        `|план[а-я]* (?:\\d|переноса|доработки|миграции|задач|пилота)|\\d+(?:\\.\\d+)* плана${NOT_WORD_AFTER}|подплан)` +
-        `|(?<![\\p{L}\\p{N}_-])спек[аеиу]${NOT_WORD_AFTER}`,
-      "iu",
-    ),
-  },
-  // имя файла, точка, любое расширение из букв, двоеточие и число; адрес с портом после двух косых черт — не файл
-  {
-    rule: "номер строки",
-    rx: /(?<!\/\/[\p{L}\p{N}_.-]*)(?:[\p{L}\p{N}_.-]+\/)*[\p{L}\p{N}_.-]*\.\p{L}[\p{L}\p{N}]*:\d+/u,
-  },
-];
 
 /** Файлы кода ядра для сторожа: `{src,test}` каждого пакета и `scripts`. */
 const codeFiles = [
