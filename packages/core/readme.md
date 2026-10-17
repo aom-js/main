@@ -293,7 +293,7 @@ static resolveFor<T extends AomCore>(this: AomClass<T>, $: T, context: ClassCons
 - Порядок применения legacy-декораторов задаёт TypeScript: методы класса декорируются раньше самого класса (`packages/core/test/phases.test.ts` («combinedDecorator различает класс и статический метод»)), а несколько декораторов на одной цели применяются снизу вверх — это правило TypeScript, тестом пакета не закреплено (комментарий в `packages/core/test/phases.test.ts`, тест «порядок фаз при apply(): FIRST уже выполнен, затем LAST, затем DELAY (асинхронно)»).
 - Реестры мета-классов с разными именами независимы (`Symbol.for` читается с конкретного `this`). Слияние возможно только у наследника мета-класса с тем же `name`: символ совпадает, собственного свойства у наследника ещё нет, и он читает карту родителя через цепочку статического наследования (проверено пробой на `dist`).
 - Относительные импорты в `src` пишутся без расширений — `tsc` их не подставляет, расширения дописывает `scripts/post-build.js` в `dist`; спецификаторы, уже написанные с расширением (js, json, mjs, cjs), скрипт пропускает как есть, падает он только на неразрешимых путях — копит их в `errors` и завершается с кодом 1 (`scripts/post-build.js` (`SPEC`, `errors`)).
-- `strictPropertyInitialization` выключен намеренно: поля узлов и мета-классов заполняют декораторы, а не конструктор (`tsconfig.base.json:27-28`).
+- `strictPropertyInitialization` выключен намеренно: поля узлов и мета-классов заполняют декораторы, а не конструктор (`tsconfig.base.json`).
 
 ### Известные дефекты
 
@@ -358,11 +358,11 @@ return TicketsTypeRelay.methodDecorator(($) => {
 
 ## Сборка и потребление
 
-Сборка пакета — `bun run build:core` в корне ядра (эквивалент `bun --filter @aom-js/core build`, `package.json:20`): три прохода `tsc` по сгенерированным конфигам (`tsconfig.build.json` → `dist/cjs`, `tsconfig.build.mjs.json` → `dist/mjs`, `tsconfig.build.types.json` → `dist/types`), затем `node ../../scripts/post-build.js`, который дописывает расширения относительным импортам в собранном коде и кладёт `dist/cjs/package.json` с `{"type":"commonjs"}`. Сам `package.json` и все `tsconfig.build*.json` генерирует `scripts/prebuild.js` и они игнорируются git — править нужно `package.src.json` и шаблоны в `scripts/jsons`.
+Сборка пакета — `bun run build:core` в корне ядра (эквивалент `bun --filter @aom-js/core build`, `package.json` (`typescript`)): три прохода `tsc` по сгенерированным конфигам (`tsconfig.build.json` → `dist/cjs`, `tsconfig.build.mjs.json` → `dist/mjs`, `tsconfig.build.types.json` → `dist/types`), затем `node ../../scripts/post-build.js`, который дописывает расширения относительным импортам в собранном коде и кладёт `dist/cjs/package.json` с `{"type":"commonjs"}`. Сам `package.json` и все `tsconfig.build*.json` генерирует `scripts/prebuild.js` и они игнорируются git — править нужно `package.src.json` и шаблоны в `scripts/jsons`.
 
 Приложение подключает пакет симлинком `test/node_modules/@aom-js/core → ../../../main/packages/core` и резолвит его через `exports` в `dist/mjs` (`dist/cjs` — для `require`). Отсюда инвариант: **правки `src` не видны приложению без `bun run build`**. Устаревший `dist` ловит страж свежести в preload приложения (`test/test/helpers/setup.ts`). Полная схема сборки монорепо и dist-потребления — `docs/architecture.md`.
 
-> ❓ Открытый вопрос: `tsconfig.build.json` комбинирует `module: "commonjs"` с унаследованным `moduleResolution: "bundler"` — пара валидна только для TS 7 (комментарий в `packages/core/tsconfig.build.json:8-12`). Как предполагается работать в IDE с TS 5, не открывая этот конфиг?
+> ❓ Открытый вопрос: `tsconfig.build.json` комбинирует `module: "commonjs"` с унаследованным `moduleResolution: "bundler"` — пара валидна только для TS 7 (комментарий в `packages/core/tsconfig.build.json`). Как предполагается работать в IDE с TS 5, не открывая этот конфиг?
 
 ## Тесты
 
