@@ -97,6 +97,14 @@ function describeSchema(value: any): VisualSchemaRef {
   return { label: value.properties ? "object" : "any" };
 }
 
+/** A response of the document as far as an event stream's `itemSchema` goes (`OpenApi.registerPath`). */
+type StreamResponse = {
+  content?: Record<
+    string,
+    { itemSchema?: { oneOf?: { properties?: { data?: { contentSchema?: unknown } } }[] } }
+  >;
+};
+
 /** One component-schema property, shaped as a row of the ER table. */
 function describeProperty(name: string, value: any, required: string[]): VisualSchemaProperty {
   const described = describeSchema(value);
@@ -344,6 +352,16 @@ export function buildVisualGraph(
     const schemas = new Set<string>();
     parameters.forEach((one) => one.schema.ref && schemas.add(one.schema.ref));
     responses.forEach((one) => one.schema.ref && schemas.add(one.schema.ref));
+    // an event stream's body is text: its event schemas are in `itemSchema` (OpenAPI 3.2)
+    const streamed = Object.values(operation.responses ?? {}) as StreamResponse[];
+    streamed.forEach((response) =>
+      Object.values(response?.content ?? {}).forEach((body) =>
+        body?.itemSchema?.oneOf?.forEach((variant) => {
+          const { ref } = describeSchema(variant?.properties?.data?.contentSchema);
+          if (ref) schemas.add(ref);
+        }),
+      ),
+    );
     if (requestBody?.schema.ref) schemas.add(requestBody.schema.ref);
 
     const visual: VisualRoute = {

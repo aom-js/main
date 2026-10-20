@@ -32,18 +32,41 @@ export declare interface OpenApiParameterObject {
   schema: OpenApiPossibleSchema;
 }
 
-/**
- * One response declaration for `\@Responses(...)`. `status` is the key used to merge
- * responses accumulated from every cursor of the route — the last cursor with the same
- * `status` wins. `isArray: true` wraps `schema` as `{type: "array", items: schema}`.
- */
-export declare interface OpenApiResponse {
+/** Fields shared by both kinds of `\@Responses(...)` declarations. */
+export declare interface OpenApiResponseBase {
   status: number;
-  schema: OpenApiPossibleSchema;
   description: string;
   contentType?: string;
-  isArray?: boolean;
 }
+
+/**
+ * Regular response: `schema` of the body. `isArray: true` wraps `schema` as
+ * `{type: "array", items: schema}`; `contentType` defaults to `application/json`.
+ */
+export declare interface OpenApiDataResponse extends OpenApiResponseBase {
+  schema: OpenApiPossibleSchema;
+  isArray?: boolean;
+  events?: never;
+}
+
+/**
+ * Stream of Server-Sent Events: event name → schema of its `data` (a `\@ComponentSchema` class,
+ * a raw schema, `ThisRef`/`RouteRef`). Rendered as `schema: {type: "string"}` plus the
+ * OpenAPI 3.2 `itemSchema` — `oneOf` with one variant per event; `contentType` defaults to
+ * `text/event-stream`.
+ */
+export declare interface OpenApiEventsResponse extends OpenApiResponseBase {
+  events: Record<string, OpenApiPossibleSchema>;
+  schema?: never;
+  isArray?: never;
+}
+
+/**
+ * One response declaration for `\@Responses(...)`: a regular body or a stream of events.
+ * `status` is the key used to merge responses accumulated from every cursor of the route —
+ * the last cursor with the same `status` replaces the whole response.
+ */
+export declare type OpenApiResponse = OpenApiDataResponse | OpenApiEventsResponse;
 
 /** Request body declaration for `\@RequestBody(...)`. */
 export declare interface OpenApiRequestBody {

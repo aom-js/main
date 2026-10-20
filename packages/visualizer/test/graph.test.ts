@@ -169,6 +169,22 @@ describe("visualizer: сборка графа", () => {
   });
 });
 
+describe("visualizer: поток событий", () => {
+  it("ссылки на схемы событий потока — рёбра маршрута", () => {
+    @Controller()
+    class Stream {
+      @Get("/events")
+      @Responses({ status: 200, description: "поток", events: { tag: TagDto, item: ItemDto } })
+      static async connect() {}
+    }
+
+    const graph = buildVisualGraph(Stream);
+    const route = graph.routes.find((one) => one.id === "get /events")!;
+    expect(route.schemas.sort()).toEqual(["ItemDto", "TagDto"]);
+    expect(graph.schemas.find((one) => one.id === "TagDto")!.usedBy).toContain("get /events");
+  });
+});
+
 describe("visualizer: компонента", () => {
   const docs = () => new OpenApi({ title: "app", version: "1" });
 

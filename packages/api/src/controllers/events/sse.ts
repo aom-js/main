@@ -1,4 +1,5 @@
 import { PassThrough } from "node:stream";
+import { type OpenApiEventsResponse } from "@aom-js/router";
 //
 import { type ClassConstructor, type HttpResponse } from "../../types";
 
@@ -43,6 +44,11 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
     readonly schemas: E,
     readonly options: AomServerEventsOptions = {},
   ) {}
+
+  /** OpenAPI response of the SSE route for `\@Responses(...)`: the stream with the events of `schemas`. */
+  JSONSchema(description: string, status = 200): OpenApiEventsResponse {
+    return { status, description, events: this.schemas };
+  }
 
   /**
    * Sets the event-stream headers on `res`, opens a stream with the first frame (`retry:` or

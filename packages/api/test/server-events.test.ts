@@ -3,7 +3,18 @@ import http from "node:http";
 import net from "node:net";
 import type { AddressInfo } from "node:net";
 import type { PassThrough } from "node:stream";
-import { Controller, Get, Middleware, Before, Headers, Ctx, Router, OpenApi } from "@aom-js/router";
+import {
+  Controller,
+  Get,
+  Middleware,
+  Before,
+  Headers,
+  Ctx,
+  Router,
+  OpenApi,
+  Responses,
+} from "@aom-js/router";
+import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
 import {
   AomServerEvents,
   AuthRequiredResponse,
@@ -13,7 +24,9 @@ import {
   type HttpResponse,
 } from "@aom-js/api";
 
+@ComponentSchema()
 class Unread {
+  @PropertySchema.Number({})
   total!: number;
 }
 
@@ -151,6 +164,7 @@ const until = async (check: () => boolean, ms = 1000) => {
 
 describe("AomServerEvents через реальный Server", () => {
   const events = new AomServerEvents({ unread: Unread }, { heartbeat: 50 });
+  const docs = new OpenApi({ title: "t", version: "1" });
   let server: Server;
   let base: string;
 
@@ -166,16 +180,14 @@ describe("AomServerEvents через реальный Server", () => {
   @Before(Gate.Check)
   class Events {
     @Get("/events")
+    @Responses(events.JSONSchema("поток событий"))
     static Connect(@Headers("x-user") user: string, @Ctx() { res }: HttpCtx) {
       return events.connect(user, res);
     }
   }
 
   beforeAll(async () => {
-    server = new Server(
-      { port: 0, url: "http://localhost" },
-      new Router(Events, new OpenApi({ title: "t", version: "1" })),
-    );
+    server = new Server({ port: 0, url: "http://localhost" }, new Router(Events, docs));
     // проверка таймаутов запускается по событию listening — до него настройки ещё применяются
     server.server.requestTimeout = 100;
     server.server.headersTimeout = 100;
@@ -257,6 +269,25 @@ describe("AomServerEvents через реальный Server", () => {
     events.send("long", "unread", { total: 3 });
     await until(() => client.body().includes('total":3'));
     client.destroy();
+  });
+
+  it("JSONSchema реестра: поток в OpenAPI с событиями словаря", () => {
+    expect(events.JSONSchema("поток событий")).toEqual({
+      status: 200,
+      description: "поток событий",
+      events: { unread: Unread },
+    });
+    const media =
+      docs.toJSON().paths!["/events"]!.get!.responses!["200"].content["text/event-stream"];
+    expect(media.schema).toEqual({ type: "string" });
+    expect(
+      media.itemSchema.oneOf.map(
+        (v: { properties: { event: { const: string } } }) => v.properties.event.const,
+      ),
+    ).toEqual(["unread"]);
+    expect(media.itemSchema.oneOf[0].properties.data.contentSchema).toEqual({
+      $ref: "#/components/schemas/Unread",
+    });
   });
 
   it("гейт отказал: JSON 401, поток не открыт, реестр пуст", async () => {

@@ -35,6 +35,9 @@ export const USE_MIDDLEWARE_DEFINE_ERROR = "USE_MIDDLEWARE_DEFINE_ERROR";
 /** `\@CursorKind(k)` where `k` isn't an `AomCursorKind` value, or a second `\@CursorKind` on the same method. */
 export const CURSOR_KIND_DEFINE_ERROR = "CURSOR_KIND_DEFINE_ERROR";
 
+/** `\@Responses({ events })` with an empty dictionary or an event name containing a line break; thrown while `Router` builds the route. The message is the code followed by the operation id. */
+export const RESPONSE_EVENTS_DEFINE_ERROR = "RESPONSE_EVENTS_DEFINE_ERROR";
+
 /** `\@DelayRefStack(RouteRef(...))` realized on a cursor with no `endpoint` — class-level middleware collected by `Router.build`, before `AomRoute` assigns one. */
 export const ROUTE_REF_DELAY_ERROR = "ROUTE_REF_DELAY_ERROR";
 

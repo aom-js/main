@@ -1,6 +1,7 @@
 import { Schemer, SchemasCollector } from "@aom-js/schemer";
 
 import type { InfoObject, OpenAPIObject, OperationObject, PathsObject } from "openapi3-ts/oas32";
+import * as constants from "../constants";
 import {
   FwdContainer,
   ThisRefContainer,
@@ -78,6 +79,8 @@ export class OpenApi {
    * - **other parameters** (`\@QueryParameters`/`\@CookieParameters`/`\@Parameters`);
    * - **responses** (`\@Responses`) — keyed by HTTP status, so the last cursor with a
    *   given status wins; `isArray: true` wraps the schema as `{type: "array", items}`;
+   *   `events` renders an event stream — `schema: {type: "string"}` and `itemSchema` (see
+   *   `eventsItemSchema`), `text/event-stream` by default;
    * - **security** (`\@Security`) — registered once per class name via
    *   `storeSecurityScheme`;
    * - **request body** (`\@RequestBody`) — last cursor wins.
@@ -180,11 +183,20 @@ export class OpenApi {
       });
 
       cursor.$.openApi.responses.forEach((response) => {
-        // this is where a generic schema parser would go
-        const schema = this.schemaExtract(response.schema, cursor);
-        const { contentType = "application/json", isArray, description } = response;
-
         // set the response status to the last value that actually gets returned
+        const { description } = response;
+        if (response.events) {
+          const { contentType = "text/event-stream" } = response;
+          const itemSchema = this.eventsItemSchema(response.events, cursor, operationId);
+          currentMethod.responses![response.status] = {
+            description,
+            content: { [contentType]: { schema: { type: "string" }, itemSchema } },
+          };
+          return;
+        }
+        const schema = this.schemaExtract(response.schema, cursor);
+        const { contentType = "application/json", isArray } = response;
+
         currentMethod.responses![response.status] = {
           description,
           content: {
@@ -222,6 +234,38 @@ export class OpenApi {
     if (!this.paths[path]) this.paths[path] = {} as HttpMethodOperations;
     // finally add the path and method to the overall list
     Object.assign(this.paths[path], { [method]: currentMethod });
+  }
+
+  /**
+   * Item schema of an event stream: `oneOf` with one variant per event — the frame's `event`
+   * (`const` name), `data` (JSON text whose `contentSchema` is the event's schema), `id`, `retry`.
+   *
+   * @throws {Error} `RESPONSE_EVENTS_DEFINE_ERROR` for an empty dictionary or an event name with a line break
+   */
+  private eventsItemSchema(
+    events: Record<string, OpenApiPossibleSchema>,
+    cursor: AomCursor,
+    operationId: string,
+  ) {
+    const names = Object.keys(events);
+    if (!names.length || names.some((name) => /[\r\n]/.test(name))) {
+      throw new Error(`${constants.RESPONSE_EVENTS_DEFINE_ERROR}: ${operationId}`);
+    }
+    const oneOf = names.map((name) => ({
+      type: "object",
+      required: ["event", "data"],
+      properties: {
+        event: { const: name },
+        data: {
+          type: "string",
+          contentMediaType: "application/json",
+          contentSchema: this.schemaExtract(events[name], cursor),
+        },
+        id: { type: "string" },
+        retry: { type: "integer" },
+      },
+    }));
+    return { oneOf };
   }
 
   /** Registers `cursor`'s `\@Security` schema once per class name and returns that name for use as the security requirement key. */
