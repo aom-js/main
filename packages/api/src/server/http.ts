@@ -293,6 +293,10 @@ export class Server {
             // socket) hanging open
             Stream.pipeline(result, res, (streamErr) => {
               if (!streamErr) return;
+              // the client closed the connection itself (an SSE client leaving, an aborted
+              // download): pipeline has already destroyed both ends, it's not a server error
+              const { code } = streamErr as NodeJS.ErrnoException;
+              if (code === "ERR_STREAM_PREMATURE_CLOSE" && res.destroyed) return;
               console.error("Stream error:", streamErr);
               // pipeline may have already destroyed the whole pipeline, including res - then
               // there's nothing left to send
