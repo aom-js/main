@@ -7,6 +7,8 @@ import { type ClassConstructor } from "../../types";
 import { type HttpRequest, type HttpSocket, type SocketCtx } from "../../types";
 import { messages } from "../../constants";
 
+export { WebSocket };
+
 // The `controllers/events` directory isn't re-exported from `controllers/index.ts` - these symbols
 // don't belong to the public entry point of the `@aom-js/api` package, only to their own module.
 
