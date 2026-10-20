@@ -9,9 +9,6 @@ import { messages } from "../../constants";
 
 export { WebSocket };
 
-// The `controllers/events` directory isn't re-exported from `controllers/index.ts` - these symbols
-// don't belong to the public entry point of the `@aom-js/api` package, only to their own module.
-
 /** Active WebSocket connections, keyed by connection identifier (see `AomWebSockets.connect`). */
 export declare type WebSocketConnections = Map<string, WebSocket[]>;
 
@@ -28,8 +25,8 @@ export declare type OnMessageFunction = (id: string, socket: WebSocket, data: an
 
 /**
  * Registry and helpers for a controller's WebSocket connections, keyed by an application-defined
- * connection id (e.g. a user id). Not part of the package's public entry point (`controllers/events`
- * isn't re-exported from `controllers/index.ts`); import it from its own module if needed.
+ * connection id (e.g. a user id). Exported from the package's public entry point. Connections live
+ * in the memory of the current process only: `send`/`broadcast` reach this process's sockets.
  */
 export class AomWebSockets {
   connections: WebSocketConnections;
@@ -121,9 +118,14 @@ class WebSocketWrapper {
       };
 
       if (target.sockets.onMessage) {
-        socket.onmessage = (ev: WebSocket.MessageEvent) => {
-          // console.log("socket message is", id, ev.data);
-          Reflect.apply(target.sockets.onMessage!, null, [id, socket, ev.data]);
+        // a throwing (or rejecting) application handler must not become an unhandled rejection
+        // that takes the whole process down: it's logged, the connection stays open
+        socket.onmessage = async (ev: WebSocket.MessageEvent) => {
+          try {
+            await Reflect.apply(target.sockets.onMessage!, null, [id, socket, ev.data]);
+          } catch (err) {
+            console.error("socket message error", err);
+          }
         };
       }
 
@@ -138,7 +140,8 @@ class WebSocketWrapper {
 /**
  * Middleware controller that performs the WebSocket handshake for a socket route: attaches a
  * `WebSocketWrapper` to the route (`Define`) and hands the upgrade request off to `ws` for that
- * connection id (`Connect`). Not part of the package's public entry point.
+ * connection id (`Connect`). Exported from the package's public entry point; an application
+ * middleware between `Define` and `Connect` sets `id`.
  */
 @Controller()
 export class WebSocketsController {
@@ -222,5 +225,5 @@ export class WebSocketsController {
   */
 }
 
-/** Default shared `AomWebSockets` instance; use it when a single global connection registry is enough. */
+/** Default shared `AomWebSockets` instance; `export *` doesn't re-export it, so it isn't reachable from the package entry point. */
 export default new AomWebSockets();
