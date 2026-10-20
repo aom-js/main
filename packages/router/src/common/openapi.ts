@@ -1,5 +1,5 @@
 import { ClassType } from "@aom-js/core";
-import { ParameterLocation, SchemaObject, SecuritySchemeObject } from "openapi3-ts/oas31";
+import { ParameterLocation, SchemaObjectValue, SecuritySchemeObject } from "openapi3-ts/oas32";
 
 import { RouteRefContainer, ThisRefContainer } from "./references";
 
@@ -13,9 +13,9 @@ export declare type OpenApiPossibleSchema =
   OpenApiSchemaObject | ClassType | ThisRefContainer | RouteRefContainer | any;
 
 // special extensions to fix bug with inheritance of SchemaObject
-/** `openapi3-ts` `SchemaObject` with `type` widened to `string` for schemas that extend it. */
-export declare type OpenApiSchemaObject = Omit<SchemaObject, "type"> & {
-  type?: SchemaObject["type"] | string;
+/** `openapi3-ts` object schema (`SchemaObjectValue`: in oas32 `SchemaObject` also admits `boolean`) with `type` widened to `string` for schemas that extend it. */
+export declare type OpenApiSchemaObject = Omit<SchemaObjectValue, "type"> & {
+  type?: SchemaObjectValue["type"] | string;
 };
 
 /** `openapi3-ts` `SecuritySchemeObject` with `type` widened to `string`, passed to `\@Security`. */

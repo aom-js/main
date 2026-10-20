@@ -204,12 +204,8 @@ export function buildVisualGraph(
   const warnings: string[] = [];
 
   const docs = new OpenApi({
-    openapi: "3.1.0",
-    info: {
-      title: options.info?.title ?? target.name,
-      version: options.info?.version ?? "0.0.0",
-    },
-    paths: {},
+    title: options.info?.title ?? target.name,
+    version: options.info?.version ?? "0.0.0",
   });
 
   const router = new Router(target, docs);

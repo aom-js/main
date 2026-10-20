@@ -311,7 +311,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
   let port: number;
 
   beforeAll(() => {
-    const docs = new OpenApi({ openapi: "3.1.0", info: { title: "test", version: "1" } });
+    const docs = new OpenApi({ title: "test", version: "1" });
     const router = new Router(TestApi, docs);
     // порт 0 - слушаем свободный порт, реальный узнаём из server.address() после старта
     const settings: AomServerSettings = { port: 0, url: "http://localhost" };
@@ -611,7 +611,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
     });
 
     it("путь из settings.url по-прежнему приклеивается префиксом к запросу (старое поведение)", async () => {
-      const docs = new OpenApi({ openapi: "3.1.0", info: { title: "prefix-test", version: "1" } });
+      const docs = new OpenApi({ title: "prefix-test", version: "1" });
       const router = new Router(PrefixApi, docs);
       const prefixed = new Server({ port: 0, url: "http://localhost/api" }, router);
       try {
@@ -830,7 +830,7 @@ describe("Server: ленивое чтение тела и лимит разме�
     `Content-Length: ${Buffer.byteLength(body)}\r\n${extra}\r\n${body}`;
 
   beforeAll(() => {
-    const docs = new OpenApi({ openapi: "3.1.0", info: { title: "test", version: "1" } });
+    const docs = new OpenApi({ title: "test", version: "1" });
     const router = new Router(BodyLimitApi, docs);
     const settings: AomServerSettings = { port: 0, url: "http://localhost", bodyLimit: 1024 };
     server = new Server(settings, router);
@@ -980,7 +980,7 @@ describe("Server: ленивое чтение тела и лимит разме�
   });
 
   it("bodyLimit: 0 - глобальное ограничение снято, большое тело проходит", async () => {
-    const docs = new OpenApi({ openapi: "3.1.0", info: { title: "unlimited", version: "1" } });
+    const docs = new OpenApi({ title: "unlimited", version: "1" });
     const router = new Router(BodyLimitApi, docs);
     const unlimited = new Server({ port: 0, url: "http://localhost", bodyLimit: 0 }, router);
     try {
@@ -1048,7 +1048,7 @@ describe("Logger: уровень записи по классу статуса (
       error: record("error"),
       debug: record("debug"),
     };
-    const docs = new OpenApi({ openapi: "3.1.0", info: { title: "logger", version: "1" } });
+    const docs = new OpenApi({ title: "logger", version: "1" });
     const router = new Router(LoggerApi, docs);
     server = new Server({ port: 0, url: "http://localhost" }, router);
     base = `http://127.0.0.1:${(server.server.address() as AddressInfo).port}`;

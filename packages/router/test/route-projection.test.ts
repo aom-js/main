@@ -30,7 +30,7 @@ import {
   type RefFunction,
 } from "@aom-js/router";
 
-const makeDocs = () => new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
+const makeDocs = () => new OpenApi({ title: "t", version: "1" });
 
 // фикстура покрывает все 6 видов прикрепления: классовый @Before через мост, классовый @After,
 // методные @Before/@After, @Next и сам обработчик

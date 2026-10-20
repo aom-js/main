@@ -15,7 +15,7 @@ import {
   HandlerFunction,
 } from "@aom-js/router";
 
-const makeDocs = () => new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
+const makeDocs = () => new OpenApi({ title: "t", version: "1" });
 
 const makeContext = (partial: Partial<HttpContextValues> = {}): HttpContextValues => ({
   ctx: {},

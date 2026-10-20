@@ -27,7 +27,7 @@ export declare interface AomRouterJSON {
  * \@Bridge("/api", ApiRoutes)
  * class Index {}
  *
- * const docs = new OpenApi({ openapi: "3.1.0", info: { title: "app", version: "1" } });
+ * const docs = new OpenApi({ title: "app", version: "1" });
  * const router = new Router(Index, docs);
  * // router.routes / router.sockets is what a server adapter matches requests against
  * ```
@@ -129,7 +129,7 @@ export class Router {
    *   static async hello() {}
    * }
    *
-   * const router = new Router(App, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
+   * const router = new Router(App, new OpenApi({ title: "t", version: "1" }));
    * router.routeOf(App.hello).path; // "/hello"
    * ```
    */

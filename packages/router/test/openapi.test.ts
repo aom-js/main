@@ -39,7 +39,7 @@ describe("router: генерация OpenAPI", () => {
       }
     }
 
-    const docs = new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
+    const docs = new OpenApi({ title: "t", version: "1" });
     new Router(Shop, docs);
     return docs.toJSON();
   };
@@ -90,11 +90,11 @@ describe("router: генерация OpenAPI", () => {
     expect(json.components.securitySchemes.Shop).toMatchObject({ scheme: "bearer" });
   });
 
-  it("components, tags и paths из initData сливаются со сгенерированными; совпадающее поле — сгенерированное", () => {
+  it("конструктор принимает только info; версию, теги, пути и компоненты пишет генератор", () => {
     class Catalog {}
 
     @Controller()
-    class Merged {
+    class Generated {
       @Get("/items")
       @UseTag(Catalog)
       @Responses({ status: 200, schema: ItemDto, description: "ok" })
@@ -103,35 +103,19 @@ describe("router: генерация OpenAPI", () => {
       }
     }
 
-    const docs = new OpenApi({
-      openapi: "3.1.0",
-      info: { title: "t", version: "1" },
-      components: {
-        schemas: { Manual: { type: "string" }, ItemDto: { type: "null" } },
-        responses: { NotFound: { description: "not found" } },
-      },
-      tags: [{ name: "manual" }, { name: "Catalog", description: "каталог" }],
-      paths: {
-        "/health": { get: { responses: {} } },
-        "/items": {
-          get: { operationId: "stale" },
-          post: { operationId: "manual_create", responses: {} },
-        },
-      },
-    });
-    new Router(Merged, docs);
+    const info = { title: "t", version: "1", description: "d" };
+    const docs = new OpenApi(info);
+    new Router(Generated, docs);
     const json = docs.toJSON();
 
-    expect(json.components.schemas.Manual).toEqual({ type: "string" });
+    expect(json.openapi).toBe(OpenApi.version);
+    expect(json.info).toEqual(info);
+    expect(Object.keys(json).sort()).toEqual(["components", "info", "openapi", "paths", "tags"]);
+    expect(json.tags).toEqual([{ name: "Catalog" }]);
+    expect(Object.keys(json.paths)).toEqual(["/items"]);
+    expect(json.paths["/items"].get.operationId).toBe("Generated_list");
     expect(json.components.schemas.ItemDto).toMatchObject({
       properties: { title: { type: "string" } },
     });
-    expect(json.components.responses.NotFound).toEqual({ description: "not found" });
-    // тег того же имени сохраняет описание из initData
-    expect(json.tags).toEqual([{ name: "manual" }, { name: "Catalog", description: "каталог" }]);
-    expect(json.paths["/health"]).toEqual({ get: { responses: {} } });
-    // на совпавшем пути метод из initData сохраняется, совпавший метод — сгенерированный
-    expect(json.paths["/items"].get.operationId).toBe("Merged_list");
-    expect(json.paths["/items"].post).toEqual({ operationId: "manual_create", responses: {} });
   });
 });

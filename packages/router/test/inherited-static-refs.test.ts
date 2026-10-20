@@ -180,7 +180,7 @@ describe("router: ссылки на унаследованные статики"
     @Bridge("/b", B)
     class App {}
 
-    const router = new Router(App, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
+    const router = new Router(App, new OpenApi({ title: "t", version: "1" }));
     expect(await router.routeOf(A.Index).apply(context())).toBe("a");
     expect(await router.routeOf(B.Index).apply(context())).toBe("b");
   });

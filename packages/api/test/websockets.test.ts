@@ -184,7 +184,7 @@ describe("WebSocketsController через реальный Server", () => {
   let base: string;
 
   beforeAll(() => {
-    const docs = new OpenApi({ openapi: "3.1.0", info: { title: "test", version: "1" } });
+    const docs = new OpenApi({ title: "test", version: "1" });
     const router = new Router(Root, docs);
     server = new Server({ port: 0, url: "http://localhost" }, router);
     base = `ws://127.0.0.1:${(server.server.address() as AddressInfo).port}`;

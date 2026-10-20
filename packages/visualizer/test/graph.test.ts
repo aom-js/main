@@ -160,7 +160,7 @@ describe("visualizer: сборка графа", () => {
   });
 
   it("не ломает уже собранный роутер приложения", () => {
-    const docs = new OpenApi({ openapi: "3.1.0", info: { title: "app", version: "1" } });
+    const docs = new OpenApi({ title: "app", version: "1" });
     const router = new Router(Root, docs);
     const before = router.routes.length;
     buildVisualGraph(router);
@@ -170,7 +170,7 @@ describe("visualizer: сборка графа", () => {
 });
 
 describe("visualizer: компонента", () => {
-  const docs = () => new OpenApi({ openapi: "3.1.0", info: { title: "app", version: "1" } });
+  const docs = () => new OpenApi({ title: "app", version: "1" });
 
   it("строится от маршрута: корнем берётся корень его роутера", () => {
     const router = new Router(Root, docs());

@@ -1,6 +1,6 @@
 import { Schemer, SchemasCollector } from "@aom-js/schemer";
 
-import type { OpenAPIObject, OperationObject, PathsObject, TagObject } from "openapi3-ts/oas31";
+import type { InfoObject, OpenAPIObject, OperationObject, PathsObject } from "openapi3-ts/oas32";
 import {
   FwdContainer,
   ThisRefContainer,
@@ -15,11 +15,11 @@ import {
 
 type HttpMethodOperations = Record<HTTPMethods, OperationObject>;
 
-/** Re-exported `openapi3-ts/oas31` document type — the shape `OpenApi`'s constructor and `toJSON()` accept/produce. */
-export type { OpenAPIObject };
+/** Re-exported `openapi3-ts/oas32` types: `InfoObject` is what `OpenApi`'s constructor accepts, `OpenAPIObject` is what `toJSON()` produces. */
+export type { InfoObject, OpenAPIObject };
 
 /**
- * Accumulates an OpenAPI 3.1 document while `Router` builds routes, then renders the
+ * Accumulates an OpenAPI 3.2 document while `Router` builds routes, then renders the
  * final JSON with `toJSON()`. Create one instance, pass it to `new Router(root, docs)`
  * (which calls `registerPath` for every built route), then call `docs.toJSON()` once
  * routing is set up.
@@ -28,7 +28,7 @@ export type { OpenAPIObject };
  * ```ts
  * import { Router, OpenApi } from "@aom-js/router";
  *
- * const docs = new OpenApi({ openapi: "3.1.0", info: { title: "app", version: "1" } });
+ * const docs = new OpenApi({ title: "app", version: "1" });
  * const router = new Router(RootController, docs);
  * const document = docs.toJSON(); // ready to serve at /openapi.json
  * ```
@@ -40,7 +40,10 @@ export class OpenApi {
   /** String joining merged tag names when `\@MergeNextTags` accumulates more than one, e.g. `"Section > Tag"`. */
   static tagsSeparator = " > ";
 
-  private data: OpenAPIObject;
+  /** OpenAPI version of every document this generator renders: the version is the generator's, not the application's. */
+  static readonly version = "3.2.0";
+
+  private info: InfoObject;
 
   private tagsSet = new Set<string>();
 
@@ -53,12 +56,11 @@ export class OpenApi {
   private collector = new SchemasCollector(this.schemer);
 
   /**
-   * @param initData - base OpenAPI document (info, servers, and optionally pre-existing
-   *   `components`/`tags`/`paths` to merge with what gets generated — see `toJSON`)
+   * @param info - the document's `info` (title, version, description, contact, ...); everything
+   *   else in the document — `openapi`, `tags`, `paths`, `components` — is generated
    */
-  constructor(initData: OpenAPIObject) {
-    // ...
-    this.data = initData;
+  constructor(info: InfoObject) {
+    this.info = info;
   }
 
   /**
@@ -252,58 +254,24 @@ export class OpenApi {
     return this.collector.extract(schema);
   }
 
-  // JSON generator of complete documentation
   /**
-   * Renders the final OpenAPI document by merging everything generated from routes
-   * with the `initData` passed to the constructor:
-   *
-   * - **components**: `securitySchemes`/`schemas` from `initData.components` are kept,
-   *   generated entries with the same key overwrite them;
-   * - **tags**: a tag from `initData` with the same name keeps its `description`;
-   *   newly generated tags are appended;
-   * - **paths**: methods from `initData.paths` at a path are preserved; a generated
-   *   method for the same path+method wins over the one from `initData`.
+   * Renders the final OpenAPI document: `openapi` is `OpenApi.version`, `info` is the
+   * constructor's argument, `tags`/`paths`/`components` (`securitySchemes`, `schemas`) are
+   * strictly what was generated from routes.
    *
    * @returns a plain, JSON-serializable OpenAPI document (round-tripped through
    *   `JSON.stringify`/`JSON.parse` to strip any non-serializable leftovers)
    */
   toJSON(): OpenAPIObject {
-    // components/tags/paths from initData are merged with the generated ones, on a clash
-    // the generated one wins: components — by name, tags — by tag fields, paths — by method
-    const { components = {}, tags: initTags = [], paths: initPaths = {} } = this.data;
-    // add tags data: a tag's description from initData is kept, new tags are appended
-    const tagsMap = new Map(initTags.map((tag) => [tag.name, tag]));
-    this.tagsSet.forEach((name) => tagsMap.set(name, { ...tagsMap.get(name), name }));
-    const tags: TagObject[] = [...tagsMap.values()];
-    // methods from initData at a matching path are kept, a matched method is the generated one
-    const paths: PathsObject = { ...initPaths };
-    Object.keys(this.paths).forEach((path) => {
-      paths[path] = { ...initPaths[path], ...this.paths[path] };
-    });
-    // add security schemas
-    const securitySchemes = { ...components.securitySchemes };
-    this.securityMap.forEach((schema, name: string) =>
-      Object.assign(securitySchemes, {
-        [name]: schema,
-      }),
-    );
-    const schemas = { ...components.schemas };
-    this.collector.components.forEach((component, name: string) =>
-      Object.assign(schemas, {
-        [name]: component,
-      }),
-    );
-    //
+    const securitySchemes = Object.fromEntries(this.securityMap);
+    const schemas = Object.fromEntries(this.collector.components);
     return JSON.parse(
       JSON.stringify({
-        ...this.data,
-        components: {
-          ...components,
-          securitySchemes,
-          schemas,
-        },
-        tags,
-        paths,
+        openapi: OpenApi.version,
+        info: this.info,
+        components: { securitySchemes, schemas },
+        tags: [...this.tagsSet].map((name) => ({ name })),
+        paths: this.paths,
       }),
     );
   }

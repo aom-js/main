@@ -36,7 +36,7 @@ import {
   type RefFunction,
 } from "@aom-js/router";
 
-const makeDocs = () => new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
+const makeDocs = () => new OpenApi({ title: "t", version: "1" });
 const context = (): HttpContextValues => ({
   ctx: {}, req: {}, res: {}, body: {}, files: {}, query: {},
   params: {}, cookies: {}, headers: {}, session: {},

@@ -38,7 +38,7 @@ const makeContext = (body: unknown): HttpContextValues => ({
 });
 
 describe("интеграция: контроллер + схема + валидация + OpenAPI из одних метаданных", () => {
-  const docs = new OpenApi({ openapi: "3.1.0", info: { title: "orders", version: "1" } });
+  const docs = new OpenApi({ title: "orders", version: "1" });
   const router = new Router(OrdersApi, docs);
   const route = router.routeOf(OrdersApi.create);
 

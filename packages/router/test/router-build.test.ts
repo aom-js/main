@@ -4,7 +4,7 @@ import {
   Before, After, WebSocketPoint, DelayRefStack, RouteRef,
 } from "@aom-js/router";
 
-const makeDocs = () => new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } });
+const makeDocs = () => new OpenApi({ title: "t", version: "1" });
 
 describe("router: построение маршрутов", () => {
   it("эндпоинты контроллера превращаются в маршруты с методом и путём", () => {

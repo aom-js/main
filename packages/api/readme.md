@@ -379,7 +379,7 @@ routes.forEach((route) => {
 });
 ```
 
-`JSONDocs` (`GET /openapi.json`) кэширует `docs.toJSON()` в `static docsJSON` того класса, на котором вызван, а `Swagger` (`GET /swagger.html`) возвращает статическую HTML-строку; оба закрыты `@Before(AuthBasic.Required)` (`root.ts` (`BaseRootController.JSONDocs`, `BaseRootController.Swagger`)). Страница Swagger UI грузит скрипты и стили `swagger-ui-dist@5.11.0` с unpkg и обращается к `/openapi.json` по абсолютному пути от корня хоста (`controllers/swagger.ts` (`swagger`)).
+`JSONDocs` (`GET /openapi.json`) кэширует `docs.toJSON()` в `static docsJSON` того класса, на котором вызван, а `Swagger` (`GET /swagger.html`) возвращает статическую HTML-строку; оба закрыты `@Before(AuthBasic.Required)` (`root.ts` (`BaseRootController.JSONDocs`, `BaseRootController.Swagger`)). Страница Swagger UI грузит скрипты и стили `swagger-ui-dist@5.33.1` (поддерживает OpenAPI 3.2) с unpkg и обращается к `/openapi.json` по абсолютному пути от корня хоста (`controllers/swagger.ts` (`swagger`)).
 
 Evidence: `packages/api/src/controllers/root.ts` (`BaseRootController`, `BaseRootController.markersToRoute`, `BaseRootController.InitRoutes`, `BaseRootController.Index`, `BaseRootController.JSONDocs`, `BaseRootController.Swagger`); `packages/api/src/controllers/swagger.ts` (`swagger`).
 

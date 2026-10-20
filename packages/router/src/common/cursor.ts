@@ -10,7 +10,7 @@ import {
   type AomCursorKind,
   type AomViaKind,
 } from "./kinds";
-import type { ParameterLocation } from "openapi3-ts/oas31";
+import type { ParameterLocation } from "openapi3-ts/oas32";
 
 /**
  * Resolves a decorator's target argument in the context of a cursor — the single place

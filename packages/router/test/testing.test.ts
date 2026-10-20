@@ -155,7 +155,7 @@ class Items {
 @Bridge("/items", Items)
 class Root {}
 
-const router = new Router(Root, new OpenApi({ openapi: "3.1.0", info: { title: "t", version: "1" } }));
+const router = new Router(Root, new OpenApi({ title: "t", version: "1" }));
 
 /** `GET /items` with nothing but its handler: no guard, no token. */
 const cheap = { cursors: [Items.Index] };
