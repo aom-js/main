@@ -1,5 +1,6 @@
 import { PassThrough } from "node:stream";
-import { type OpenApiEventsResponse } from "@aom-js/router";
+import { OpenApi, type OpenApiEventsResponse } from "@aom-js/router";
+import { Schemer } from "@aom-js/schemer";
 //
 import { type ClassConstructor, type HttpResponse } from "../../types";
 
@@ -9,7 +10,15 @@ export declare type AomServerEventsOptions = {
   heartbeat?: number;
   /** Reconnect delay in ms the client is told once, in the first frame (`retry:`). */
   retry?: number;
+  /**
+   * Check every value against its dictionary class (`Schemer.validate`: `plainToInstance` +
+   * class-validator) before sending; a failed check throws at the sender. Default — on outside
+   * production (`process.env.NODE_ENV !== "production"`).
+   */
+  validate?: boolean;
 };
+
+const schemer = new Schemer(OpenApi.refPointerPrefix);
 
 const LINE_BREAK = /[\r\n]/;
 
@@ -129,7 +138,7 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
    * Frame of a checked envelope.
    *
    * @throws {Error} when `type` is not in the dictionary, the value under `type` is `undefined`/`null`,
-   * or the envelope has keys besides `type` and its value
+   * the envelope has keys besides `type` and its value, or (with `validate`) the value fails its class
    */
   private frameOf(envelope: EventEnvelope<E>, eventId?: string): string {
     const { type } = envelope;
@@ -140,6 +149,12 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
     if (value === undefined || value === null) throw new Error(`Server event "${type}" has no value`);
     const extra = Object.keys(envelope).filter((key) => key !== "type" && key !== type);
     if (extra.length) throw new Error(`Server event "${type}" has extra keys: ${extra.join(", ")}`);
+    if (this.options.validate ?? process.env.NODE_ENV !== "production") {
+      const { errors } = schemer.validate(this.schemas[type], value as object);
+      if (errors.length) {
+        throw new Error(`Server event "${type}" fails its schema: ${errors.map(String).join("; ")}`);
+      }
+    }
     return formatServerEvent(envelope, eventId);
   }
 }

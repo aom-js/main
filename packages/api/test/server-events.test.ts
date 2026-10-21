@@ -144,6 +144,36 @@ describe("AomServerEvents: реестр потоков", () => {
     stream.destroy();
   });
 
+  it("проверка по классу: вне production неверное значение — ошибка у отправителя, кадр не уходит", () => {
+    const events = new AomServerEvents({ unread: Unread }, { heartbeat: 0 });
+    const stream = events.connect("a", fakeRes().res);
+    drained(stream);
+    expect(() => events.send("a", "unread", { total: "x" } as never)).toThrow("unread");
+    expect(() => events.broadcastEnvelope({ type: "unread", unread: {} as never })).toThrow();
+    expect(drained(stream)).toBe("");
+    stream.destroy();
+  });
+
+  it("проверка по классу выключена: validate: false или NODE_ENV=production", () => {
+    const off = new AomServerEvents({ unread: Unread }, { heartbeat: 0, validate: false });
+    const stream = off.connect("a", fakeRes().res);
+    drained(stream);
+    off.send("a", "unread", { total: "x" } as never);
+    expect(drained(stream)).toBe('data: {"type":"unread","unread":{"total":"x"}}\n\n');
+    stream.destroy();
+
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      const prod = new AomServerEvents({ unread: Unread });
+      expect(() => prod.send("nobody", "unread", { total: "x" } as never)).not.toThrow();
+      // явная опция сильнее умолчания
+      const forced = new AomServerEvents({ unread: Unread }, { validate: true });
+      expect(() => forced.send("nobody", "unread", { total: "x" } as never)).toThrow();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("ключ type в словаре — ошибка: он занят типом конверта", () => {
     expect(() => new AomServerEvents({ type: Unread })).toThrow();
   });
