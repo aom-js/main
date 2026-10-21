@@ -105,13 +105,23 @@ export declare type TransferSubscribeHandlerArgs = {
   queue?: boolean;
 };
 /**
+ * Handle a `subscriber` may return for its subscription; `Transfer.stop` calls `unsubscribe`
+ * on executor subscriptions. A NATS `Subscription` fits as is.
+ */
+export declare type TransferSubscription = { unsubscribe(): void };
+
+/**
  * Subscribe callback supplied to `Transfer`.
  *
  * Subscribes to a topic and forwards every incoming message to `next`. `queue: true`
  * (set via `\@IsQueue()`) asks the underlying bus to deliver each message to a single
- * consumer instead of broadcasting it to every subscriber.
+ * consumer instead of broadcasting it to every subscriber. May return a
+ * `TransferSubscription`; without it `Transfer.stop` cannot unsubscribe executors and only
+ * waits for the handlers already running.
  */
-export declare type TransferSubscribeHandler = (args: TransferSubscribeHandlerArgs) => void;
+export declare type TransferSubscribeHandler = (
+  args: TransferSubscribeHandlerArgs,
+) => TransferSubscription | void;
 
 /**
  * Handler for errors that have no caller left to reject.

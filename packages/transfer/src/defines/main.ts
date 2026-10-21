@@ -6,6 +6,7 @@ import {
   TransferConfig,
   TransferPublishHandler,
   TransferSubscribeHandler,
+  TransferSubscription,
   TransferCallbackHandler,
   TransferErrorHandler,
   TransferPublishHandlerArgs,
@@ -184,6 +185,14 @@ export class Transfer implements TransferConfig {
   // handler for errors that have no caller to return to: @CustomTopic, executor response, registry
   defaultErrorHandler: TransferErrorHandler;
 
+  /** Executor subscription handles returned by `subscriber`; `stop` unsubscribes them. */
+  readonly executorSubscriptions: TransferSubscription[] = [];
+
+  /** Executor handlers still running (handler + its response publish); `stop` waits for them. */
+  readonly inflight: Set<Promise<unknown>> = new Set();
+
+  private stopping?: Promise<void>;
+
   /** `$ref` prefix used when rendering component schemas into a service descriptor. */
   static readonly refPointerPrefix = "#/components/schemas/";
 
@@ -238,6 +247,27 @@ export class Transfer implements TransferConfig {
       topic: this.registryResponseTopic,
       next: (message) => this.acceptRegistry(message.value),
     });
+  }
+
+  /**
+   * Graceful stop of this node's executors: unsubscribes every executor topic (no new work
+   * arrives), then waits until the handlers already running finish and publish their responses.
+   * Reply and registry subscriptions stay, so a running handler can still call other isolators
+   * and get answers. Never rejects: handler errors already go to `defaultErrorHandler`. Close the
+   * bus connection only after it resolves. Repeated calls return the same `Promise`.
+   *
+   * A message published during the stop to an executor topic of this node reaches only other
+   * subscribers of the topic (another copy under `\@IsQueue()`); with none, the bus drops it.
+   *
+   * @returns Resolves when no executor handler of this node is running.
+   */
+  stop(): Promise<void> {
+    this.stopping ??= (async () => {
+      this.executorSubscriptions.splice(0).forEach((handle) => handle.unsubscribe());
+      // a message delivered right before the unsubscribe may add a handler while we wait
+      while (this.inflight.size) await Promise.all(this.inflight);
+    })();
+    return this.stopping;
   }
 
   /**

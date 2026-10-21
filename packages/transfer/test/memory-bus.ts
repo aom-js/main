@@ -10,17 +10,19 @@ export class MemoryBus {
 
   private muted = new Set<string>();
 
-  subscriber = (sub: BusSubscription) => {
+  // ручка отписки — как у реальных клиентов шины (Transfer.stop отписывает исполнителей)
+  subscriber = (sub: BusSubscription) => this.add(sub);
+
+  private add(sub: PortedSubscription) {
     this.subs.push(sub);
-  };
+    return { unsubscribe: () => void (this.subs = this.subs.filter((s) => s !== sub)) };
+  }
 
   // именованный порт: подписки узла можно заглушить через mute (эмуляция падения узла)
   port(id: string) {
     return {
       publisher: this.publisher,
-      subscriber: (sub: BusSubscription) => {
-        this.subs.push({ ...sub, port: id });
-      },
+      subscriber: (sub: BusSubscription) => this.add({ ...sub, port: id }),
     };
   }
 

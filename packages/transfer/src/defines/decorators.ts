@@ -552,15 +552,13 @@ function attachIsolation(constructor: ClassType, propertyKey: Property, instance
   // Build the topic taking the instance id into account
   const instanceTopic = Transfer.instanceTopic(topic, instanceId);
   // Subscribe to the topic and bind it to the execution method
-  transfer.subscriber(
-    {
-      topic: instanceTopic,
-      next: rx.execHandler((...args: any[]) =>
-        Reflect.apply(Reflect.get(constructor, propertyKey), constructor, args),
-      ),
-      queue: parentProperty$.queue,
-    },
-
-    // constructor, <string>propertyKey)
-  );
+  const handle = transfer.subscriber({
+    topic: instanceTopic,
+    next: rx.execHandler((...args: any[]) =>
+      Reflect.apply(Reflect.get(constructor, propertyKey), constructor, args),
+    ),
+    queue: parentProperty$.queue,
+  });
+  // the handle lets Transfer.stop unsubscribe; a subscriber may return nothing
+  if (typeof handle?.unsubscribe === "function") transfer.executorSubscriptions.push(handle);
 }

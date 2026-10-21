@@ -240,7 +240,7 @@ export class RxTransfer {
 
       // run the given function, spreading the incoming arguments (they arrive as a list);
       // inside then: a synchronous throw from a non-async executor becomes an error response too
-      Promise.resolve()
+      const run = Promise.resolve()
         .then(() => Reflect.apply(handler, undefined, value))
         .then((result) => {
           // if a reply topic is set, send the result
@@ -288,6 +288,10 @@ export class RxTransfer {
         })
         // the response failed to send (publisher failure) — there's no one to return it to
         .catch((error) => this.transfer.reportError(error));
+      // Transfer.stop waits for running handlers; run never rejects — it ends with catch
+      const { inflight } = this.transfer;
+      inflight.add(run);
+      run.then(() => inflight.delete(run));
     };
   }
 }
