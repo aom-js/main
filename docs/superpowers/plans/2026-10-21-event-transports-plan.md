@@ -3,7 +3,7 @@
 Цель — не демо-стенд, а образец: одна точка событий, к которой безопасно подключаются разные транспорты (WebSocket, SSE, socket.io и другие), без жёсткой зависимости роутера или ядра от любого из них. Решения владельца 2026-10-21:
 - вариант «адаптер в ядре» (Б); `@aom-js/router` не получает зависимостей и не меняется;
 - **совместимость со старыми механизмами не держим** (анахронизм): обход `Bearer_` в `AuthHeaderToken`, `AomWebSockets` + `WebSocketsController` и имя `AomServerEvents` заменяются новым, написанные точки приложения переводятся;
-- заголовки подпротоколом — **быстрая развёртка аргумента в обычные `headers`**, которые дальше проходят стандартные шаги (`AuthHeaderToken`, `CurrentOrg`), без своей обёртки.
+- заголовки подпротоколом — **быстрая развёртка аргумента в обычные `headers`**, которые дальше проходят стандартные шаги (`AuthHeaderToken`, `CurrentOrg`): аргумент — `base64url(JSON)`, настройка перечисляет извлекаемые заголовки, не задана — извлекается всё.
 
 Две задачи:
 1. заголовки через подпротокол `sec-websocket-protocol` — браузерный WebSocket не задаёт заголовки рукопожатия (`KI-AUTH-10`);
@@ -18,21 +18,22 @@
 
 ## 1. Заголовки через подпротокол
 
-**Запись:** каждый элемент `Sec-WebSocket-Protocol` — один заголовок, `<имя>|<значение>`; значение — `encodeURIComponent` (пробел и прочее, что запрещено в токене подпротокола RFC 7230, становится `%XX`; `|` и `%` в токене разрешены).
+**Запись:** один элемент `Sec-WebSocket-Protocol` — `base64url(JSON.stringify({ заголовок: значение }))`. Обычный `base64` не годится: `/` и `=` запрещены в токене подпротокола (RFC 7230), браузер бросает `SyntaxError`; в `base64url` только `A–Z a–z 0–9 - _`. Проверено 2026-10-21 (Node 24, Bun 1.4.3): кириллица, пробел, `/`, `=`, `+` в значениях проходят туда и обратно.
 
 ```ts
-// псевдокод: браузер
-const protocol = (name: string, value: string) =>
-  `${name}|${encodeURIComponent(value).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)}`;
-new WebSocket(url, [protocol("authorization", `Bearer ${token}`), protocol("data-org-id", orgId)]);
-// Sec-WebSocket-Protocol: authorization|Bearer%20abc, data-org-id|1f0e…
+// клиент на Node/Bun
+const protocol = Buffer.from(JSON.stringify({ authorization: `Bearer ${token}`, "data-org-id": orgId })).toString("base64url");
+// клиент в браузере (Uint8Array.toBase64 — в Bun есть, в Node 24 нет; в браузерах — свежие версии)
+const protocol = new TextEncoder().encode(JSON.stringify(headers)).toBase64({ alphabet: "base64url", omitPadding: true });
+new WebSocket(url, [protocol]);
 ```
 
-**Сервер** (`Server`, обработчик `upgrade`) — одна функция `protocolHeaders(value, allowed)` перед сборкой контекста:
-- разбить по `,`, у каждого элемента — имя до первого `|` (в нижнем регистре), значение — `decodeURIComponent` остатка; элементы без `|` и с битой кодировкой пропускаются;
+**Сервер** (`Server`, обработчик `upgrade`) — функция `protocolHeaders(value, allowed?)` перед сборкой контекста:
+- каждый элемент заголовка (через `,`) — `JSON.parse(Buffer.from(элемент, "base64url").toString())`; не JSON-объект — элемент пропускается (`Buffer.from(…, "base64url")` принимает и обычный `base64`, и без `=`);
+- ключи — в нижнем регистре, берутся только строковые значения;
 - результат **разворачивается в обычные `headers` контекста**; дальше — стандартные шаги, ничего подпротокольного они не знают;
 - настоящий заголовок запроса побеждает развёрнутый;
-- развёртывается только список `AomServerSettings.protocolHeaders?: string[]` (приложение: `["authorization", "data-org-id"]`); пусто — развёртки нет. Без списка подпротокол мог бы подставить любой отсутствующий заголовок (`x-forwarded-for` и т.п.);
+- настройка `AomServerSettings.protocolHeaders?: string[]` — какие заголовки извлекать; **не задана — извлекается всё**. «Всё» не даёт клиенту больше, чем у него и так есть: не браузерный клиент ставит любые заголовки сам, а заголовки, которые браузер ставит обязательно (`origin`, `host`), побеждают как настоящие; `cookies` контекста берутся из настоящего `cookie`;
 - ответ сервера — первый предложенный элемент (как `ws` делает сейчас); браузеру этого достаточно.
 
 Убирается: замена `Bearer_` в `AuthHeaderToken.Required` и абзац о ней в документации. Работает для всех точек `@WebSocketPoint`.
@@ -92,7 +93,7 @@ class AomEvents<E extends Record<string, ClassConstructor>> {
 Точка входа `@aom-js/api/socket-io` (как `@aom-js/router/testing`): `attachSocketIO(io, server)`.
 
 - **Без зависимости:** адаптер не импортирует `socket.io` ни в рантайме, ни в типах — принимает структурные типы (`SocketIOServerLike`: `of(fn)`, `use`; `SocketLike`: `handshake { headers, query, auth }`, `nsp.name`, `emit`, `disconnect`, `on("disconnect")`). Приложение создаёт свой `new IOServer(server.server, { destroyUpgrade: false })` и передаёт его. В `dependencies` пакетов ничего не добавляется; `socket.io` и `socket.io-client` — `devDependencies` корня `main` только для теста адаптера.
-- **Заголовки:** клиент socket.io передаёт их объектом `auth` (`io(url, { auth: { authorization: "Bearer …", "data-org-id": orgId } })`), адаптер разворачивает его в `headers` контекста по тому же списку `protocolHeaders` и с тем же правилом «настоящий заголовок побеждает».
+- **Заголовки:** клиент socket.io передаёт их объектом `auth` (`io(url, { auth: { authorization: "Bearer …", "data-org-id": orgId } })`), адаптер разворачивает его в `headers` контекста тем же правилом: настройка `protocolHeaders` (не задана — всё), строковые значения, настоящий заголовок побеждает.
 - **Пространства имён:** динамическое `io.of((name, auth, next) => next(null, !!server.socketRoute(name)))` — канал socket.io = путь точки `@WebSocketPoint`, параметры пути — из совпадения.
 - **Цепочка:** `nsp.use(async (socket, next) => …)` строит контекст `server.socketContext(...)`, кладёт `ctx.accept` → `events.attach(id, socketConnection)` и зовёт `route.apply(context)`. Исключение цепочки → `next(err)` — клиент получает `connect_error` с кодом ответа (401 и т.п.).
 - **Обязательные настройки приложения:** `destroyUpgrade: false` у `IOServer` (иначе socket.io через 1 с закрывает чужие `upgrade`, а цепочка доступа с базой может быть дольше) и `upgradeBypass: ["/socket.io/"]` у `Server`; адаптер проверяет оба и бросает понятную ошибку.
@@ -107,7 +108,7 @@ class AomEvents<E extends Record<string, ClassConstructor>> {
 
 ## Тесты
 
-- Стадия 1: `protocolHeaders` — развёртка, `encodeURIComponent`, список разрешённых, приоритет настоящего заголовка, битые элементы; клиент `ws` с подпротоколами проходит гейт по токену и организации (ядро — vitest; приложение — живой тест на точке `/permissions/my`); `Bearer_` больше не принимается.
+- Стадия 1: `protocolHeaders` — развёртка `base64url(JSON)`, обычный `base64` тоже принимается, список извлекаемых и «не задан — всё», только строки, приоритет настоящего заголовка, битые элементы пропускаются; клиент `ws` с подпротоколами проходит гейт по токену и организации (ядро — vitest; приложение — живой тест на точке `/permissions/my`); `Bearer_` больше не принимается.
 - Стадия 2: `upgradeBypass` — чужой обработчик получает соединение; `socketRoute`/`socketContext` — как прежний разбор.
 - Стадия 3: `AomEvents` — `attach`/снятие, `send`/`broadcast` во все транспорты ключа; SSE — тесты `server-events.test.ts` на новом хранилище; WebSocket через `EventsController.Connect` — кадр JSON, закрытие снимает соединение, без ключа — разрыв; тесты `websockets.test.ts` переписываются на новое.
 - Стадия 4: socket.io (реальные `socket.io` и `socket.io-client` из devDependencies) — подключение под гейтом с `auth`, 401 → `connect_error`, событие доходит, отключение снимает соединение, голый WebSocket на той же точке работает параллельно; Node и Bun.
@@ -115,7 +116,7 @@ class AomEvents<E extends Record<string, ClassConstructor>> {
 
 ## Стадии
 
-1. Подпротокол: `protocolHeaders`, настройка `protocolHeaders`, развёртка в обработчике `upgrade`, удаление `Bearer_`; приложение — `protocolHeaders: ["authorization", "data-org-id"]`, живой тест; `KI-AUTH-10` — закрыт для WebSocket.
+1. Подпротокол: `protocolHeaders`, настройка `protocolHeaders`, развёртка в обработчике `upgrade`, удаление `Bearer_`; приложение — настройка не задаётся (извлекается всё), живой тест; `KI-AUTH-10` — закрыт для WebSocket.
 2. Швы `Server`: `upgradeBypass`, `socketRoute`, `socketContext`.
 3. `AomEvents`, `AomEventsConnection`, `EventsController.Connect`, транспорты SSE и WebSocket; удаление `AomServerEvents`, `AomWebSockets`, `WebSocketsController`; перевод 4 точек сокетов и SSE-ссылки приложения: у каждой — словарь событий (сигнал «обнови» — класс события с данными, которые сейчас уходят строкой).
 4. Адаптер `@aom-js/api/socket-io`: структурные типы, `attachSocketIO`, devDependencies, тест под Node и Bun.
