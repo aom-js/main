@@ -61,7 +61,8 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
     readonly schemas: E,
     readonly options: AomServerEventsOptions = {},
   ) {
-    if (Object.hasOwn(schemas, "type")) throw new Error('Server events dictionary has the key "type"');
+    if (Object.hasOwn(schemas, "type"))
+      throw new Error('Server events dictionary has the key "type"');
   }
 
   /** OpenAPI response of the SSE route for `\@Responses(...)`: the stream with the events of `schemas`. */
@@ -113,7 +114,11 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
   }
 
   /** Writes the envelope `{ type, [type]: value }` to every stream of every id. */
-  broadcast<K extends keyof E & string>(type: K, value: InstanceType<E[K]>, eventId?: string): void {
+  broadcast<K extends keyof E & string>(
+    type: K,
+    value: InstanceType<E[K]>,
+    eventId?: string,
+  ): void {
     this.broadcastEnvelope({ type, [type]: value } as EventEnvelope<E>, eventId);
   }
 
@@ -146,14 +151,18 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
       throw new Error(`Server event type is not in the dictionary: ${JSON.stringify(type)}`);
     }
     const value = (envelope as Record<string, unknown>)[type];
-    if (value === undefined || value === null) throw new Error(`Server event "${type}" has no value`);
+    if (value === undefined || value === null)
+      throw new Error(`Server event "${type}" has no value`);
     const extra = Object.keys(envelope).filter((key) => key !== "type" && key !== type);
     if (extra.length) throw new Error(`Server event "${type}" has extra keys: ${extra.join(", ")}`);
     if (this.options.validate ?? process.env.NODE_ENV !== "production") {
-      const { errors } = schemer.validate(this.schemas[type], value as object);
+      const { errors, values } = schemer.validate(this.schemas[type], value as object);
       if (errors.length) {
-        throw new Error(`Server event "${type}" fails its schema: ${errors.map(String).join("; ")}`);
+        throw new Error(
+          `Server event "${type}" fails its schema: ${errors.map(String).join("; ")}`,
+        );
       }
+      envelope = values as unknown as EventEnvelope<E>;
     }
     return formatServerEvent(envelope, eventId);
   }
