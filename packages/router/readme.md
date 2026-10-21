@@ -552,11 +552,11 @@ Evidence: `packages/router/src/decorators/arguments/index.ts` (`Query`, `Body`, 
 - **параметры пути** (`OpenApi.registerPath`): ключ структуры `@PathParameters` — литеральный сегмент пути, он заменяется на `{name}`, параметр добавляется как `in: "path", required: true`;
 - **прочие параметры**, **ответы** (статус — ключ, поэтому последний курсор с тем же статусом заменяет ответ целиком; `isArray` оборачивает схему в `{type: "array", items}`; поток событий — ниже), **security**, **requestBody** (последний выигрывает; всё — там же, `OpenApi.registerPath`).
 
-**Поток событий — опция `events`.** Ответ `@Responses` — один из двух видов (`packages/router/src/common/openapi.ts` (`OpenApiResponse`)): обычный `{ status, description, schema, isArray?, contentType? }` или поток Server-Sent Events `{ status, description, events, contentType? }`, где `events` — словарь «имя события → схема его `data`» (класс `@ComponentSchema`, сырая схема, `ThisRef`/`RouteRef`); `schema` и `events` взаимоисключающие уже в типах. Поток пишется под `contentType` (по умолчанию `text/event-stream`) как тело `{ type: "string" }` и стандартное поле OpenAPI 3.2 `itemSchema` — схема одного события, `oneOf` по варианту на событие (`packages/router/src/classes/openapi.ts` (`OpenApi.eventsItemSchema`)):
+**Поток событий — опция `events`.** Ответ `@Responses` — один из двух видов (`packages/router/src/common/openapi.ts` (`OpenApiResponse`)): обычный `{ status, description, schema, isArray?, contentType? }` или поток Server-Sent Events `{ status, description, events, contentType? }`, где `events` — словарь «имя события → схема его `data`» (класс `@ComponentSchema`, сырая схема, `ThisRef`/`RouteRef`); `schema` и `events` взаимоисключающие уже в типах. Поток пишется под `contentType` (по умолчанию `text/event-stream`) стандартным полем OpenAPI 3.2 `itemSchema` — схема одного события, `oneOf` по варианту на событие, — и `schema` — всё содержимое как массив таких событий (по 3.2, раздел 4.14, `schema` потокового типа описывает содержимое целиком как массив элементов; инструменты без `itemSchema`, например Swagger UI 5.33, видят хотя бы его) (`packages/router/src/classes/openapi.ts` (`OpenApi.eventsItemSchema`)):
 
 ```jsonc
 {
-  "schema": { "type": "string" },
+  "schema": { "type": "array", "items": { "oneOf": [ /* те же варианты, что в itemSchema */ ] } },
   "itemSchema": { "oneOf": [
     { "type": "object", "required": ["event", "data"],
       "properties": {

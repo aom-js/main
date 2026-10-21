@@ -79,8 +79,8 @@ export class OpenApi {
    * - **other parameters** (`\@QueryParameters`/`\@CookieParameters`/`\@Parameters`);
    * - **responses** (`\@Responses`) — keyed by HTTP status, so the last cursor with a
    *   given status wins; `isArray: true` wraps the schema as `{type: "array", items}`;
-   *   `events` renders an event stream — `schema: {type: "string"}` and `itemSchema` (see
-   *   `eventsItemSchema`), `text/event-stream` by default;
+   *   `events` renders an event stream — `itemSchema` (see `eventsItemSchema`) and
+   *   `schema: {type: "array", items: itemSchema}`, `text/event-stream` by default;
    * - **security** (`\@Security`) — registered once per class name via
    *   `storeSecurityScheme`;
    * - **request body** (`\@RequestBody`) — last cursor wins.
@@ -190,7 +190,9 @@ export class OpenApi {
           const itemSchema = this.eventsItemSchema(response.events, cursor, operationId);
           currentMethod.responses![response.status] = {
             description,
-            content: { [contentType]: { schema: { type: "string" }, itemSchema } },
+            // OpenAPI 3.2: `schema` of a sequential media type models the whole content as an
+            // array of items — tools that don't know `itemSchema` still see the events
+            content: { [contentType]: { schema: { type: "array", items: itemSchema }, itemSchema } },
           };
           return;
         }

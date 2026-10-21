@@ -155,7 +155,9 @@ describe("router: поток событий в @Responses (events → itemSchema
     return docs.toJSON();
   };
 
-  it("два события: тело — строка, itemSchema.oneOf по варианту на событие, классы в components", () => {
+  // OpenAPI 3.2, 4.14 Media Type Object: у потокового типа `schema` описывает всё содержимое как
+  // массив элементов, `itemSchema` — один элемент
+  it("два события: тело — массив событий, itemSchema.oneOf по варианту на событие, классы в components", () => {
     @Controller()
     class Stream {
       @Get("/events")
@@ -172,7 +174,10 @@ describe("router: поток событий в @Responses (events → itemSchema
       description: "поток",
       content: {
         "text/event-stream": {
-          schema: { type: "string" },
+          schema: {
+            type: "array",
+            items: { oneOf: [variant("unread", "UnreadEvent"), variant("notice", "NoticeEvent")] },
+          },
           itemSchema: {
             oneOf: [variant("unread", "UnreadEvent"), variant("notice", "NoticeEvent")],
           },

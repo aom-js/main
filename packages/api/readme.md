@@ -530,7 +530,7 @@ class Events {
 
 **Отправка.** `send(id, event, data, eventId?)` пишет кадр всем потокам `id` (неизвестный `id` — ничего), `broadcast(event, data, eventId?)` — всем потокам всех `id`; `disconnect` последнего потока удаляет ключ. Типы `event` и `data` берутся из словаря реестра. Потоки живут в памяти процесса, поэтому из других процессов — как у сокетов: изолятор `@Isolator(transfer)` с методом `@CustomTopic()` без `@IsQueue` (сигнал получает каждый экземпляр) и без `@CustomTopic(true)` (склейка одинаковых сигналов), контроллер ссылки — `@Executor()` этого изолятора (§«WebSocket-точки», «Отправка»).
 
-**Описание в OpenAPI.** `AomServerEvents.JSONSchema(description, status = 200)` возвращает ответ `{ status, description, events: schemas }` для `@Responses` — тот же словарь, что типизирует `send`, поэтому документ и отправка не расходятся. Роутер пишет его как `text/event-stream` с телом `{ type: "string" }` и `itemSchema` OpenAPI 3.2 — `oneOf` по варианту на событие (`main/packages/router/readme.md`, «Сборка OpenAPI»).
+**Описание в OpenAPI.** `AomServerEvents.JSONSchema(description, status = 200)` возвращает ответ `{ status, description, events: schemas }` для `@Responses` — тот же словарь, что типизирует `send`, поэтому документ и отправка не расходятся. Роутер пишет его как `text/event-stream` с `itemSchema` OpenAPI 3.2 — `oneOf` по варианту на событие — и `schema` — массивом тех же событий (`main/packages/router/readme.md`, «Сборка OpenAPI»).
 
 **Особенности.**
 

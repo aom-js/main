@@ -352,7 +352,7 @@ export function buildVisualGraph(
     const schemas = new Set<string>();
     parameters.forEach((one) => one.schema.ref && schemas.add(one.schema.ref));
     responses.forEach((one) => one.schema.ref && schemas.add(one.schema.ref));
-    // an event stream's body is text: its event schemas are in `itemSchema` (OpenAPI 3.2)
+    // an event stream's event schemas are in `itemSchema` (OpenAPI 3.2), inside `data.contentSchema`
     const streamed = Object.values(operation.responses ?? {}) as StreamResponse[];
     streamed.forEach((response) =>
       Object.values(response?.content ?? {}).forEach((body) =>

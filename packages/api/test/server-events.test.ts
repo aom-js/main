@@ -279,7 +279,7 @@ describe("AomServerEvents через реальный Server", () => {
     });
     const media =
       docs.toJSON().paths!["/events"]!.get!.responses!["200"].content["text/event-stream"];
-    expect(media.schema).toEqual({ type: "string" });
+    expect(media.schema).toEqual({ type: "array", items: media.itemSchema });
     expect(
       media.itemSchema.oneOf.map(
         (v: { properties: { event: { const: string } } }) => v.properties.event.const,
