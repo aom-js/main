@@ -116,7 +116,7 @@ class AomEvents<E extends Record<string, ClassConstructor>> {
 
 ## Стадии
 
-1. Подпротокол: `protocolHeaders`, настройка `protocolHeaders`, развёртка в обработчике `upgrade`, удаление `Bearer_`; приложение — настройка не задаётся (извлекается всё), живой тест; `KI-AUTH-10` — закрыт для WebSocket.
+1. **Сделано 2026-10-21** (main `3eac24b`, test `cb2c12c`). Подпротокол: `protocolHeaders`, настройка `protocolHeaders`, развёртка в обработчике `upgrade`, удаление `Bearer_`; приложение — настройка не задаётся (извлекается всё), живой тест; `KI-AUTH-10` — закрыт для WebSocket.
 2. Швы `Server`: `upgradeBypass`, `socketRoute`, `socketContext`.
 3. `AomEvents`, `AomEventsConnection`, `EventsController.Connect`, транспорты SSE и WebSocket; удаление `AomServerEvents`, `AomWebSockets`, `WebSocketsController`; перевод 4 точек сокетов и SSE-ссылки приложения: у каждой — словарь событий (сигнал «обнови» — класс события с данными, которые сейчас уходят строкой).
 4. Адаптер `@aom-js/api/socket-io`: структурные типы, `attachSocketIO`, devDependencies, тест под Node и Bun.
