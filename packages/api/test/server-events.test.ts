@@ -174,6 +174,29 @@ describe("AomServerEvents: реестр потоков", () => {
     }
   });
 
+  // значение — полная строка из базы: в кадр уходят только поля класса события, конверт цел
+  it("проверка по классу приводит значение: лишние поля отсекаются, конверт сохраняется — и в production при validate: true", () => {
+    const row = { total: 3, secret: "s", org: { id: "o" } };
+    const strict = new AomServerEvents({ unread: Unread }, { heartbeat: 0, validate: true });
+    const stream = strict.connect("a", fakeRes().res);
+    drained(stream);
+    strict.send("a", "unread", row as never);
+    expect(drained(stream)).toBe('data: {"type":"unread","unread":{"total":3}}\n\n');
+    strict.sendEnvelope("a", { type: "unread", unread: row as never });
+    expect(drained(stream)).toBe('data: {"type":"unread","unread":{"total":3}}\n\n');
+    // отправителю значение не портится
+    expect(row).toEqual({ total: 3, secret: "s", org: { id: "o" } });
+
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      strict.send("a", "unread", row as never);
+      expect(drained(stream)).toBe('data: {"type":"unread","unread":{"total":3}}\n\n');
+    } finally {
+      vi.unstubAllEnvs();
+      stream.destroy();
+    }
+  });
+
   it("ключ type в словаре — ошибка: он занят типом конверта", () => {
     expect(() => new AomServerEvents({ type: Unread })).toThrow();
   });

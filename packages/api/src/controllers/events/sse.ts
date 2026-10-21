@@ -143,7 +143,8 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
    * Frame of a checked envelope.
    *
    * @throws {Error} when `type` is not in the dictionary, the value under `type` is `undefined`/`null`,
-   * the envelope has keys besides `type` and its value, or (with `validate`) the value fails its class
+   * the envelope has keys besides `type` and its value, or (with `validate`) the value fails its class.
+   * With `validate` the frame carries the value brought to its class: fields without rules are cut.
    */
   private frameOf(envelope: EventEnvelope<E>, eventId?: string): string {
     const { type } = envelope;
@@ -162,7 +163,9 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
           `Server event "${type}" fails its schema: ${errors.map(String).join("; ")}`,
         );
       }
-      envelope = values as unknown as EventEnvelope<E>;
+      // the value brought to its class (whitelist drops fields without rules — a full DB row can be
+      // sent as is); the envelope keeps its type
+      envelope = { type, [type]: values } as EventEnvelope<E>;
     }
     return formatServerEvent(envelope, eventId);
   }
