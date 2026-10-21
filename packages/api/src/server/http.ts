@@ -123,12 +123,20 @@ class RouteMatcher {
  *
  * const settings: AomServerSettings = { port: 3000, url: "http://localhost:3000" };
  * const server = new Server(settings, router);
- * // server.server is the underlying node:http.Server, e.g. for server.server.close()
+ * // graceful stop on shutdown: `await server.stop()`, or `await Server.stopAll()` for every server
  * ```
  */
 export class Server {
   /** Running total of routes registered across every `Server` instance created in the process. */
   static routesAmount: number = 0;
+
+  // servers of this process that are still listening or finishing; `stopAll` stops them
+  private static running = new Set<Server>();
+
+  // responses in progress and upgraded (WebSocket) sockets: `stop` closes the long-lived ones
+  private responses = new Set<http.ServerResponse>();
+  private upgraded = new Set<Stream.Duplex>();
+  private stopping?: Promise<void>;
 
   private routeMatcher: RouteMatcher;
 
@@ -189,6 +197,10 @@ export class Server {
     };
 
     this.server = http.createServer(async (req, res) => {
+      this.responses.add(res);
+      res.once("close", () => this.responses.delete(res));
+      // during the stop a keep-alive connection must not take the next request
+      if (this.stopping) res.setHeader("Connection", "close");
       try {
         res.setHeader("Access-Control-Allow-Origin", "*");
         res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,DELETE,OPTIONS");
@@ -404,6 +416,8 @@ export class Server {
     });
 
     this.server.on("upgrade", async (req: http.IncomingMessage, socket, head) => {
+      this.upgraded.add(socket);
+      socket.once("close", () => this.upgraded.delete(socket));
       try {
         // The same safe URL-parsing scheme as in the main handler - see the comment above
         const url = parseRequestUrl(req.url);
@@ -446,7 +460,40 @@ export class Server {
     });
 
     console.info("Server started:", settings);
+    Server.running.add(this);
+    this.server.once("close", () => Server.running.delete(this));
     this.server.listen(settings.port);
+  }
+
+  /**
+   * Graceful stop: stops accepting connections, closes idle keep-alive connections (busy ones
+   * close after their current response) and the long-lived ones that never end by themselves —
+   * `text/event-stream` responses and upgraded (WebSocket) sockets — then waits for the
+   * requests in progress to finish their responses.
+   * Has no time limit of its own: the application sets the overall shutdown timeout. Never
+   * rejects; repeated calls return the same `Promise`.
+   *
+   * @returns Resolves when the underlying `http.Server` has closed.
+   */
+  stop(): Promise<void> {
+    this.stopping ??= new Promise((resolve) => {
+      // close() also drops idle keep-alive connections (Node 19+, Bun); the callback fires with
+      // an error when the server is already closed — done either way
+      this.server.close(() => resolve());
+      this.upgraded.forEach((socket) => socket.destroy());
+      this.responses.forEach((res) => {
+        if (String(res.getHeader("Content-Type")).startsWith("text/event-stream")) res.end();
+        // the connection closes after this response instead of waiting for the next request
+        else if (!res.headersSent) res.setHeader("Connection", "close");
+        else res.once("finish", () => res.socket?.end());
+      });
+    });
+    return this.stopping;
+  }
+
+  /** Stops every `Server` of the process that is still running (see `stop`). */
+  static async stopAll(): Promise<void> {
+    await Promise.all([...Server.running].map((server) => server.stop()));
   }
 
   // node returns headers (IncomingHttpHeaders) and query (ParsedUrlQuery) with values typed
