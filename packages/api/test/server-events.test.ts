@@ -30,6 +30,12 @@ class Unread {
   total!: number;
 }
 
+@ComponentSchema()
+class Notice {
+  @PropertySchema.String({})
+  text!: string;
+}
+
 // заглушка ответа: реестру нужен только setHeader
 function fakeRes() {
   const headers: Record<string, string> = {};
@@ -41,24 +47,23 @@ function fakeRes() {
 const drained = (stream: PassThrough) => String(stream.read() ?? "");
 
 describe("formatServerEvent: кадр события", () => {
-  it("event, data одной строкой JSON, пустая строка в конце", () => {
-    expect(formatServerEvent("unread", { total: 2 })).toBe('event: unread\ndata: {"total":2}\n\n');
-  });
-
-  it("id — между event и data, если задан", () => {
-    expect(formatServerEvent("unread", 1, "42")).toBe("event: unread\nid: 42\ndata: 1\n\n");
-  });
-
-  it("перевод строки внутри данных не рвёт кадр: JSON экранирует его", () => {
-    expect(formatServerEvent("note", { text: "a\nb\r\nc" })).toBe(
-      'event: note\ndata: {"text":"a\\nb\\r\\nc"}\n\n',
+  it("без строки event: — data одной строкой JSON, пустая строка в конце", () => {
+    expect(formatServerEvent({ type: "unread", unread: { total: 2 } })).toBe(
+      'data: {"type":"unread","unread":{"total":2}}\n\n',
     );
   });
 
-  it("перевод строки в имени события или в id — ошибка", () => {
-    expect(() => formatServerEvent("a\nb", 1)).toThrow();
-    expect(() => formatServerEvent("a\rb", 1)).toThrow();
-    expect(() => formatServerEvent("a", 1, "1\n2")).toThrow();
+  it("id — перед data, если задан", () => {
+    expect(formatServerEvent(1, "42")).toBe("id: 42\ndata: 1\n\n");
+  });
+
+  it("перевод строки внутри данных не рвёт кадр: JSON экранирует его", () => {
+    expect(formatServerEvent({ text: "a\nb\r\nc" })).toBe('data: {"text":"a\\nb\\r\\nc"}\n\n');
+  });
+
+  it("перевод строки в id — ошибка", () => {
+    expect(() => formatServerEvent(1, "1\n2")).toThrow();
+    expect(() => formatServerEvent(1, "1\r2")).toThrow();
   });
 });
 
@@ -85,21 +90,62 @@ describe("AomServerEvents: реестр потоков", () => {
     stream.destroy();
   });
 
-  it("send — только потокам своего id, broadcast — всем", () => {
+  it("send — конверт только потокам своего id, broadcast — всем", () => {
     const events = new AomServerEvents({ unread: Unread }, { heartbeat: 0 });
     const [a1, a2, b] = ["a", "a", "b"].map((id) => events.connect(id, fakeRes().res));
     [a1, a2, b].forEach(drained);
 
     events.send("a", "unread", { total: 1 }, "7");
-    expect([a1, a2, b].map(drained)).toEqual([
-      'event: unread\nid: 7\ndata: {"total":1}\n\n',
-      'event: unread\nid: 7\ndata: {"total":1}\n\n',
-      "",
-    ]);
+    const one = 'id: 7\ndata: {"type":"unread","unread":{"total":1}}\n\n';
+    expect([a1, a2, b].map(drained)).toEqual([one, one, ""]);
 
     events.broadcast("unread", { total: 2 });
-    expect([a1, a2, b].map(drained)).toEqual(Array(3).fill('event: unread\ndata: {"total":2}\n\n'));
+    expect([a1, a2, b].map(drained)).toEqual(
+      Array(3).fill('data: {"type":"unread","unread":{"total":2}}\n\n'),
+    );
     [a1, a2, b].forEach((s) => s.destroy());
+  });
+
+  it("sendEnvelope и broadcastEnvelope — готовый конверт как есть", () => {
+    const events = new AomServerEvents({ unread: Unread, notice: Notice }, { heartbeat: 0 });
+    const [a, b] = ["a", "b"].map((id) => events.connect(id, fakeRes().res));
+    [a, b].forEach(drained);
+
+    events.sendEnvelope("a", { type: "notice", notice: { text: "x" } }, "3");
+    expect([a, b].map(drained)).toEqual([
+      'id: 3\ndata: {"type":"notice","notice":{"text":"x"}}\n\n',
+      "",
+    ]);
+    events.broadcastEnvelope({ type: "unread", unread: { total: 5 } });
+    expect([a, b].map(drained)).toEqual(
+      Array(2).fill('data: {"type":"unread","unread":{"total":5}}\n\n'),
+    );
+    [a, b].forEach((s) => s.destroy());
+  });
+
+  it("неверный конверт — ошибка у отправителя, кадр не уходит", () => {
+    const events = new AomServerEvents({ unread: Unread, notice: Notice }, { heartbeat: 0 });
+    const stream = events.connect("a", fakeRes().res);
+    drained(stream);
+    const wrong = [
+      { type: "other", other: { total: 1 } }, // типа нет в словаре
+      { type: "unread" }, // значения нет
+      { type: "unread", unread: null },
+      { type: "unread", unread: { total: 1 }, notice: { text: "x" } }, // лишний ключ
+      { type: "unread", unread: { total: 1 }, extra: 1 },
+    ];
+    for (const envelope of wrong) {
+      expect(() => events.sendEnvelope("a", envelope as never)).toThrow();
+      expect(() => events.broadcastEnvelope(envelope as never)).toThrow();
+    }
+    expect(() => events.send("a", "unread", null as never)).toThrow();
+    expect(() => events.send("nobody", "unread", undefined as never)).toThrow();
+    expect(drained(stream)).toBe("");
+    stream.destroy();
+  });
+
+  it("ключ type в словаре — ошибка: он занят типом конверта", () => {
+    expect(() => new AomServerEvents({ type: Unread })).toThrow();
   });
 
   it("send по неизвестному id ничего не делает и не бросает", () => {
@@ -224,7 +270,7 @@ describe("AomServerEvents через реальный Server", () => {
     await until(() => events.connections.has("mine") && events.connections.has("other"));
 
     events.send("mine", "unread", { total: 1 });
-    await until(() => mine.body().includes('data: {"total":1}'));
+    await until(() => mine.body().includes('data: {"type":"unread","unread":{"total":1}}'));
     events.broadcast("unread", { total: 2 });
     await until(() => mine.body().includes('total":2') && other.body().includes('total":2'));
     expect(other.body()).not.toContain('total":1');

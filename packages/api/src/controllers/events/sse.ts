@@ -14,20 +14,27 @@ export declare type AomServerEventsOptions = {
 const LINE_BREAK = /[\r\n]/;
 
 /**
- * Renders one Server-Sent Events frame: `event:`, optional `id:`, `data:` with the JSON of
- * `data`, and the blank line closing the frame. `JSON.stringify` escapes line breaks, so `data`
- * is always one line.
- *
- * @throws {Error} when `event` or `eventId` contains a line break — it would split the frame
+ * Event envelope of the dictionary `E`: `{ type: K, [K]: value }` for one key `K` of `E` — a union
+ * over the keys. The client reads `type` and takes the value `envelope[envelope.type]`.
  */
-export function formatServerEvent(event: string, data: unknown, eventId?: string): string {
-  if (LINE_BREAK.test(event))
-    throw new Error(`Server event name has a line break: ${JSON.stringify(event)}`);
+export declare type EventEnvelope<E extends Record<string, ClassConstructor>> = {
+  [K in keyof E & string]: { type: K } & { [P in K]: InstanceType<E[K]> };
+}[keyof E & string];
+
+/**
+ * Renders one Server-Sent Events frame: optional `id:`, `data:` with the JSON of `data`, and the
+ * blank line closing the frame. No `event:` line — the event type travels inside `data` (the
+ * envelope), so the client listens to plain messages. `JSON.stringify` escapes line breaks, so
+ * `data` is always one line.
+ *
+ * @throws {Error} when `eventId` contains a line break — it would split the frame
+ */
+export function formatServerEvent(data: unknown, eventId?: string): string {
   if (eventId !== undefined && LINE_BREAK.test(eventId)) {
     throw new Error(`Server event id has a line break: ${JSON.stringify(eventId)}`);
   }
   const id = eventId === undefined ? "" : `id: ${eventId}\n`;
-  return `event: ${event}\n${id}data: ${JSON.stringify(data)}\n\n`;
+  return `${id}data: ${JSON.stringify(data)}\n\n`;
 }
 
 /**
@@ -40,10 +47,13 @@ export function formatServerEvent(event: string, data: unknown, eventId?: string
 export class AomServerEvents<E extends Record<string, ClassConstructor>> {
   connections: Map<string, PassThrough[]> = new Map();
 
+  /** @throws {Error} when the dictionary has the key `type` — the envelope's type takes it */
   constructor(
     readonly schemas: E,
     readonly options: AomServerEventsOptions = {},
-  ) {}
+  ) {
+    if (Object.hasOwn(schemas, "type")) throw new Error('Server events dictionary has the key "type"');
+  }
 
   /** OpenAPI response of the SSE route for `\@Responses(...)`: the stream with the events of `schemas`. */
   JSONSchema(description: string, status = 200): OpenApiEventsResponse {
@@ -83,24 +93,53 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
     return this;
   }
 
-  /** Writes event `event` with `data` to every stream registered under `id`; an unknown id is a no-op. */
+  /** Writes the envelope `{ type, [type]: value }` to every stream registered under `id`; an unknown id is a no-op. */
   send<K extends keyof E & string>(
     id: string,
-    event: K,
-    data: InstanceType<E[K]>,
+    type: K,
+    value: InstanceType<E[K]>,
     eventId?: string,
   ): void {
-    const frame = formatServerEvent(event, data, eventId);
+    this.sendEnvelope(id, { type, [type]: value } as EventEnvelope<E>, eventId);
+  }
+
+  /** Writes the envelope `{ type, [type]: value }` to every stream of every id. */
+  broadcast<K extends keyof E & string>(type: K, value: InstanceType<E[K]>, eventId?: string): void {
+    this.broadcastEnvelope({ type, [type]: value } as EventEnvelope<E>, eventId);
+  }
+
+  /**
+   * Writes a ready envelope (e.g. one that came over the bus) to every stream registered under `id`.
+   *
+   * @throws {Error} on a wrong envelope (see `frameOf`) — even when `id` has no streams
+   */
+  sendEnvelope(id: string, envelope: EventEnvelope<E>, eventId?: string): void {
+    const frame = this.frameOf(envelope, eventId);
     // shortcut: a slow client's PassThrough buffers without limit (write() result is ignored), cap or drop the stream once a client is seen lagging (KI-API-22)
     this.connections.get(id)?.forEach((stream) => stream.write(frame));
   }
 
-  /** Writes event `event` with `data` to every stream of every id. */
-  broadcast<K extends keyof E & string>(
-    event: K,
-    data: InstanceType<E[K]>,
-    eventId?: string,
-  ): void {
-    this.connections.forEach((_streams, id) => this.send(id, event, data, eventId));
+  /** Writes a ready envelope to every stream of every id; throws on a wrong envelope, as `sendEnvelope`. */
+  broadcastEnvelope(envelope: EventEnvelope<E>, eventId?: string): void {
+    const frame = this.frameOf(envelope, eventId);
+    this.connections.forEach((streams) => streams.forEach((stream) => stream.write(frame)));
+  }
+
+  /**
+   * Frame of a checked envelope.
+   *
+   * @throws {Error} when `type` is not in the dictionary, the value under `type` is `undefined`/`null`,
+   * or the envelope has keys besides `type` and its value
+   */
+  private frameOf(envelope: EventEnvelope<E>, eventId?: string): string {
+    const { type } = envelope;
+    if (!Object.hasOwn(this.schemas, type)) {
+      throw new Error(`Server event type is not in the dictionary: ${JSON.stringify(type)}`);
+    }
+    const value = (envelope as Record<string, unknown>)[type];
+    if (value === undefined || value === null) throw new Error(`Server event "${type}" has no value`);
+    const extra = Object.keys(envelope).filter((key) => key !== "type" && key !== type);
+    if (extra.length) throw new Error(`Server event "${type}" has extra keys: ${extra.join(", ")}`);
+    return formatServerEvent(envelope, eventId);
   }
 }
