@@ -101,7 +101,11 @@ function describeSchema(value: any): VisualSchemaRef {
 type StreamResponse = {
   content?: Record<
     string,
-    { itemSchema?: { oneOf?: { properties?: { data?: { contentSchema?: unknown } } }[] } }
+    {
+      itemSchema?: {
+        properties?: { data?: { contentSchema?: { properties?: Record<string, unknown> } } };
+      };
+    }
   >;
 };
 
@@ -352,14 +356,17 @@ export function buildVisualGraph(
     const schemas = new Set<string>();
     parameters.forEach((one) => one.schema.ref && schemas.add(one.schema.ref));
     responses.forEach((one) => one.schema.ref && schemas.add(one.schema.ref));
-    // an event stream's event schemas are in `itemSchema` (OpenAPI 3.2), inside `data.contentSchema`
+    // an event stream's event schemas are in `itemSchema` (OpenAPI 3.2): the properties of the
+    // envelope `data.contentSchema`, one per dictionary key
     const streamed = Object.values(operation.responses ?? {}) as StreamResponse[];
     streamed.forEach((response) =>
       Object.values(response?.content ?? {}).forEach((body) =>
-        body?.itemSchema?.oneOf?.forEach((variant) => {
-          const { ref } = describeSchema(variant?.properties?.data?.contentSchema);
-          if (ref) schemas.add(ref);
-        }),
+        Object.values(body?.itemSchema?.properties?.data?.contentSchema?.properties ?? {}).forEach(
+          (value) => {
+            const { ref } = describeSchema(value);
+            if (ref) schemas.add(ref);
+          },
+        ),
       ),
     );
     if (requestBody?.schema.ref) schemas.add(requestBody.schema.ref);

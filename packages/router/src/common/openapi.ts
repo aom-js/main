@@ -50,11 +50,10 @@ export declare interface OpenApiDataResponse extends OpenApiResponseBase {
 }
 
 /**
- * Stream of Server-Sent Events: event name → schema of its `data` (a `\@ComponentSchema` class,
- * a raw schema, `ThisRef`/`RouteRef`). Rendered as the OpenAPI 3.2
- * `itemSchema` — `oneOf` with one variant per event — plus `schema: {type: "array", items}` of
- * the same variants; `contentType` defaults to
- * `text/event-stream`.
+ * Stream of Server-Sent Events: event type → schema of its value (a `\@ComponentSchema` class,
+ * a raw schema, `ThisRef`/`RouteRef`). Rendered as the OpenAPI 3.2 `itemSchema` — one variant
+ * whose `data` is the envelope `{ type, [type]: value }` — plus `schema: {type: "array", items}`
+ * of that variant; `contentType` defaults to `text/event-stream`.
  */
 export declare interface OpenApiEventsResponse extends OpenApiResponseBase {
   events: Record<string, OpenApiPossibleSchema>;

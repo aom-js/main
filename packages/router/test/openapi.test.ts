@@ -134,15 +134,24 @@ describe("router: поток событий в @Responses (events → itemSchema
     text!: string;
   }
 
-  const variant = (name: string, ref: string) => ({
+  // один вариант: data — JSON конверта { type, [type]: значение }
+  const item = (events: Record<string, string>) => ({
     type: "object",
-    required: ["event", "data"],
+    required: ["data"],
     properties: {
-      event: { const: name },
       data: {
         type: "string",
         contentMediaType: "application/json",
-        contentSchema: { $ref: `#/components/schemas/${ref}` },
+        contentSchema: {
+          type: "object",
+          required: ["type"],
+          properties: {
+            type: { enum: Object.keys(events) },
+            ...Object.fromEntries(
+              Object.entries(events).map(([name, ref]) => [name, { $ref: `#/components/schemas/${ref}` }]),
+            ),
+          },
+        },
       },
       id: { type: "string" },
       retry: { type: "integer" },
@@ -157,7 +166,7 @@ describe("router: поток событий в @Responses (events → itemSchema
 
   // OpenAPI 3.2, 4.14 Media Type Object: у потокового типа `schema` описывает всё содержимое как
   // массив элементов, `itemSchema` — один элемент
-  it("два события: тело — массив событий, itemSchema.oneOf по варианту на событие, классы в components", () => {
+  it("два события: itemSchema — один вариант с конвертом (type — enum ключей, по свойству на ключ), тело — массив событий, классы в components", () => {
     @Controller()
     class Stream {
       @Get("/events")
@@ -176,11 +185,9 @@ describe("router: поток событий в @Responses (events → itemSchema
         "text/event-stream": {
           schema: {
             type: "array",
-            items: { oneOf: [variant("unread", "UnreadEvent"), variant("notice", "NoticeEvent")] },
+            items: item({ unread: "UnreadEvent", notice: "NoticeEvent" }),
           },
-          itemSchema: {
-            oneOf: [variant("unread", "UnreadEvent"), variant("notice", "NoticeEvent")],
-          },
+          itemSchema: item({ unread: "UnreadEvent", notice: "NoticeEvent" }),
         },
       },
     });
@@ -214,10 +221,10 @@ describe("router: поток событий в @Responses (events → itemSchema
 
     const json = docsOf(Child);
     const media = json.paths["/child"].get.responses["200"].content["text/event-stream"];
-    expect(media.itemSchema.oneOf).toEqual([variant("tick", "NoticeEvent")]);
+    expect(media.itemSchema).toEqual(item({ tick: "NoticeEvent" }));
   });
 
-  it("пустой events и имя события с переводом строки — ошибка при построении маршрута", () => {
+  it("пустой events и ключ type (занят типом конверта) — ошибка при построении маршрута", () => {
     @Controller()
     class Empty {
       @Get("/e")
@@ -228,7 +235,7 @@ describe("router: поток событий в @Responses (events → itemSchema
     @Controller()
     class Broken {
       @Get("/b")
-      @Responses({ status: 200, description: "поток", events: { "a\nb": UnreadEvent } })
+      @Responses({ status: 200, description: "поток", events: { type: UnreadEvent } })
       static async connect() {}
     }
 

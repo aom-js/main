@@ -356,13 +356,10 @@ describe("AomServerEvents через реальный Server", () => {
     const media =
       docs.toJSON().paths!["/events"]!.get!.responses!["200"].content["text/event-stream"];
     expect(media.schema).toEqual({ type: "array", items: media.itemSchema });
-    expect(
-      media.itemSchema.oneOf.map(
-        (v: { properties: { event: { const: string } } }) => v.properties.event.const,
-      ),
-    ).toEqual(["unread"]);
-    expect(media.itemSchema.oneOf[0].properties.data.contentSchema).toEqual({
-      $ref: "#/components/schemas/Unread",
+    expect(media.itemSchema.properties.data.contentSchema).toEqual({
+      type: "object",
+      required: ["type"],
+      properties: { type: { enum: ["unread"] }, unread: { $ref: "#/components/schemas/Unread" } },
     });
   });
 

@@ -239,10 +239,12 @@ export class OpenApi {
   }
 
   /**
-   * Item schema of an event stream: `oneOf` with one variant per event — the frame's `event`
-   * (`const` name), `data` (JSON text whose `contentSchema` is the event's schema), `id`, `retry`.
+   * Item schema of an event stream: one variant — the frame's `data` (JSON text whose
+   * `contentSchema` is the envelope `{ type, [type]: value }`: `type` is an `enum` of the
+   * dictionary keys, one property per key with its schema), `id`, `retry`. The rule "the value is
+   * under the key named by `type`" is not expressed — the registry builds and checks the envelope.
    *
-   * @throws {Error} `RESPONSE_EVENTS_DEFINE_ERROR` for an empty dictionary or an event name with a line break
+   * @throws {Error} `RESPONSE_EVENTS_DEFINE_ERROR` for an empty dictionary or the key `type` (taken by the envelope's type)
    */
   private eventsItemSchema(
     events: Record<string, OpenApiPossibleSchema>,
@@ -250,24 +252,27 @@ export class OpenApi {
     operationId: string,
   ) {
     const names = Object.keys(events);
-    if (!names.length || names.some((name) => /[\r\n]/.test(name))) {
+    if (!names.length || names.includes("type")) {
       throw new Error(`${constants.RESPONSE_EVENTS_DEFINE_ERROR}: ${operationId}`);
     }
-    const oneOf = names.map((name) => ({
+    const values = names.map((name) => [name, this.schemaExtract(events[name], cursor)]);
+    return {
       type: "object",
-      required: ["event", "data"],
+      required: ["data"],
       properties: {
-        event: { const: name },
         data: {
           type: "string",
           contentMediaType: "application/json",
-          contentSchema: this.schemaExtract(events[name], cursor),
+          contentSchema: {
+            type: "object",
+            required: ["type"],
+            properties: { type: { enum: names }, ...Object.fromEntries(values) },
+          },
         },
         id: { type: "string" },
         retry: { type: "integer" },
       },
-    }));
-    return { oneOf };
+    };
   }
 
   /** Registers `cursor`'s `\@Security` schema once per class name and returns that name for use as the security requirement key. */
