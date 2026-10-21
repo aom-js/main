@@ -25,4 +25,10 @@ export interface AomServerSettings {
    */
   // JSON request body size limit in bytes; defaults to DEFAULT_BODY_LIMIT, 0 means no limit
   bodyLimit?: number;
+  /**
+   * Headers a WebSocket client may pass in `Sec-WebSocket-Protocol` (see `protocolHeaders`):
+   * names are case-insensitive; omitted — every header is extracted, `[]` — none. Real request
+   * headers always win over the unfolded ones.
+   */
+  protocolHeaders?: string[];
 }

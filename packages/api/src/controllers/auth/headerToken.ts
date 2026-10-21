@@ -16,8 +16,8 @@ export const HeaderTokenSecuritySchema = {
  * middleware chained after `Required`.
  *
  * `HEADERS_KEYS` can list more than one header to support carrying the token through headers
- * that aren't `authorization` (e.g. `sec-websocket-protocol` for WebSocket handshakes, where an
- * underscore is accepted in place of the separating space).
+ * that aren't `authorization`. A browser WebSocket passes `authorization` itself in the
+ * subprotocol — `Server` unfolds it into a plain header (`protocolHeaders`).
  *
  * @example
  * ```ts
@@ -67,11 +67,7 @@ export class AuthHeaderToken {
     this.HEADERS_KEYS.forEach((headerKey) => {
       const [headerValue] = [headers[headerKey]].flat();
       if (!self.value && headerValue) {
-        // this is a special allowance that lets the token be passed through alternate headers,
-        // e.g. `sec-websocket-protocol`
-        [self.type, self.value] = headerValue
-          .replace(`${this.TOKEN_NAME}_`, `${this.TOKEN_NAME} `)
-          .split(" ");
+        [self.type, self.value] = headerValue.split(" ");
       }
     });
 

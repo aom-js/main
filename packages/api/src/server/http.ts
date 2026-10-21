@@ -14,6 +14,7 @@ import { messages, locales } from "../constants";
 import { BODY_OPTIONS_MARKER } from "../decorators/body-options";
 import { type AomServerSettings } from "./types";
 import { I18nizer } from "./i18nizer";
+import { protocolHeaders } from "./protocol-headers";
 import { parseJsonBody, BODY_UNREAD, DEFAULT_BODY_LIMIT, type BodyParseOptions } from "./body";
 
 declare type StringStructures = Record<string, string | string[]>;
@@ -409,7 +410,12 @@ export class Server {
         const match = this.routeMatcher.match("sockets", url.pathname || "/");
 
         const query = this.structurizeSearchParams(url.searchParams);
-        const headers = this.definedHeadersValues(req.headers);
+        // a browser WebSocket can't set handshake headers: they come unfolded from the
+        // subprotocol, real headers win
+        const headers = {
+          ...protocolHeaders(req.headers["sec-websocket-protocol"], settings.protocolHeaders),
+          ...this.definedHeadersValues(req.headers),
+        };
 
         if (!match) {
           socket.destroy();
