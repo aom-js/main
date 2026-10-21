@@ -1,6 +1,9 @@
 # События и транспорты — план
 
-Цель — не демо-стенд, а образец: одна точка событий, к которой безопасно подключаются разные транспорты (WebSocket, SSE, socket.io и другие), без жёсткой зависимости роутера или ядра от любого из них. Решения владельца 2026-10-21: вариант «адаптер в ядре» (Б), совместимость с базовыми протоколами сохраняется; `@aom-js/router` не получает зависимостей и не меняется.
+Цель — не демо-стенд, а образец: одна точка событий, к которой безопасно подключаются разные транспорты (WebSocket, SSE, socket.io и другие), без жёсткой зависимости роутера или ядра от любого из них. Решения владельца 2026-10-21:
+- вариант «адаптер в ядре» (Б); `@aom-js/router` не получает зависимостей и не меняется;
+- **совместимость со старыми механизмами не держим** (анахронизм): обход `Bearer_` в `AuthHeaderToken`, `AomWebSockets` + `WebSocketsController` и имя `AomServerEvents` заменяются новым, написанные точки приложения переводятся;
+- заголовки подпротоколом — **быстрая развёртка аргумента в обычные `headers`**, которые дальше проходят стандартные шаги (`AuthHeaderToken`, `CurrentOrg`), без своей обёртки.
 
 Две задачи:
 1. заголовки через подпротокол `sec-websocket-protocol` — браузерный WebSocket не задаёт заголовки рукопожатия (`KI-AUTH-10`);
@@ -8,47 +11,39 @@
 
 ## Что есть сейчас
 
-- `AomWebSockets` (`packages/api/src/controllers/events/websockets.ts`): реестр сырых ws по ключу, `send(id, data)` шлёт строку как есть; рукопожатие — `WebSocketsController.Define`/`Connect` в цепочке точки `@WebSocketPoint`.
-- `AomServerEvents` (`packages/api/src/controllers/events/sse.ts`): типизированный словарь «событие → класс», `send(id, event, data)`, `JSONSchema()` для `@Responses`; транспорт — только SSE.
-- `Server` (`packages/api/src/server/http.ts`): обработчик `upgrade` сам собирает контекст (заголовки, query, cookies, params) и **рвёт** соединение, если путь не нашёлся среди точек сокетов — чужой обработчик `upgrade` (socket.io на `/socket.io/`) не доживёт до рукопожатия. Проверено 2026-10-21 под Bun 1.4.3 и Node 24: оба обработчика `upgrade` одного `node:http` срабатывают.
-- `AuthHeaderToken.Required` понимает `Bearer_<token>` в любом заголовке из `HEADERS_KEYS` — частный обход того же ограничения, только для токена.
+- `AomWebSockets` (`packages/api/src/controllers/events/websockets.ts`): реестр сырых ws по ключу, `send(id, data)` шлёт строку как есть; рукопожатие — `WebSocketsController.Define`/`Connect` в цепочке точки `@WebSocketPoint`. В приложении — 4 точки: `MyPermissionsSocket`, `TicketSocket`, `MyDocumentsSocket`, `MyAgreementsSocket`.
+- `AomServerEvents` (`packages/api/src/controllers/events/sse.ts`): словарь «событие → класс», `send(id, event, data)`, `JSONSchema()` для `@Responses`; транспорт — только SSE; в приложении — `MyPermissionsEvents`.
+- `Server` (`packages/api/src/server/http.ts`): обработчик `upgrade` сам собирает контекст и **рвёт** соединение, если путь не нашёлся среди точек сокетов — чужой обработчик `upgrade` (socket.io на `/socket.io/`) не доживёт до рукопожатия. Проверено 2026-10-21 под Bun 1.4.3 и Node 24: оба обработчика `upgrade` одного `node:http` срабатывают.
+- `AuthHeaderToken.Required` заменяет `Bearer_` на `Bearer ` в любом заголовке из `HEADERS_KEYS` — частный обход того же ограничения.
 
 ## 1. Заголовки через подпротокол
 
-**Формат** (клиент → сервер), всё в одном заголовке `Sec-WebSocket-Protocol`:
-
-```text
-// псевдокод
-Sec-WebSocket-Protocol: aom, aom.headers.<base64url(JSON {"authorization": "Bearer …", "data-org-id": "…"})>
-```
-
-- `aom` — маркер; сервер **обязан** вернуть выбранный подпротокол из предложенных, иначе браузер закрывает соединение. Сервер выбирает `aom` (`handleProtocols` у `WebSocketServer`), а не первый попавшийся, как сейчас.
-- Значения — в `base64url`: подпротокол — токен RFC 7230, пробелы, `/`, `=` и `,` в нём запрещены, а в заголовках они бывают (`Bearer …`).
-- Один токен с JSON, а не по токену на заголовок: один разбор, одна проверка размера.
-
-**Сервер** (`Server`, обработчик `upgrade`):
-- новая настройка `AomServerSettings.protocolHeaders?: string[]` — список заголовков, которые разрешено передать подпротоколом (приложение: `["authorization", "data-org-id"]`); пусто — разбор выключен (поведение как сейчас);
-- разбор: найти `aom.headers.*`, декодировать, взять только разрешённые имена (в нижнем регистре), строковые значения; **настоящий заголовок запроса побеждает** подпротокольный; битый base64/JSON — запрос не рвётся, заголовки просто не добавляются (гейт сам ответит 401);
-- сам токен `aom.headers.*` из `sec-websocket-protocol`, попадающего в контекст, вырезается — чтобы `AuthHeaderToken` с `HEADERS_KEYS` не увидел его как токен.
-- функция разбора экспортируется (`protocolHeaders`) — её же переиспользует адаптер socket.io (раздел 3) для `handshake.auth`.
-
-**Совместимость:** `Bearer_` в `AuthHeaderToken` остаётся (старые клиенты); в документации — как устаревший путь. Гейты, `CurrentOrg`, `data-org-id` не меняются: они читают обычные заголовки контекста. Работает для всех точек `@WebSocketPoint`, включая уже написанные в приложении.
-
-**Клиент** (в документации, исполняемым примером в тесте):
+**Запись:** каждый элемент `Sec-WebSocket-Protocol` — один заголовок, `<имя>|<значение>`; значение — `encodeURIComponent` (пробел и прочее, что запрещено в токене подпротокола RFC 7230, становится `%XX`; `|` и `%` в токене разрешены).
 
 ```ts
 // псевдокод: браузер
-const b64url = (s: string) => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-new WebSocket(url, ["aom", `aom.headers.${b64url(JSON.stringify({ authorization: `Bearer ${token}`, "data-org-id": orgId }))}`]);
+const protocol = (name: string, value: string) =>
+  `${name}|${encodeURIComponent(value).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)}`;
+new WebSocket(url, [protocol("authorization", `Bearer ${token}`), protocol("data-org-id", orgId)]);
+// Sec-WebSocket-Protocol: authorization|Bearer%20abc, data-org-id|1f0e…
 ```
 
-**Безопасность:** подпротокол — заголовок, а не адрес: не попадает в историю и в адресную строку; прокси, как и `authorization`, могут его логировать — то же, что у обычного заголовка. Разрешённый список не даёт подменить произвольный заголовок (например, `host`, `cookie`).
+**Сервер** (`Server`, обработчик `upgrade`) — одна функция `protocolHeaders(value, allowed)` перед сборкой контекста:
+- разбить по `,`, у каждого элемента — имя до первого `|` (в нижнем регистре), значение — `decodeURIComponent` остатка; элементы без `|` и с битой кодировкой пропускаются;
+- результат **разворачивается в обычные `headers` контекста**; дальше — стандартные шаги, ничего подпротокольного они не знают;
+- настоящий заголовок запроса побеждает развёрнутый;
+- развёртывается только список `AomServerSettings.protocolHeaders?: string[]` (приложение: `["authorization", "data-org-id"]`); пусто — развёртки нет. Без списка подпротокол мог бы подставить любой отсутствующий заголовок (`x-forwarded-for` и т.п.);
+- ответ сервера — первый предложенный элемент (как `ws` делает сейчас); браузеру этого достаточно.
+
+Убирается: замена `Bearer_` в `AuthHeaderToken.Required` и абзац о ней в документации. Работает для всех точек `@WebSocketPoint`.
+
+**Безопасность:** подпротокол — заголовок, а не адрес: не попадает в историю и адресную строку; логирование прокси — как у `authorization`.
 
 ## 2. Хранилище событий и транспорты
 
 ### Хранилище `AomEvents`
 
-Обобщение `AomServerEvents`: тот же словарь `{ событие: класс }`, те же `send`/`broadcast`/`JSONSchema`, но хранит не потоки SSE, а **соединения** любого транспорта:
+Вместо `AomServerEvents` и `AomWebSockets`: тот же словарь `{ событие: класс }`, но хранит **соединения** любого транспорта:
 
 ```ts
 // псевдокод: packages/api/src/controllers/events/hub.ts
@@ -67,40 +62,40 @@ class AomEvents<E extends Record<string, ClassConstructor>> {
 ```
 
 - Ключ соединения, проверка имени события (перевод строки — ошибка) и типизация данных — одни на все транспорты.
-- Хранилище ничего не знает о транспортах, кроме интерфейса соединения: подключить новый — значит написать `AomEventsConnection` и вызвать `attach`.
-- `AomServerEvents` остаётся именем-синонимом `AomEvents` (вышел вчера, в приложении одно использование) — или переименовывается в одном месте; см. вопрос 2.
-- `AomWebSockets` (сырые строки) не меняется — совместимость с написанными точками.
+- Хранилище не знает транспортов, кроме интерфейса соединения: подключить новый — написать `AomEventsConnection` и вызвать `attach`.
+- `AomServerEvents`, `AomWebSockets`, `WebSocketsController`, `Ws`, `OnMessageFunction` удаляются; приём сообщений от клиента — вне плана (сейчас обработчики приложения только пишут в лог).
 
 ### Транспорты в ядре
 
 | Транспорт | Как подключается | Кадр |
 |---|---|---|
-| SSE | `@Get` возвращает `events.sse(id, res)` (как сейчас) | `event:`/`id:`/`data:` (`formatServerEvent`) |
+| SSE | `@Get` возвращает `events.sse(id, res)` | `event:`/`id:`/`data:` (`formatServerEvent`) |
 | WebSocket | точка `@WebSocketPoint` + шаг ключа + `@After(EventsController.Connect)` | текст JSON `{ "event", "data", "id"? }` |
 | socket.io | адаптер (раздел 3) на той же точке `@WebSocketPoint` | `socket.emit(event, data)` |
 
 ### Шаг подключения без привязки к транспорту
 
-`EventsController` (новый, рядом с `WebSocketsController`) — `Connect` читает ключ `self.id` и `static events: AomEvents` контроллера точки и зовёт **транспорт из контекста**: `ctx.accept(id, events)`. Кто положил `accept` в контекст, тот и транспорт:
+`EventsController` (вместо `WebSocketsController`): `@Middleware() Connect` читает ключ `self.id` (его ставит шаг приложения, как сейчас) и `static events: AomEvents` контроллера точки и зовёт **транспорт из контекста**: `ctx.accept(id, events)`. Кто положил `accept`, тот и транспорт:
 - `Server.upgrade` — `accept` делает `wss.handleUpgrade` и `events.attach(id, wsConnection)`;
-- адаптер socket.io — `accept` делает `events.attach(id, socketConnection)`.
+- адаптер socket.io — `events.attach(id, socketConnection)`.
 
-Нет `accept` или ключа — соединение закрывается (как `WebSocketsController.Connect` сейчас). Одна и та же точка обслуживает и голый WebSocket, и socket.io — гейты, `CurrentOrg`, шаг ключа общие.
+Нет `accept`, ключа или `events` у контроллера — соединение закрывается, ошибка цепочки — тоже. Одна точка обслуживает и голый WebSocket, и socket.io — гейты, `CurrentOrg`, шаг ключа общие.
 
 ### Швы `Server` для внешних адаптеров
 
-- `AomServerSettings.upgradeBypass?: string[]` — префиксы путей, `upgrade` которых `Server` не трогает (`["/socket.io/"]`): чужой обработчик сам разберётся.
+- `AomServerSettings.upgradeBypass?: string[]` — префиксы путей, `upgrade` которых `Server` не трогает (`["/socket.io/"]`).
 - `Server.socketRoute(path)` — найти точку сокета по пути (сейчас приватный `routeMatcher.match("sockets", …)`).
-- `Server.socketContext(req, extra)` — собрать контекст точки (заголовки с подпротоколом раздела 1, query, cookies, params) — сам обработчик `upgrade` переходит на него без смены поведения.
+- `Server.socketContext(req, extra)` — собрать контекст точки (заголовки с развёрткой раздела 1, query, cookies, params); обработчик `upgrade` сам переходит на него.
 
 ## 3. Адаптер socket.io
 
 Точка входа `@aom-js/api/socket-io` (как `@aom-js/router/testing`): `attachSocketIO(io, server)`.
 
 - **Без зависимости:** адаптер не импортирует `socket.io` ни в рантайме, ни в типах — принимает структурные типы (`SocketIOServerLike`: `of(fn)`, `use`; `SocketLike`: `handshake { headers, query, auth }`, `nsp.name`, `emit`, `disconnect`, `on("disconnect")`). Приложение создаёт свой `new IOServer(server.server, { destroyUpgrade: false })` и передаёт его. В `dependencies` пакетов ничего не добавляется; `socket.io` и `socket.io-client` — `devDependencies` корня `main` только для теста адаптера.
+- **Заголовки:** клиент socket.io передаёт их объектом `auth` (`io(url, { auth: { authorization: "Bearer …", "data-org-id": orgId } })`), адаптер разворачивает его в `headers` контекста по тому же списку `protocolHeaders` и с тем же правилом «настоящий заголовок побеждает».
 - **Пространства имён:** динамическое `io.of((name, auth, next) => next(null, !!server.socketRoute(name)))` — канал socket.io = путь точки `@WebSocketPoint`, параметры пути — из совпадения.
-- **Цепочка:** `nsp.use(async (socket, next) => …)` строит контекст `server.socketContext(...)`; заголовки — из `handshake.headers` плюс `handshake.auth.headers` через тот же `protocolHeaders` (разрешённый список раздела 1); `ctx.accept` — `events.attach(id, socketConnection)`; затем `route.apply(context)`. Исключение цепочки → `next(err)` — клиент получает `connect_error` с кодом ответа (401 и т.п.).
-- **Обязательные настройки приложения:** `destroyUpgrade: false` у `IOServer` (иначе socket.io через 1 с закрывает чужие `upgrade`, а цепочка доступа с базой может быть дольше) и `upgradeBypass: ["/socket.io/"]` у `Server`; адаптер проверяет оба и бросает понятную ошибку при подключении.
+- **Цепочка:** `nsp.use(async (socket, next) => …)` строит контекст `server.socketContext(...)`, кладёт `ctx.accept` → `events.attach(id, socketConnection)` и зовёт `route.apply(context)`. Исключение цепочки → `next(err)` — клиент получает `connect_error` с кодом ответа (401 и т.п.).
+- **Обязательные настройки приложения:** `destroyUpgrade: false` у `IOServer` (иначе socket.io через 1 с закрывает чужие `upgrade`, а цепочка доступа с базой может быть дольше) и `upgradeBypass: ["/socket.io/"]` у `Server`; адаптер проверяет оба и бросает понятную ошибку.
 - **Доставка между экземплярами** — как сейчас: изолятор `@CustomTopic()` без очереди, исполнитель каждого экземпляра зовёт `events.send` — соединения всех транспортов в этом процессе получают событие. Адаптеры socket.io (redis, postgres) не нужны.
 
 ## Ограничения и особенности
@@ -112,26 +107,25 @@ class AomEvents<E extends Record<string, ClassConstructor>> {
 
 ## Тесты
 
-- Стадия 1: разбор подпротокола (base64url, разрешённый список, приоритет настоящего заголовка, битые данные, вырезание токена); сервер выбирает `aom`; браузерный сценарий — клиент `ws` с подпротоколами проходит гейт по токену и организации (ядро — vitest, приложение — живой тест на точке `/permissions/my`).
-- Стадия 2: `upgradeBypass` — чужой обработчик получает соединение, своё поведение прежнее; все тесты `websockets.test.ts` и `server.test.ts` зелёные без правки ожиданий.
-- Стадия 3: `AomEvents` — `attach`/снятие, `send`/`broadcast` во все транспорты ключа; SSE — прежние тесты `server-events.test.ts`; WebSocket через `EventsController.Connect` — кадр JSON, закрытие снимает соединение.
-- Стадия 4: socket.io (реальные `socket.io` и `socket.io-client` из devDependencies) — подключение под гейтом, 401 → `connect_error`, событие доходит, отключение снимает соединение, голый WebSocket на той же точке работает параллельно; Node и Bun.
+- Стадия 1: `protocolHeaders` — развёртка, `encodeURIComponent`, список разрешённых, приоритет настоящего заголовка, битые элементы; клиент `ws` с подпротоколами проходит гейт по токену и организации (ядро — vitest; приложение — живой тест на точке `/permissions/my`); `Bearer_` больше не принимается.
+- Стадия 2: `upgradeBypass` — чужой обработчик получает соединение; `socketRoute`/`socketContext` — как прежний разбор.
+- Стадия 3: `AomEvents` — `attach`/снятие, `send`/`broadcast` во все транспорты ключа; SSE — тесты `server-events.test.ts` на новом хранилище; WebSocket через `EventsController.Connect` — кадр JSON, закрытие снимает соединение, без ключа — разрыв; тесты `websockets.test.ts` переписываются на новое.
+- Стадия 4: socket.io (реальные `socket.io` и `socket.io-client` из devDependencies) — подключение под гейтом с `auth`, 401 → `connect_error`, событие доходит, отключение снимает соединение, голый WebSocket на той же точке работает параллельно; Node и Bun.
+- Приложение: точки сокетов — `test/sockets.test.ts`, живые тесты шины (`bus-access`, `structures-unread`, `permissions-events`) на новом хранилище.
 
 ## Стадии
 
-1. Подпротокол: `protocolHeaders`, `handleProtocols`, настройка `protocolHeaders`, тесты, документация; приложение — `protocolHeaders: ["authorization", "data-org-id"]`, живой тест, `KI-AUTH-10` — закрыть для WebSocket.
-2. Швы `Server`: `upgradeBypass`, `socketRoute`, `socketContext`; обработчик `upgrade` на них без смены поведения.
-3. Хранилище `AomEvents`, `AomEventsConnection`, `EventsController.Connect`, транспорты SSE и WebSocket; `AomServerEvents` — по ответу на вопрос 2.
+1. Подпротокол: `protocolHeaders`, настройка `protocolHeaders`, развёртка в обработчике `upgrade`, удаление `Bearer_`; приложение — `protocolHeaders: ["authorization", "data-org-id"]`, живой тест; `KI-AUTH-10` — закрыт для WebSocket.
+2. Швы `Server`: `upgradeBypass`, `socketRoute`, `socketContext`.
+3. `AomEvents`, `AomEventsConnection`, `EventsController.Connect`, транспорты SSE и WebSocket; удаление `AomServerEvents`, `AomWebSockets`, `WebSocketsController`; перевод 4 точек сокетов и SSE-ссылки приложения: у каждой — словарь событий (сигнал «обнови» — класс события с данными, которые сейчас уходят строкой).
 4. Адаптер `@aom-js/api/socket-io`: структурные типы, `attachSocketIO`, devDependencies, тест под Node и Bun.
-5. Документация (`packages/api/readme.md` — раздел «События: хранилище и транспорты», рецепт подключения своего транспорта), пример в приложении: одна точка `MyPermissionsEvents` — SSE-ссылка, WebSocket и socket.io на одном хранилище; `test/docs/modules/orgs.md`, реестр KI.
+5. Документация (`packages/api/readme.md` — раздел «События: хранилище и транспорты» вместо «WebSocket-точки» и «SSE-ссылки», рецепт своего транспорта), пример в приложении: `MyPermissionsEvents` — SSE-ссылка, WebSocket и socket.io на одном хранилище; `test/docs/modules/*.md`, реестр KI, дампы.
 
 ## Вне плана
 
-AsyncAPI; адаптеры socket.io для нескольких экземпляров (redis, postgres); сообщения от клиента через `AomEvents` (вызов маршрутов из событий клиента, вариант «В» анализа); перевод написанных точек `AomWebSockets` на хранилище.
+AsyncAPI; адаптеры socket.io для нескольких экземпляров (redis, postgres); сообщения от клиента (вызов маршрутов из событий клиента); переподключение с дочиткой пропущенного.
 
 ## Вопросы владельцу
 
-1. Формат подпротокола: маркер `aom` + один токен `aom.headers.<base64url(JSON)>` — подходит? (Альтернатива — по токену на заголовок `aom.h.<имя>.<base64url(значение)>`.)
-2. `AomServerEvents` → `AomEvents`: переименовать и обновить единственное использование в приложении, или оставить синоним?
-3. Кадр WebSocket-транспорта хранилища — JSON `{ "event", "data", "id"? }` — подходит?
-4. Стадия 4 скачивает `socket.io` и `socket.io-client` (devDependencies корня `main`, версия 4.8.x) — согласны?
+1. Кадр WebSocket-транспорта — JSON `{ "event", "data", "id"? }` — подходит?
+2. Стадия 4 скачивает `socket.io` и `socket.io-client` (devDependencies корня `main`, версия 4.8.x) — согласны?
