@@ -102,7 +102,8 @@ export class SchemasCollector {
           `SchemasCollector.extract: unknown scalar type name "${schema}" (allowed: ${Object.keys(SCALAR_TYPE_SCHEMAS).join(", ")})`,
         );
       }
-      return { ...named };
+      // deep copy: "date" carries a nested oneOf — mutating the result must not corrupt the dictionary
+      return structuredClone(named);
     }
     // [T] — an array of values of type T: exactly one element, giving the element type
     if (Array.isArray(schema)) {
@@ -115,7 +116,7 @@ export class SchemasCollector {
     }
     const scalar = SCALAR_SCHEMAS.get(schema);
     if (scalar) {
-      return { ...scalar };
+      return structuredClone(scalar);
     }
 
     const saved = AomSchemas.checkExists(schema);
