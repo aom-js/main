@@ -49,7 +49,7 @@
 | `PartialType`      | `PartialType<T>(classRef: Type<T>): MappedType<RemoveFieldsWithType<Partial<T>, Function>>` | Новый компонент, все свойства исходного с `isOptional: true` | да (напр. `test/src/modules/references/api/routes/currencies/init/schemas.ts` (`CurrenciesFilter`))                |
 | `PickType`         | `PickType<T, K extends keyof T>(classRef: Type<T>, keys: readonly K[])`                     | Новый компонент только с выбранными свойствами               | да (напр. `test/src/modules/user/api/routes/profile/init/schemas.ts` (`ProfileUpdateDTO`))                  |
 | `OmitType`         | `OmitType<T, K extends keyof T>(classRef: Type<T>, keys: readonly K[])`                     | Новый компонент без указанных свойств                        | да                                                                                                                 |
-| `IntersectionType` | `IntersectionType<T extends Type[]>(...classRefs: T)`                                       | Объединение свойств нескольких компонент                     | да (напр. `test/src/modules/tickets/api/routes/tickets/init/schemas.ts` (`OrgTicketDTO`))                         |
+| `IntersectionType` | `IntersectionType<T extends Type[]>(...classRefs: T)`                                       | Объединение свойств нескольких компонент                     | да (напр. `test/src/modules/tickets/common/api/schemas.ts` (`OrgTicketDTO`))                         |
 | `MappedType<T>`    | `interface MappedType<T> extends Type<T> { new (): T }`                                     | Тип результата mapped-types                                  | нет                                                                                                                |
 
 ### Типы и словари
@@ -360,7 +360,7 @@ export class ProfileUpdateDTO extends PickType(entities.Users, ["name", "surname
 
 Обёртка в именованный класс с собственным `@ComponentSchema()` обязательна — она даёт компоненту осмысленное имя и обходит коллизию `PickTypeClass` (`KI-SCHEMER-07`).
 
-**Композиция DTO через `IntersectionType`.** `test/src/modules/tickets/api/routes/tickets/init/schemas.ts` (`TicketBodyDTO`, `OrgTicketDTO`) собирает тело из двух частей — идентификатора организации и полей тикета:
+**Композиция DTO через `IntersectionType`.** `test/src/modules/tickets/common/api/schemas.ts` (`TicketBodyDTO`, `OrgTicketDTO`) собирает тело из двух частей — идентификатора организации и полей тикета:
 
 ```ts
 @ComponentSchema()
