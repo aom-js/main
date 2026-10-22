@@ -528,8 +528,17 @@ export class Server {
 
     if (cookieHeader) {
       cookieHeader.split(";").forEach((cookie) => {
-        const [name, value] = cookie.trim().split("=");
-        if (name && value) cookies[name] = value;
+        // the value may itself contain '=' (base64 tokens): split on the first one only (KI-API-23)
+        const at = cookie.indexOf("=");
+        const name = cookie.slice(0, at).trim();
+        const value = cookie.slice(at + 1).trim();
+        if (at <= 0 || !name || !value) return;
+        try {
+          cookies[name] = decodeURIComponent(value);
+        } catch {
+          // malformed %-encoding is kept as sent rather than failing the request
+          cookies[name] = value;
+        }
       });
     }
 

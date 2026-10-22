@@ -340,8 +340,9 @@ export class Transfer implements TransferConfig {
    * Rebuilds a calling proxy from a service descriptor received over the bus, without importing
    * the original isolator class. Each method on the proxy publishes to the descriptor's topic
    * and, for methods with `waitForResponse: true`, awaits a reply on **this** node's own reply
-   * topic through the normal `RxTransfer` RPC machinery — singleton deduplication and
-   * `\@TopicTimeout`-style behaviour all apply the same way they would to a hand-written isolator.
+   * topic through the normal `RxTransfer` RPC machinery — singleton deduplication applies the
+   * same way it would to a hand-written isolator. The reply timeout is always this transport's
+   * `responseTimeout`: `\@TopicTimeout` is not part of the descriptor, so it is not restored.
    *
    * Repeated calls with the same `(descriptor.name, descriptor.hash, instanceId)` return the
    * cached proxy instead of creating new reply subscriptions.

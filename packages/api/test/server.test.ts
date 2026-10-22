@@ -10,6 +10,7 @@ import {
   Body,
   Query,
   Params,
+  Cookies,
   Ctx,
   Router,
   OpenApi,
@@ -176,6 +177,11 @@ class TestApi {
     return new DataResponse("item", { id });
   }
 
+  @Get("/cookies")
+  static async cookies(@Cookies() cookies: Record<string, string>) {
+    return new DataResponse("cookies", cookies);
+  }
+
   // точка в статической части пути - обычный символ, а не "любой символ" (KI-API-19)
   @Get("/file.json")
   static async fileJson() {
@@ -334,6 +340,14 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
   it("параметр с валидатором: значение не по шаблону -> 404, а не маршрут без параметра", async () => {
     const res = await fetch(`${base}/items/abc`);
     expect(res.status).toBe(404);
+  });
+
+  it("cookie: значение с '=' целиком и декодировано, битое %-кодирование - как есть (KI-API-23)", async () => {
+    const res = await fetch(`${base}/cookies`, {
+      headers: { cookie: "token=a=b==; name=%D0%AF%20x; bad=%E0%A4%A" },
+    });
+    const body = await res.json();
+    expect(body.data).toEqual({ token: "a=b==", name: "Я x", bad: "%E0%A4%A" });
   });
 
   it("точка в пути маршрута - обычный символ: /file.json совпадает", async () => {
