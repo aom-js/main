@@ -671,8 +671,8 @@ route.toJSON().steps.map(({ i, via, step }) => `${i} ${via} ${step}`);
 - `KI-ROUTER-01` — гонка `@This(X)`, два инстанса и двойной `@OnInstance`. Исправлено `context.pending`.
 - `KI-ROUTER-03` — общие курсоры class-level middleware между маршрутами. `AomRoute` создаёт свои.
 - `KI-ROUTER-04` — `@Before`/`@After` молча отбрасывали не-middleware. Теперь `USE_MIDDLEWARE_DEFINE_ERROR`.
-- `KI-ROUTER-06` (частично) — `@WebSocketPoint()` без пути падал. Теперь `path = "/"`; отсутствие в OpenAPI осталось особенностью.
-- `KI-ROUTER-07` (частично) — `toJSON()` затирал `initData`; теперь конструктор принимает только `info`, затирать нечего; `securitySchemes` по имени класса — осталось особенностью.
+- `KI-ROUTER-06` — `@WebSocketPoint()` без пути падал. Теперь `path = "/"`; отсутствие в OpenAPI осталось особенностью.
+- `KI-ROUTER-07` — `toJSON()` затирал `initData`; теперь конструктор принимает только `info`, затирать нечего; `securitySchemes` по имени класса — осталось особенностью.
 - `KI-ROUTER-11` — классовый `@UseTag` тихо игнорировался. Теперь `UseTag`/`*NextTags` — методные декораторы, класс — ошибка типов.
 - `KI-ROUTER-12` (легаси) — `AomApiElement.parametersHandlers` не использовался. Удалён.
 - `KI-ROUTER-14` (новая, закрыта тем же проходом) — перехваченный отказ хука пропускал следующий курсор без проверки. Теперь помнится в `pending` до конца запроса.
