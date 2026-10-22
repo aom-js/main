@@ -59,7 +59,8 @@ describe("schemer: сборщик компонент (каскад $ref)", () =>
     expect(collector.extract(String)).toEqual({ type: "string" });
     expect(collector.extract(Number)).toEqual({ type: "number" });
     expect(collector.extract(Boolean)).toEqual({ type: "boolean" });
-    expect(collector.extract(Date)).toEqual({ type: "string", format: "date-time" });
+    // KI-SCHEMER-08: конструктор Date — та же форма, что имя "date" и рендер PropertySchema.Date
+    expect(collector.extract(Date)).toEqual(collector.extract("date"));
     expect(collector.components.size).toBe(0);
   });
 

@@ -212,7 +212,7 @@ Evidence: `packages/codegen/src/defines/emit.ts` (`planGeneration`); `packages/c
 > ✅ `KI-CODEGEN-03` (закрыт): сгенерированный `schemas.ts` падал при импорте (`Cannot access 'X' before initialization`), если свойство `Type` ссылалось на класс, объявленный ниже по файлу — TS эмитит `design:type` как значение, вычисляемое немедленно.
 > Evidence: `type Ref<T> = T` + ленивая ссылка `() => X` вместо прямого имени класса — `packages/codegen/src/defines/emit-schemas.ts` (`emitSchemas`, `renderValue`, `tsType`); тест на цикл `A↔B` (оба направления ссылаются друг на друга) — `packages/codegen/test/emit.test.ts` («цикл Type A↔B: обе стороны — Ref<> и ленивая ссылка () => X, независимо от порядка объявления»); в сквозном тесте — `packages/codegen/test/fixtures/roundtrip-service.ts` (`NodeA`/`NodeB`).
 
-Связанный дефект в `@aom-js/schemer`, устранённый в той же волне, — `KI-SCHEMER-08` (публичный `SCALAR_TYPE_SCHEMAS.date` приведён к форме `oneOf`, которую реально рендерит `PropertySchema.Date`; подробности и остающийся нюанс — `packages/schemer/readme.md`).
+Связанный дефект в `@aom-js/schemer`, устранённый в той же волне, — `KI-SCHEMER-08` (`SCALAR_TYPE_SCHEMAS.date` и конструктор `Date` дают форму `oneOf`, которую рендерит `PropertySchema.Date`; подробности — `packages/schemer/readme.md`).
 
 ## Легаси и мёртвый код
 

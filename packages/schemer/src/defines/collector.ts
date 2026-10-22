@@ -1,22 +1,12 @@
 import { ClassType } from "@aom-js/core";
 import { Schemer, AomSchemas } from "./module";
 
-// native scalar constructors → JSON Schema: the same dictionary used by design:type and @Type()
-const SCALAR_SCHEMAS = new Map<unknown, Record<string, any>>([
-  [String, { type: "string" }],
-  [Number, { type: "number" }],
-  [Boolean, { type: "boolean" }],
-  [Date, { type: "string", format: "date-time" }],
-]);
-
 /**
  * Scalar type names → JSON Schema, keyed by string (`"string"`, `"number"`, `"integer"`,
  * `"boolean"`, `"date"`) rather than by constructor — the dictionary `\@TopicSchema` (`@aom-js/transfer`)
  * and `@aom-js/codegen` use to describe/recognize scalars. `date` matches the exact shape rendered by
- * `PropertySchema.Date` (`oneOf` of `date`/`date-time` string formats); the private, constructor-keyed
- * `SCALAR_SCHEMAS` used internally by `SchemasCollector.extract` still renders `Date` in the older
- * `{type: "string", format: "date-time"}` form — pass the string `"date"` rather than the `Date`
- * constructor to `SchemasCollector.extract` if the two need to agree.
+ * `PropertySchema.Date` (`oneOf` of `date`/`date-time` string formats); the constructor-keyed
+ * `SCALAR_SCHEMAS` below reuses these entries, so `extract(Date)` and `extract("date")` agree.
  */
 export const SCALAR_TYPE_SCHEMAS: Record<string, Record<string, any>> = {
   string: { type: "string" },
@@ -32,6 +22,15 @@ export const SCALAR_TYPE_SCHEMAS: Record<string, Record<string, any>> = {
     ],
   },
 };
+
+// native scalar constructors → JSON Schema: the same dictionary used by design:type and @Type();
+// entries are those of SCALAR_TYPE_SCHEMAS, so Date renders like PropertySchema.Date (KI-SCHEMER-08)
+const SCALAR_SCHEMAS = new Map<unknown, Record<string, any>>([
+  [String, SCALAR_TYPE_SCHEMAS.string],
+  [Number, SCALAR_TYPE_SCHEMAS.number],
+  [Boolean, SCALAR_TYPE_SCHEMAS.boolean],
+  [Date, SCALAR_TYPE_SCHEMAS.date],
+]);
 
 /**
  * Turns `\@ComponentSchema` classes into `$ref` links, recursively collecting the whole cascade of
