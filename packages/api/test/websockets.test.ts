@@ -267,6 +267,8 @@ describe("WebSocketsController через реальный Server", () => {
   });
 
   it("без id (self.id пуст) соединение разрывается и в реестр не попадает", async () => {
+    // сервер снимает сокеты прошлых тестов позже, чем клиент видит close: иначе снятие попадёт между снимком и проверкой
+    await vi.waitFor(() => expect([...EchoSocket.sockets.connections.values()].flat()).toEqual([]));
     const before = new Map(EchoSocket.sockets.connections);
     const c = connect(`${base}/echo`);
     expect(await c.opened).toBe(false);
