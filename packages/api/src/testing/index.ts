@@ -7,7 +7,7 @@
 import "reflect-metadata";
 
 export {
-  describe,
+  describeRoute,
   describeRouter,
   kindOf,
   manifestOf,

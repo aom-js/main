@@ -71,7 +71,7 @@ export type DescribedStep = AomCursorJSON & { kind: AomCursorKind; parent: numbe
 export type DescribedRoute = Omit<AomRouteJSON, "steps"> & { steps: DescribedStep[] };
 
 /** Route projection (`route.toJSON()`) with the kind and the parent of every step. */
-export function describe(route: AomRoute, options?: ManifestOptions): DescribedRoute {
+export function describeRoute(route: AomRoute, options?: ManifestOptions): DescribedRoute {
   const json = route.toJSON();
   const parents = parentsOf(route.cursors);
   return {
@@ -95,7 +95,7 @@ export function describe(route: AomRoute, options?: ManifestOptions): DescribedR
 export function describeRouter(router: Router, options?: ManifestOptions): { version: 1; routes: DescribedRoute[] } {
   const key = ({ method, path }: AomRoute) => `${method} ${path}`;
   const routes = [...router.routes].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
-  return { version: 1, routes: routes.map((route) => describe(route, options)) };
+  return { version: 1, routes: routes.map((route) => describeRoute(route, options)) };
 }
 
 /** Dump text: JSON with indent 2 and a trailing newline. */

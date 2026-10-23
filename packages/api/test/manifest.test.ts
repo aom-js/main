@@ -1,4 +1,4 @@
-import { describe as suite, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   AomApi,
   AomCursorKind,
@@ -13,8 +13,16 @@ import {
   type AomCursor,
 } from "@aom-js/router";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
-import { BaseAccessController, ParamsBuilder, QueryStringBuilder, UUIDParam } from "@aom-js/api";
-import { describe, describeRouter, kindOf, manifestOf } from "@aom-js/api/testing";
+import {
+  BaseAccessController,
+  BodyBuilder,
+  CookieBuilder,
+  HeadersBuilder,
+  ParamsBuilder,
+  QueryStringBuilder,
+  UUIDParam,
+} from "@aom-js/api";
+import { describeRoute, describeRouter, kindOf, manifestOf } from "@aom-js/api/testing";
 import { parentsOf } from "@aom-js/router/testing";
 
 type Fn = (...args: never[]) => unknown;
@@ -23,7 +31,7 @@ const routerOf = (root: abstract new (...args: never[]) => unknown) => new Route
 const stepOf = (router: Router, endpoint: Fn, step: Fn): AomCursor =>
   router.routeOf(endpoint).cursors.find((cursor) => cursor.$ === AomApi.checkExists(step))!;
 
-suite("kindOf: правила ядра", () => {
+describe("kindOf: правила ядра", () => {
   it("эндпоинт — Handler", () => {
     @Controller()
     class Plain {
@@ -88,6 +96,32 @@ suite("kindOf: правила ядра", () => {
     }
   });
 
+  it("шаги билдеров body, headers и cookie — Input", () => {
+    @ComponentSchema()
+    class Payload {
+      @PropertySchema.String({})
+      title!: string;
+    }
+    @Controller()
+    class PayloadBody extends BodyBuilder(Payload) {}
+    @Controller()
+    class PayloadHeaders extends HeadersBuilder(Payload) {}
+    @Controller()
+    class PayloadCookies extends CookieBuilder(Payload) {}
+    @Controller()
+    class Pages {
+      @Get("/inputs")
+      @Before(PayloadBody.Body)
+      @Before(PayloadHeaders.Headers)
+      @Before(PayloadCookies.Cookie)
+      static async Inputs() {}
+    }
+    const router = routerOf(Pages);
+    for (const step of [PayloadBody.Body, PayloadHeaders.Headers, PayloadCookies.Cookie]) {
+      expect(kindOf(stepOf(router, Pages.Inputs, step))).toBe(AomCursorKind.Input);
+    }
+  });
+
   it("пустой @Before класса — Meta", () => {
     @Controller()
     @Before(Group.Setup)
@@ -141,7 +175,7 @@ suite("kindOf: правила ядра", () => {
   });
 });
 
-suite("kindOf: options.kindOf", () => {
+describe("kindOf: options.kindOf", () => {
   it("вид приложения для своего класса — Transport", () => {
     @Controller()
     class Shells {
@@ -191,7 +225,7 @@ suite("kindOf: options.kindOf", () => {
   });
 });
 
-suite("describe, describeRouter, manifestOf", () => {
+describe("describeRoute, describeRouter, manifestOf", () => {
   @Controller()
   class Probe {
     @Get("/b")
@@ -202,7 +236,7 @@ suite("describe, describeRouter, manifestOf", () => {
   }
   const router = routerOf(Probe);
 
-  it("describe: вид у каждого шага, поле проекции ядра доходит до результата", () => {
+  it("describeRoute: вид у каждого шага, поле проекции ядра доходит до результата", () => {
     const route = router.routeOf(Probe.A);
     const withExtra = Object.assign(Object.create(route), {
       toJSON: () => {
@@ -210,14 +244,14 @@ suite("describe, describeRouter, manifestOf", () => {
         return { ...json, steps: json.steps.map((step) => ({ ...step, extra: step.i })) };
       },
     });
-    const { steps } = describe(withExtra);
+    const { steps } = describeRoute(withExtra);
     expect(steps.every((step) => Object.values(AomCursorKind).includes(step.kind))).toBe(true);
     expect(steps.map((step) => (step as { extra?: number }).extra)).toEqual(route.toJSON().steps.map(({ i }) => i));
     expect(Object.keys(steps[0]).slice(0, 4)).toEqual(["i", "step", "origin", "via"]);
     expect(Object.keys(steps[0])).toContain("kind");
   });
 
-  it("describe: parent шага — parentsOf цепочки, верхние шаги — -1", () => {
+  it("describeRoute: parent шага — parentsOf цепочки, верхние шаги — -1", () => {
     @Controller()
     @Before(Chain.Setup)
     class Chain {
@@ -240,7 +274,7 @@ suite("describe, describeRouter, manifestOf", () => {
       static async P() {}
     }
     const route = routerOf(Chain).routeOf(Chain.P);
-    const { steps } = describe(route);
+    const { steps } = describeRoute(route);
     expect(steps.map((step) => step.parent)).toEqual(parentsOf(route.cursors));
     expect(steps.some((step) => step.parent === -1)).toBe(true);
     expect(steps.some((step) => step.parent > -1)).toBe(true);
