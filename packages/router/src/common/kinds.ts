@@ -3,9 +3,10 @@
 // value (`Step`, `Other`), never a gap.
 
 /**
- * Kind of a step (cursor) — a grouping, not an identity or a position. The core only stores
- * kinds declared with `\@CursorKind`; derivable kinds (`Handler`, `Transport`, `Checkpoint`,
- * `Input`, `Meta`) are inferred by the application.
+ * Kind of a step (cursor) — a grouping, not an identity or a position. The router only stores
+ * kinds declared with `\@CursorKind`; kinds derivable from core classes (`Handler`, `Checkpoint`,
+ * `Input`, `Meta`) are inferred by `@aom-js/api/testing` (`kindOf`), the application adds kinds of
+ * its own classes (`Transport` in `test`) and decides what a declared kind means.
  */
 export enum AomCursorKind {
   /** The endpoint itself. */

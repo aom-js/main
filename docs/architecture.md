@@ -13,7 +13,7 @@
 | `@aom-js/core`       | 0.0.4  | Реестр мета-инстансов и фабрики legacy-декораторов с отложенным исполнением   | —                                 | schemer, router, transfer, holder, visualizer, api | да (`test/src/modules/tickets/api/routes/tickets/init/aom.ts`) |
 | `@aom-js/schemer`    | 0.0.11 | Класс = DTO + JSON Schema + валидация; сборщик компонентов                    | core                              | router, transfer, visualizer, api, codegen         | да                                                             |
 | `@aom-js/router`     | 0.0.1  | Карта HTTP/WS-маршрутов из классов-контроллеров и её исполнение               | core, schemer                     | visualizer, api                                    | да (зонды — `@aom-js/router/testing`)                          |
-| `@aom-js/api`        | 0.0.1  | HTTP-сервер на `node:http`, билдеры, базовые контроллеры, ответы, локализация | core, schemer, router, visualizer | —                                                  | да                                                             |
+| `@aom-js/api`        | 0.0.1  | HTTP-сервер на `node:http`, билдеры, базовые контроллеры, ответы, локализация | core, schemer, router, visualizer | —                                                  | да (выгрузка цепочек в тестах — `@aom-js/api/testing`)         |
 | `@aom-js/transfer`   | 0.0.7  | Изоляторы/исполнители и RPC поверх абстрактной шины                           | core, schemer                     | codegen                                            | да                                                             |
 | `@aom-js/holder`     | 0.0.1  | Отложенное применение сторонних декораторов на конечном потомке               | core                              | —                                                  | нет (симлинк есть, импортов нет)                               |
 | `@aom-js/codegen`    | 0.0.1  | Генерация исходников aom-классов из дескриптора изолятора                     | schemer, transfer                 | —                                                  | нет (симлинк есть, импортов нет)                               |
@@ -383,7 +383,7 @@ node scripts/lint-ratchet.js                  # храповик eslint
 cd ../test && bun test && bun run test:types  # приложение на свежем dist
 ```
 
-Правка сборки цепочки или проекции в router — ещё `bun run manifests` в приложении (`test/docs/testing.md#проекция-цепочки-и-дамп`).
+Правка сборки цепочки или проекции в router, выгрузки в `@aom-js/api/testing` — ещё `bun run manifests` в приложении ([`testing.md`](testing.md#дамп), `test/docs/testing.md#проекция-цепочки-и-дамп`).
 
 ## Расхождения с историческими заметками
 

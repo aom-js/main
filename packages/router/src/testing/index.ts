@@ -1,5 +1,6 @@
 /**
- * `@aom-js/router/testing` — route probes: checking what exists only while a request runs.
+ * `@aom-js/router/testing` — route probes: checking what exists only while a request runs; and
+ * rules over route chains that hold for any application (`./chain`, see `docs/testing.md`).
  *
  * A probe is a static method that runs in the request context but OUTSIDE its route. The router
  * resolves its arguments and creates instances by the same mechanism as for route steps, so a
