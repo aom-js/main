@@ -5,6 +5,8 @@ const files = require("./files");
 
 const distPackageJsonFile = path.join(__dirname, "./jsons", files.distPackageJson);
 const distPackageJson = require(distPackageJsonFile);
+// одна версия на все пакеты — корневая (docs/publishing.md)
+const { version } = require("../package.json");
 
 packages.forEach((package) => {
   // создадим сборочные конфиги
@@ -14,7 +16,7 @@ packages.forEach((package) => {
     fs.copyFileSync(sourceConfig, destConfig);
   });
 
-  const resultPackageJson = {};
+  const resultPackageJson = { version };
   // создадим результирующий конфиг для билда
   files.srcPackageJsons.forEach((fileName) => {
     const srcPackageJsonFile = path.join(package, fileName);

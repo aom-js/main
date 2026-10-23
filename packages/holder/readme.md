@@ -1,6 +1,6 @@
 # `@aom-js/holder`
 
-Пакет-черновик (версия `0.0.1`): три декоратора `Hold` / `Delay` / `Apply`, которые откладывают применение сторонних декораторов на предках и применяют их на конечном потомке. Приложением не используется.
+Пакет-черновик: три декоратора `Hold` / `Delay` / `Apply`, которые откладывают применение сторонних декораторов на предках и применяют их на конечном потомке. Приложением не используется.
 Читать до: `packages/core/readme.md` (фазы исполнения, узел, `inherit`/`apply`). Читать после: `docs/architecture.md` §«Состав…» (место пакета в графе). Термины — `test/docs/README.md#словарь`.
 
 ## Назначение и место в стеке
@@ -175,7 +175,7 @@ Evidence: `packages/holder/src/decorators.ts` (`Apply`); `packages/core/src/defi
 
 ## Сборка и потребление
 
-Сборка стандартна для монорепо: `bun run build:holder` (или `bun --filter @aom-js/holder build`) прогоняет `tsc` трижды — `tsconfig.build.json` (cjs), `tsconfig.build.mjs.json` (mjs), `tsconfig.build.types.json` (типы) — и запускает `scripts/post-build.js`; `package.json` собирает `scripts/prebuild.js` слиянием `package.version.json` + `package.src.json` + `scripts/jsons/package.dist.json` (`scripts/prebuild.js`, `scripts/files.js`), а `tsconfig.build*.json` он просто копирует из `scripts/jsons/` (`scripts/prebuild.js`, `scripts/files.js`) — поэтому зависимости правятся в `package.src.json`, а опции компиляции — в `scripts/jsons/tsconfig.build*.json`. Приложение читает `dist` через симлинк и поле `exports`, так что правки `src` не видны приложению без пересборки. Полная схема — `docs/architecture.md` §«Сборка, тесты…» и §«Как приложение потребляет ядро».
+Сборка стандартна для монорепо: `bun run build:holder` (или `bun --filter @aom-js/holder build`) прогоняет `tsc` трижды — `tsconfig.build.json` (cjs), `tsconfig.build.mjs.json` (mjs), `tsconfig.build.types.json` (типы) — и запускает `scripts/post-build.js`; `package.json` собирает `scripts/prebuild.js` слиянием общей версии из корневого `package.json`, `package.src.json` и `scripts/jsons/package.dist.json` (`scripts/prebuild.js`, `scripts/files.js`), а `tsconfig.build*.json` он просто копирует из `scripts/jsons/` (`scripts/prebuild.js`, `scripts/files.js`) — поэтому зависимости правятся в `package.src.json`, а опции компиляции — в `scripts/jsons/tsconfig.build*.json`. Приложение читает `dist` через симлинк и поле `exports`, так что правки `src` не видны приложению без пересборки. Полная схема — `docs/architecture.md` §«Сборка, тесты…» и §«Как приложение потребляет ядро».
 
 ## Тесты
 

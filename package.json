@@ -1,6 +1,6 @@
 {
   "name": "@aom-js/main",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "`@aom` meta-framework monorepo",
   "homepage": "https://github.com/aom-js/main#readme",
   "bugs": {
@@ -34,7 +34,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "publish": "bun build && bun --filter @aom-js/* publish",
+    "release": "node scripts/release.js",
+    "release:dry": "node scripts/release.js --dry-run",
     "clean": "bun --filter '@aom-js/*' clean && node scripts/clean.js",
     "prebuild": "node scripts/prebuild.js"
   },
