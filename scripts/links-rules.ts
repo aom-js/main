@@ -1,9 +1,7 @@
 /**
- * Правила сцепки «код ↔ документация» ядра: что запрещено в комментариях и названиях тестов и как
- * они вычитываются из кода (`commentLines`).
- * Обычный модуль без vitest: его читает сторож ядра (`links.test.ts`) и сторож приложения, который
- * сверяет с ним свои копии. Те же набор правил и разбор, что в `test/test/helpers/links.ts`
- * приложения (без правил только для docs: `where: "code"` и `"both"` читаются здесь одинаково).
+ * Правила сцепки «код ↔ документация» ядра — единственный их источник: что запрещено в комментариях,
+ * названиях тестов и docs (`FORBIDDEN`, `forbiddenIn`) и как комментарии и названия тестов вычитываются
+ * из кода (`commentLines`). Читают сторож кода (`links.test.ts`) и сторож docs (`docs-links.test.ts`).
  * Образцы — только в строках, не в комментариях.
  */
 
@@ -11,9 +9,17 @@
 const NOT_WORD_BEFORE = "(?<![\\p{L}\\p{N}_])";
 const NOT_WORD_AFTER = "(?![\\p{L}\\p{N}_])";
 
-export const FORBIDDEN: readonly { rule: string; rx: RegExp }[] = [
+/** Где действует правило: `code` — комментарии и названия тестов, `docs` — docs ядра; без `where` — везде. */
+type Where = "code" | "docs";
+
+/**
+ * Запрещённые ссылки. В docs раздел называют знаком раздела с «Заголовком» (его находит сторож docs),
+ * в коде — только якорем docs.
+ */
+export const FORBIDDEN: readonly { rule: string; rx: RegExp; where?: Where }[] = [
   { rule: "раздел §N", rx: /§\s?\d/u },
-  { rule: "знак §", rx: /§(?!\s?\d)/u },
+  { rule: "знак §", rx: /§(?!\s?\d)/u, where: "code" },
+  { rule: "знак § без «названия»", rx: /§(?!\s?[«\d])/u, where: "docs" },
   { rule: "метка D-№", rx: /(?<![\p{L}\p{N}_-])D-\d+/u },
   {
     rule: "метка Н№/В№",
@@ -23,9 +29,11 @@ export const FORBIDDEN: readonly { rule: string; rx: RegExp }[] = [
     rule: "метка М№/Р№",
     rx: new RegExp(`(?<![\\p{L}\\p{N}_-])[МР]\\d{1,2}${NOT_WORD_AFTER}`, "u"),
   },
+  // в docs латинская буква с цифрой — узел схемы
   {
     rule: "метка M№/R№ латиницей",
     rx: new RegExp(`(?<![\\p{L}\\p{N}_-])[MR]\\d{1,2}${NOT_WORD_AFTER}`, "u"),
+    where: "code",
   },
   // имена контейнеров docker (`aom-test-postgres`, `aom-test-nats`) — не задачи
   {
@@ -68,13 +76,36 @@ export const FORBIDDEN: readonly { rule: string; rx: RegExp }[] = [
     rule: "номер строки",
     rx: /(?<!\/\/[\p{L}\p{N}_.-]*)(?:[\p{L}\p{N}_.-]+\/)*[\p{L}\p{N}_.-]*\.\p{L}[\p{L}\p{N}]*:\d+/u,
   },
-  // прежнее имя метки отложенных решений (теперь `shortcut`)
-  { rule: "прежняя метка ponytail: нужна shortcut", rx: /(?<![\p{L}\p{N}_-])ponytail\s*:/iu },
+  // ядро не ссылается на приложение; `packages/<pkg>/test/…` и `test/<файл>.test.ts` пакета — тесты ядра
+  {
+    rule: "путь в приложение",
+    rx: /(?<![\p{L}\p{N}_./-])(?:(?:\.\.\/)+test\/|test\/(?:src|docs|test)\/)/u,
+  },
+  // в прозе docs: «`:82`» без имени файла и «строки 12–15»
+  { rule: "висячий :N", rx: /`:\d+(?:[-–,]\d+)*`/u, where: "docs" },
+  {
+    rule: "строки N",
+    rx: new RegExp(`${NOT_WORD_BEFORE}строк(?:а|и|е|у|ой|ам|ах|ами)?\\s+(?:с\\s+)?\\d`, "iu"),
+    where: "docs",
+  },
+  // прежнее имя метки отложенных решений (теперь `shortcut`): в docs ей не место совсем
+  { rule: "метка ponytail", rx: /ponytail/iu, where: "docs" },
+  {
+    rule: "прежняя метка ponytail: нужна shortcut",
+    rx: /(?<![\p{L}\p{N}_-])ponytail\s*:/iu,
+    where: "code",
+  },
 ];
+
+/** Имена правил, сработавших на тексте: `code` — комментарий или название теста, `docs` — строка docs. */
+export function forbiddenIn(text: string, where: Where): string[] {
+  return FORBIDDEN.filter((f) => (!f.where || f.where === where) && f.rx.test(text)).map(
+    ({ rule }) => rule,
+  );
+}
 
 // ───────────────────────── комментарии и названия тестов ─────────────────────────
 
-// копия для приложения — `test/test/helpers/links.ts`, совпадение проверяет `links-code.test.ts` приложения
 const TEST_NAMES = new Set(["describe", "it", "test", "suite"]);
 /** Модификаторы, у которых свои скобки до вызова с названием: `test.each(таблица)("название", …)`. */
 const MOD_WITH_ARGS = new Set(["each", "for", "if", "runIf", "skipIf", "todoIf"]);
