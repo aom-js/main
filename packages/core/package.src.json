@@ -1,7 +1,7 @@
 {
   "name": "@aom-js/core",
   "description": "`@aom` meta-framework core code",
-  "homepage": "https://github.com/aom-js/main#readme",
+  "homepage": "https://aom-js.github.io/docs/packages/core/",
   "bugs": {
     "url": "https://github.com/aom-js/main/issues"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aom-js/api",
   "description": "`@aom` meta-framework api code",
-  "homepage": "https://github.com/aom-js/main#readme",
+  "homepage": "https://aom-js.github.io/docs/packages/api/",
   "bugs": {
     "url": "https://github.com/aom-js/main/issues"
   },

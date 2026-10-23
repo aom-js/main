@@ -1,7 +1,7 @@
 {
   "name": "@aom-js/holder",
   "description": "`@aom` meta-framework holder code",
-  "homepage": "https://github.com/aom-js/main#readme",
+  "homepage": "https://aom-js.github.io/docs/packages/holder/",
   "bugs": {
     "url": "https://github.com/aom-js/main/issues"
   },

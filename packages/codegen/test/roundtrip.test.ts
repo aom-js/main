@@ -1,5 +1,5 @@
-// Сквозной тест codegen; формат свёртки — packages/schemer/readme.md#свёртка-схем-для-кодогенерации-foldschemas-1,
-// восстановление DTO — packages/codegen/readme.md#восстановление-dto-из-собственного-формата-emitschemas.
+// Сквозной тест codegen; формат свёртки — https://aom-js.github.io/docs/packages/schemer/#свёртка-схем-для-кодогенерации-foldschemas-1,
+// восстановление DTO — https://aom-js.github.io/docs/packages/codegen/#восстановление-dto-из-собственного-формата-emitschemas.
 // Классы фикстуры → распределённый дескриптор (folding при декорировании) → emitService →
 // файлы в __generated__ → import() сгенерированного schemas.ts → foldSchemas(сгенерированные
 // классы) должен совпасть с descriptor.schemas; JSON Schema (render) каждого компонента —

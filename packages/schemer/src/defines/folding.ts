@@ -1,5 +1,5 @@
 // schemer's own schema-folding format for codegen — see
-// packages/schemer/readme.md#свёртка-схем-для-кодогенерации-foldschemas-1
+// https://aom-js.github.io/docs/packages/schemer/#свёртка-схем-для-кодогенерации-foldschemas-1
 import { ClassType, ClassConstructor } from "@aom-js/core";
 import * as classValidator from "class-validator";
 import { getMetadataStorage } from "class-validator";

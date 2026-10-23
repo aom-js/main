@@ -1,7 +1,7 @@
 {
   "name": "@aom-js/schemer",
   "description": "`@aom` meta-framework schemer code",
-  "homepage": "https://github.com/aom-js/main#readme",
+  "homepage": "https://aom-js.github.io/docs/packages/schemer/",
   "bugs": {
     "url": "https://github.com/aom-js/main/issues"
   },

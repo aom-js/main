@@ -1,4 +1,4 @@
-// Контракт: packages/schemer/readme.md#свёртка-схем-для-кодогенерации-foldschemas-1.
+// Контракт: https://aom-js.github.io/docs/packages/schemer/#свёртка-схем-для-кодогенерации-foldschemas-1.
 // Реализация — packages/schemer/src/defines/folding.ts (`foldSchemas`).
 // Тесты пишутся по контракту формата, а не по реализации.
 import { describe, it, expect, vi } from "vitest";
