@@ -1,7 +1,7 @@
 {
   "name": "@aom-js/codegen",
   "description": "`@aom` meta-framework codegen: typed clients from transfer descriptors",
-  "homepage": "https://aom-js.github.io/docs/packages/codegen/",
+  "homepage": "https://aom.js.org/packages/codegen/",
   "bugs": {
     "url": "https://github.com/aom-js/main/issues"
   },

@@ -2,7 +2,7 @@
 
 Пакет строит карту HTTP/WS-маршрутов из классов-контроллеров со статическими методами и исполняет запрос как линейную цепочку курсоров. Здесь же живут DI через `state`, отложенные ссылки, маркеры и генерация документа OpenAPI 3.1.
 
-Документация: https://aom-js.github.io/docs/packages/router/
+Документация: https://aom.js.org/packages/router/
 
 ```bash
 npm install @aom-js/router

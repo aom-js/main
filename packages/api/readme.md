@@ -2,7 +2,7 @@
 
 Пакет «батареек» над `@aom-js/router`: HTTP-сервер на `node:http`, билдеры контроллеров из компонент-схем, базовые контроллеры (корень модуля, доступ, авторизация, ID-параметры, логгер), классы ответов и ошибок, локализатор.
 
-Документация: https://aom-js.github.io/docs/packages/api/
+Документация: https://aom.js.org/packages/api/
 
 ```bash
 npm install @aom-js/api

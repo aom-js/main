@@ -5,7 +5,7 @@ const files = require("./files");
 
 const distPackageJsonFile = path.join(__dirname, "./jsons", files.distPackageJson);
 const distPackageJson = require(distPackageJsonFile);
-// одна версия на все пакеты — корневая (https://aom-js.github.io/docs/publishing/)
+// одна версия на все пакеты — корневая (https://aom.js.org/publishing/)
 const { version } = require("../package.json");
 
 packages.forEach((package) => {

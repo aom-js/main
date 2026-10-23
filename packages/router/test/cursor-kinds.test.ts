@@ -11,7 +11,7 @@ import {
   Middleware,
 } from "@aom-js/router";
 
-// значения закреплены: сериализация стабильна между версиями (словари — https://aom-js.github.io/docs/packages/router/#метаданные-цепочки-tojson-routeof-cursorkind)
+// значения закреплены: сериализация стабильна между версиями (словари — https://aom.js.org/packages/router/#метаданные-цепочки-tojson-routeof-cursorkind)
 describe("router: словари видов", () => {
   it.each([
     ["AomCursorKind", AomCursorKind, {

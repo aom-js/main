@@ -2,7 +2,7 @@
   "name": "@aom-js/main",
   "version": "0.1.0",
   "description": "`@aom` meta-framework monorepo",
-  "homepage": "https://aom-js.github.io/docs/",
+  "homepage": "https://aom.js.org/",
   "bugs": {
     "url": "https://github.com/aom-js/main/issues"
   },

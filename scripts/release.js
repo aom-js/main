@@ -1,4 +1,4 @@
-// Выпуск всех пакетов ядра одной версией — корневой из package.json (https://aom-js.github.io/docs/publishing/).
+// Выпуск всех пакетов ядра одной версией — корневой из package.json (https://aom.js.org/publishing/).
 // `--dry-run` — всё то же без публикации и метки git: проверить сборку и состав пакетов.
 const { execFileSync } = require("node:child_process");
 const path = require("node:path");

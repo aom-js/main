@@ -1,7 +1,7 @@
 {
   "name": "@aom-js/visualizer",
   "description": "`@aom` meta-framework api visualizer",
-  "homepage": "https://aom-js.github.io/docs/packages/visualizer/",
+  "homepage": "https://aom.js.org/packages/visualizer/",
   "bugs": {
     "url": "https://github.com/aom-js/main/issues"
   },

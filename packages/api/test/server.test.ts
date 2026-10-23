@@ -746,7 +746,7 @@ describe("Server: HTTP-конвейер", () => {
 // чтобы тесты не гоняли мегабайты ради превышения
 let guardedBodyRead = false;
 let interceptedStatus: number | undefined;
-// см. https://aom-js.github.io/docs/cookbook/lazy-body-and-limits/#порядок-решает--важнейшая-оговорка: билдер тела, поставленный
+// см. https://aom.js.org/cookbook/lazy-body-and-limits/#порядок-решает--важнейшая-оговорка: билдер тела, поставленный
 // в @Before раньше проверки доступа, снова читает тело первым
 let wrongOrderBodyRead = false;
 

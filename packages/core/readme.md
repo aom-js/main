@@ -2,7 +2,7 @@
 
 Механика декораторной фабрики aom: реестр мета-инстансов, узел, фазы исполнения, наследование метаданных, `resolveFor`.
 
-Документация: https://aom-js.github.io/docs/packages/core/
+Документация: https://aom.js.org/packages/core/
 
 ```bash
 npm install @aom-js/core
