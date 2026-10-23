@@ -2,6 +2,7 @@ import { describe as suite, it, expect } from "vitest";
 import {
   AomApi,
   AomCursorKind,
+  After,
   Before,
   Controller,
   CursorKind,
@@ -14,6 +15,7 @@ import {
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
 import { BaseAccessController, ParamsBuilder, QueryStringBuilder, UUIDParam } from "@aom-js/api";
 import { describe, describeRouter, kindOf, manifestOf } from "@aom-js/api/testing";
+import { parentsOf } from "@aom-js/router/testing";
 
 type Fn = (...args: never[]) => unknown;
 
@@ -213,6 +215,37 @@ suite("describe, describeRouter, manifestOf", () => {
     expect(steps.map((step) => (step as { extra?: number }).extra)).toEqual(route.toJSON().steps.map(({ i }) => i));
     expect(Object.keys(steps[0]).slice(0, 4)).toEqual(["i", "step", "origin", "via"]);
     expect(Object.keys(steps[0])).toContain("kind");
+  });
+
+  it("describe: parent шага — parentsOf цепочки, верхние шаги — -1", () => {
+    @Controller()
+    @Before(Chain.Setup)
+    class Chain {
+      @Middleware()
+      static async Setup() {}
+
+      @Middleware()
+      static async Inner() {}
+
+      @Middleware()
+      @Before(Chain.Inner)
+      static async Gate() {}
+
+      @Middleware()
+      static async Finish() {}
+
+      @Get("/p")
+      @Before(Chain.Gate)
+      @After(Chain.Finish)
+      static async P() {}
+    }
+    const route = routerOf(Chain).routeOf(Chain.P);
+    const { steps } = describe(route);
+    expect(steps.map((step) => step.parent)).toEqual(parentsOf(route.cursors));
+    expect(steps.some((step) => step.parent === -1)).toBe(true);
+    expect(steps.some((step) => step.parent > -1)).toBe(true);
+    expect(steps.find((step) => step.via === "endpoint")?.parent).toBe(-1);
+    expect(Object.keys(steps[0]).slice(0, 6)).toEqual(["i", "step", "origin", "via", "parent", "kind"]);
   });
 
   it("describeRouter: порядок маршрутов — как в Router.toJSON", () => {

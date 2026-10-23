@@ -6,6 +6,7 @@ import {
   type AomRouteJSON,
   type Router,
 } from "@aom-js/router";
+import { parentsOf } from "@aom-js/router/testing";
 import { BaseAccessController, IDController } from "../controllers";
 import { bodyBuilderBase } from "../builders/body";
 import { cookieBuilderBase } from "../builders/cookie";
@@ -64,24 +65,26 @@ export function kindOf(cursor: AomCursor, options: ManifestOptions = {}): AomCur
   return empty ? AomCursorKind.Meta : AomCursorKind.Step;
 }
 
-/** A step of the enriched projection: every step has a kind. */
-export type DescribedStep = AomCursorJSON & { kind: AomCursorKind };
+/** A step of the enriched projection: every step has a kind and the index of its parent (`-1` for a top step). */
+export type DescribedStep = AomCursorJSON & { kind: AomCursorKind; parent: number };
 /** A route of the enriched projection. */
 export type DescribedRoute = Omit<AomRouteJSON, "steps"> & { steps: DescribedStep[] };
 
-/** Route projection (`route.toJSON()`) with the kind of every step. */
+/** Route projection (`route.toJSON()`) with the kind and the parent of every step. */
 export function describe(route: AomRoute, options?: ManifestOptions): DescribedRoute {
   const json = route.toJSON();
+  const parents = parentsOf(route.cursors);
   return {
     ...json,
-    // kind goes right after the step's place, at the same position for all steps: the dump reads and
-    // diffs line by line; the other core fields pass through rest in the core's order, so a new one is not lost
+    // parent and kind go right after the step's place, at the same position for all steps: the dump reads
+    // and diffs line by line; the other core fields pass through rest in the core's order, so a new one is not lost
     steps: json.steps.map(({ i, step, origin, via, viaGroup, kind: _, ...rest }) => ({
       i,
       step,
       origin,
       via,
       ...(viaGroup ? { viaGroup } : {}),
+      parent: parents[i],
       kind: kindOf(route.cursors[i], options),
       ...rest,
     })),
