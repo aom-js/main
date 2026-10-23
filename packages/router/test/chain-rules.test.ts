@@ -281,6 +281,10 @@ describe("repeatsOf", () => {
     expect(repeat.branch).toBeUndefined();
   });
 
+  it("a repeat before the handler is not explained by a non-writing step", () => {
+    expect(repeatsOf(sameGroup(), { ...step, writes: () => false }).map(({ branch }) => branch)).toEqual([undefined]);
+  });
+
   it("a harmless kind explains the repeat as 'kind'", () => {
     const options = { ...step, kindOf: () => AomCursorKind.Transport, harmless: [AomCursorKind.Transport] };
     expect(repeatsOf(sameGroup(), options).map(({ branch }) => branch)).toEqual(["kind"]);
