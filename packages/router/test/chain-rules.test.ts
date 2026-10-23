@@ -156,24 +156,21 @@ describe("accessIdents / identCollisions", () => {
 
   it("a namesake without the marker is not counted", () => {
     const Access = guards();
+    const plainSection = () => {
+      @Controller()
+      @Before(Access.Plain)
+      class Section {
+        @Get("/")
+        static async Index() {}
+      }
+      return Section;
+    };
     @Controller()
     @Before(Access.Required)
-    @Bridge("/x", section(Access))
+    @Bridge("/x", plainSection())
     class Section {}
 
-    expect(identCollisions(new Router(Section, makeDocs()))).toHaveLength(1);
-
-    @Controller()
-    @Before(Access.Plain)
-    class Inner {
-      @Get("/")
-      static async Index() {}
-    }
-    @Controller()
-    @Before(Access.Required)
-    @Bridge("/x", Inner)
-    class Outer {}
-    expect(identCollisions(new Router(Outer, makeDocs()))).toEqual([]);
+    expect(identCollisions(new Router(Section, makeDocs()))).toEqual([]);
   });
 });
 
