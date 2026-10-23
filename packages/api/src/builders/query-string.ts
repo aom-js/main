@@ -20,11 +20,11 @@ const SafeOriginParameters = ThisRef((<T extends typeof QueryStringBuilderConstr
 }) as RefFunction);
 
 /**
- * Base controller returned by {@link QueryStringBuilder}. Not exported directly — use
+ * Base controller returned by {@link QueryStringBuilder}. Not re-exported from the package entry point (used by `@aom-js/api/testing`) — use
  * `QueryStringBuilder(schema)`.
  */
 @Controller()
-class QueryStringBuilderConstructor<
+export class QueryStringBuilderConstructor<
   T extends ClassConstructor,
   R = InstanceType<T>,
 > extends QueryStringBuildersBase {

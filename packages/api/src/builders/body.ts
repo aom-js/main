@@ -14,10 +14,10 @@ const SafeOriginRequestBody = ThisRef((<T extends typeof BodyBuilderConstructor>
 ) => [RequestBody(constructor.JSONSchema())]) as RefFunction);
 
 /**
- * Base controller returned by {@link BodyBuilder}. Not exported directly — use `BodyBuilder(schema)`.
+ * Base controller returned by {@link BodyBuilder}. Not re-exported from the package entry point (used by `@aom-js/api/testing`) — use `BodyBuilder(schema)`.
  */
 @Controller()
-class BodyBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>> {
+export class BodyBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>> {
   /** The component schema passed to {@link BodyBuilder}; validated by the `Body` middleware. */
   static readonly schema: ClassConstructor;
 

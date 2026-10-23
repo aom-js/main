@@ -17,11 +17,11 @@ const SafeOriginParameters = ThisRef((<T extends typeof HeadersBuilderConstructo
 ) => [Parameters(...constructor.JSONSchema())]) as RefFunction);
 
 /**
- * Base controller returned by {@link HeadersBuilder}. Not exported directly — use
+ * Base controller returned by {@link HeadersBuilder}. Not re-exported from the package entry point (used by `@aom-js/api/testing`) — use
  * `HeadersBuilder(schema)`.
  */
 @Controller()
-class HeadersBuilderConstructor<
+export class HeadersBuilderConstructor<
   T extends ClassConstructor,
   R = InstanceType<T>,
 > extends HeaderBuildersBase {

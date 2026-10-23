@@ -18,11 +18,11 @@ const SafeOriginParameters = ThisRef((<T extends typeof CookieBuilderConstructor
 ) => [CookieParameters(...constructor.JSONSchema())]) as RefFunction);
 
 /**
- * Base controller returned by {@link CookieBuilder}. Not exported directly — use
+ * Base controller returned by {@link CookieBuilder}. Not re-exported from the package entry point (used by `@aom-js/api/testing`) — use
  * `CookieBuilder(schema)`.
  */
 @Controller()
-class CookieBuilderConstructor<
+export class CookieBuilderConstructor<
   T extends ClassConstructor,
   R = InstanceType<T>,
 > extends CookieBuildersBase {
