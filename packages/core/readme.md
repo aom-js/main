@@ -19,7 +19,7 @@ Runtime-зависимостей у пакета нет (`packages/core/package.
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AomCore`                    | `class AomCore { _: AomNode<this>; constructor(base, target, property?, origin?) }`                                                                 | Базовый мета-класс; наследуется и получает собственный реестр и фабрики                                                                                                                                                             |
 | `AomCore.instance`           | `static instance<T, E>(this: AomClass<T>, target: E, property?: Property): T`                                                                       | Найти или создать мета-инстанс по `target` (+`property`)                                                                                                                                                                            |
-| `AomCore.checkExists`        | `static checkExists<T, E>(this: AomClass<T>, target: E, property?: Property): T \| undefined`                                                       | Вернуть существующий инстанс без создания; для свойства без дескриптора теоретически может создать синтетический инстанс, но эта ветка на практике недостижима — все вызовы в кодовой базе передают только класс (см. §«Особенности») |
+| `AomCore.checkExists`        | `static checkExists<T, E>(this: AomClass<T>, target: E, property?: Property): T \| undefined`                                                       | Вернуть существующий инстанс без создания; для свойства без дескриптора может создать синтетический инстанс (см. §«Ограничения»)                                                                                                       |
 | `AomCore.resolveFor`         | `static resolveFor<T>(this: AomClass<T>, $: T, context: ClassConstructor): T`                                                                       | Перепривязать инстанс статики родителя к каррированной копии потомка                                                                                                                                                                |
 | `AomCore.classDecorator`     | `static classDecorator<T>(handler: ($: T) => void, storeFlag?: ExecutionPhase, inherit?: InheritPlacement): ClassDecorator`                         | Фабрика декоратора класса                                                                                                                                                                                                           |
 | `AomCore.methodDecorator`    | `static methodDecorator<T>(handler: ($: T, descriptor: PropertyDescriptor) => void, storeFlag?, inherit?): MethodDecorator`                         | Фабрика декоратора метода (статического или прототипного); обработчик возвращает `void`: возврат всё равно никуда не доходит                                                                                                        |
@@ -66,7 +66,6 @@ Runtime-зависимостей у пакета нет (`packages/core/package.
 | `packages/core/src/defines/types.ts`                                                                                                                  | Публичные типы и перечисления                                                                                                                            | `ExecutionPhase`, `InheritPlacement`, `ClassConstructor`, `ClassType`, `Property`, `InstanceTarget`, `CombinedDecorator`                                       |
 | `packages/core/src/defines/classes.ts`                                                                                                                | Типизированная обёртка над `WeakMap<конструктор, экземпляр>`                                                                                             | `ClassInstanceMap`                                                                                                                                             |
 | `packages/core/src/defines/functions.ts`                                                                                                              | Проверка class-синтаксиса регуляркой по `toString`                                                                                                       | `isClass`                                                                                                                                                      |
-| `packages/core/test/smoke.test.ts`, `packages/core/test/registry.test.ts`, `packages/core/test/phases.test.ts`, `packages/core/test/inherit.test.ts`  | Тесты пакета (см. §«Тесты»)                                                                                                                              | —                                                                                                                                                              |
 | `packages/core/package.json`, `packages/core/tsconfig.build.json`, `packages/core/tsconfig.build.mjs.json`, `packages/core/tsconfig.build.types.json` | Генерируются `scripts/prebuild.js` из общей версии корневого `package.json`, `package.src.json` и `scripts/jsons/package.dist.json`; в `.gitignore` (правила `packages/**/package.json` и `packages/**/tsconfig.build*.json`) | —                                                                                                                                                              |
 
 ## Ключевые механизмы
@@ -74,6 +73,8 @@ Runtime-зависимостей у пакета нет (`packages/core/package.
 ### Реестр инстансов и ключи
 
 Реестр каждого мета-класса — `WeakMap`, лежащая на статическом свойстве самого класса под ключом `Symbol.for(\`AOM_MAP_${this.name}\`)`; при первом обращении карта создаётся (`packages/core/src/defines/core.ts`, `AomCore.instancesMap`). Символ глобальный, но читается он с конкретного `this`, поэтому мета-классы с разными именами всегда независимы.
+
+Почему `WeakMap`, а не `reflect-metadata`: мета-инстанс — обычный изменяемый объект, декораторы дописывают его поля на месте, и записывать метаданные заново после каждого изменения не нужно. Ключи — сами классы и функции методов, поэтому реестр не удерживает их от сборщика мусора.
 
 Ключ вычисляет `instanceKey(target, property)` (`packages/core/src/defines/core.ts`, `AomCore.instanceKey`). Конструктор берётся как сам `target`, если это функция, иначе `target.constructor`. Далее:
 
@@ -94,23 +95,16 @@ Runtime-зависимостей у пакета нет (`packages/core/package.
 
 `instance()` (`packages/core/src/defines/core.ts`, `AomCore.instance`) ищет по ключу, при отсутствии создаёт инстанс и сохраняет. Отдельная ветка `packages/core/src/defines/core.ts` (`AomCore.instance`) чинит порядок обращений: если инстанс уже был создан по значению функции (без `property`), а теперь запрошен по паре «класс + свойство», его узел `_` пересоздаётся с корректными `target`, `property` и `root`.
 
-`packages/core/test/registry.test.ts` («инстанс, созданный по значению функции, дополняется нодой при обращении по свойству»):
-
 ```ts
-it("инстанс, созданный по значению функции, дополняется нодой при обращении по свойству", () => {
-  class A {
-    static handler() {}
-  }
-  const viaValue = Meta.instance(A.handler); // сначала по функции
-  const viaProperty = Meta.instance(A, "handler");
-  expect(viaProperty).toBe(viaValue);
-  // нода заменена на корректную (см. core.ts: instance(), ветка property && target !== constructor)
-  expect(viaValue._.target).toBe(A);
-  expect(viaValue._.property).toBe("handler");
-});
+class A {
+  static handler() {}
+}
+const viaValue = Meta.instance(A.handler); // сначала по функции
+const viaProperty = Meta.instance(A, "handler");
+viaProperty === viaValue; // true
+viaValue._.target; // A — узел пересоздан с корректными target и property
+viaValue._.property; // "handler"
 ```
-
-Evidence: `packages/core/src/defines/core.ts` (`AomCore.instancesMap`, `AomCore.instanceKey`, `AomCore.checkExists`, `AomCore.instance`); `packages/core/test/registry.test.ts`.
 
 ### Узел `AomNode`
 
@@ -133,48 +127,44 @@ Evidence: `packages/core/src/defines/core.ts` (`AomCore.instancesMap`, `AomCore.
 
 `apply()` (`packages/core/src/defines/node.ts`, `AomNode.apply`) разбирает отложенные очереди в фиксированном порядке: сначала все узлы из `properties`, затем из `statics`, затем из `origins`, и только потом собственный `callstack` узла.
 
-Evidence: `packages/core/src/defines/node.ts` (`AomNode`, `AomNode.apply`); `packages/core/test/registry.test.ts` («свойство инстанса попадает в карту properties корневого класса», «статическое НЕ-методное свойство попадает в карту statics»).
-
 ### Фазы и очереди
+
+Зачем фазы. Legacy-декораторы вычисляются снизу вверх: сначала декораторы полей и методов, последним — декоратор класса. Декоратор метода не знает ни того, что поставят соседние декораторы, ни итогового класса — им может оказаться потомок, который унаследует метод. Поэтому работу, которой нужен собранный класс, декоратор не делает сразу, а кладёт в очередь `LAST`; запускает очередь декоратор-агрегатор класса (`@Controller()`, `@ComponentSchema()`, `@Isolator()`), который вычисляется последним и вызывает `$._.apply()`. То, что можно сделать сразу и нужно повторить на потомке, идёт в `FIRST`; сам агрегатор — в `INSTANT`, чтобы не повторяться при наследовании.
 
 `AomCallstack` создаёт по одной очереди `AomCallstackQueue` на каждое значение `ExecutionPhase` — в `stores` (`packages/core/src/defines/callstack.ts`). Поведение очереди задаётся фазой в конструкторе `AomCallstackQueue` (`packages/core/src/defines/callstack.ts`): `async = true` только у `DELAY`, `deferred = true` у `LAST` и `DELAY`.
 
 | Фаза      | Когда выполняется                | Где сохраняется   | Наследуется                             | Возврат доходит до декоратора |
 | --------- | -------------------------------- | ----------------- | --------------------------------------- | ----------------------------- |
-| `INSTANT` | в момент декорирования           | нигде             | нет (особенность, не дефект — см. ниже) | нет                           |
+| `INSTANT` | в момент декорирования           | нигде             | нет (см. ниже)                          | нет                           |
 | `FIRST`   | в момент декорирования           | `fired`           | да, с повторным выполнением на потомке  | нет                           |
 | `LAST`    | при `_.apply()` корневого узла   | `queue` → `fired` | да, встаёт в очередь потомка            | нет                           |
 | `DELAY`   | в `setTimeout` после `_.apply()` | `queue` → `fired` | да, встаёт в очередь потомка            | нет                           |
 
-`add()` (`packages/core/src/defines/callstack.ts`, `AomCallstackQueue.add`) реализует эту таблицу тремя ветками: `deferred` (`LAST`/`DELAY`) кладёт вызов в `queue` через `push` и ждёт `exec()`; `FIRST` кладёт вызов в `fired` через `push` и тут же выполняет, поэтому он и срабатывает сразу, и остаётся доступным для переноса на потомка; `INSTANT` только выполняет, нигде не сохраняя. Индекс параметра в размещении вызова участия больше не принимает — раньше здесь был `place()`, писавший по индексу в `queue`/`fired`; сейчас `parameterIndex` попадает только в аргументы обработчика (см. §«Фабрики декораторов»).
+`add()` (`packages/core/src/defines/callstack.ts`, `AomCallstackQueue.add`) реализует эту таблицу тремя ветками: `deferred` (`LAST`/`DELAY`) кладёт вызов в `queue` через `push` и ждёт `exec()`; `FIRST` кладёт вызов в `fired` через `push` и тут же выполняет, поэтому он и срабатывает сразу, и остаётся доступным для переноса на потомка; `INSTANT` только выполняет, нигде не сохраняя. Индекс параметра в размещении вызова не участвует: `parameterIndex` попадает только в аргументы обработчика (см. §«Фабрики декораторов»).
 
-INSTANT-вызовы намеренно нигде не сохраняются: `@Controller()`, `@ComponentSchema()`, `@Delay`/`@Apply` holder'а вызывают `$._.inherit()`/`$._.apply()` и объявлены в фазе INSTANT именно затем, чтобы не сохраняться в очереди — иначе `transferTo` повторил бы вызов агрегатора на потомке и увёл бы в рекурсию. Это особенность, а не дефект; характеризационный тест — `packages/core/test/phases.test.ts` («INSTANT выполняется немедленно и не сохраняется в очередях»).
+INSTANT-вызовы намеренно нигде не сохраняются: `@Controller()`, `@ComponentSchema()`, `@Delay`/`@Apply` holder'а вызывают `$._.inherit()`/`$._.apply()` и объявлены в фазе INSTANT именно затем, чтобы не сохраняться в очереди — иначе `transferTo` повторил бы вызов агрегатора на потомке и увёл бы в рекурсию.
 
-`exec()` (`packages/core/src/defines/callstack.ts`, `AomCallstackQueue.exec`) вычерпывает очередь через `while ((value = this.queue.shift()))` и складывает выполненное в `fired` — повторный `apply()` те же `LAST` не повторяет. `run()` (`packages/core/src/defines/callstack.ts`, `AomCallstackQueue.run`) вызывает обработчик через `Reflect.apply(handler, null, args)`; для `DELAY` — внутри `setTimeout` без аргумента задержки, поэтому возвращаемое значение обработчика теряется, а брошенное исключение никем не перехватывается (см. §«Особенности»).
+`exec()` (`packages/core/src/defines/callstack.ts`, `AomCallstackQueue.exec`) вычерпывает очередь через `while ((value = this.queue.shift()))` и складывает выполненное в `fired` — повторный `apply()` те же `LAST` не повторяет. `run()` (`packages/core/src/defines/callstack.ts`, `AomCallstackQueue.run`) вызывает обработчик через `Reflect.apply(handler, null, args)`; для `DELAY` — внутри `setTimeout` без аргумента задержки, поэтому возвращаемое значение обработчика теряется, а брошенное исключение никем не перехватывается (см. §«Ограничения»).
 
 `AomCallstack.apply()` (`packages/core/src/defines/callstack.ts`) перебирает фазы в порядке объявления enum — `INSTANT`, `FIRST`, `LAST`, `DELAY` — и для каждой вызывает `exec()` на `stores`. Очереди `INSTANT`/`FIRST` к этому моменту пусты по построению.
 
-`packages/core/test/phases.test.ts` («порядок фаз при apply(): FIRST уже выполнен, затем LAST, затем DELAY (асинхронно)»):
+Порядок фаз на примере:
 
 ```ts
-it("порядок фаз при apply(): FIRST уже выполнен, затем LAST, затем DELAY (асинхронно)", async () => {
-  const log: string[] = [];
-  const Mark = (label: string, phase: ExecutionPhase) =>
-    Meta.classDecorator(($) => log.push(label), phase);
-  // legacy-декораторы применяются снизу вверх: delay, last, first
-  @Mark("first", ExecutionPhase.FIRST)
-  @Mark("last", ExecutionPhase.LAST)
-  @Mark("delay", ExecutionPhase.DELAY)
-  class D {}
-  expect(log).toEqual(["first"]); // только FIRST сработал при декорировании
-  Meta.instance(D)._.apply();
-  expect(log).toEqual(["first", "last"]); // DELAY еще нет — он через setTimeout
-  await new Promise((r) => setTimeout(r, 0));
-  expect(log).toEqual(["first", "last", "delay"]);
-});
+const log: string[] = [];
+const Mark = (label: string, phase: ExecutionPhase) =>
+  Meta.classDecorator(($) => log.push(label), phase);
+// legacy-декораторы применяются снизу вверх: delay, last, first
+@Mark("first", ExecutionPhase.FIRST)
+@Mark("last", ExecutionPhase.LAST)
+@Mark("delay", ExecutionPhase.DELAY)
+class D {}
+log; // ["first"] — при декорировании сработал только FIRST
+Meta.instance(D)._.apply();
+log; // ["first", "last"] — DELAY ещё нет, он через setTimeout
+await new Promise((r) => setTimeout(r, 0));
+log; // ["first", "last", "delay"]
 ```
-
-Evidence: `packages/core/src/defines/callstack.ts` (`AomCallstackQueue`, `AomCallstack`); `packages/core/test/phases.test.ts` («LAST на методе выполняется только при apply() корневого класса», «порядок фаз при apply(): FIRST уже выполнен, затем LAST, затем DELAY (асинхронно)», «INSTANT выполняется немедленно и не сохраняется в очередях»).
 
 ### Фабрики декораторов
 
@@ -190,13 +180,11 @@ Evidence: `packages/core/src/defines/callstack.ts` (`AomCallstackQueue`, `AomCal
 
 Значение, возвращённое обработчиком, **не доходит до TypeScript ни в одной фазе**. `AomCallstackQueue.add()` действительно возвращает результат `run()` в ветках `FIRST`/`INSTANT` (`packages/core/src/defines/callstack.ts`), но ни одна фабрика не возвращает этот результат наружу декоратору — все они вызывают `targetInstance._.callstack.add(...)` (то есть `AomCallstack.add()`, `packages/core/src/defines/callstack.ts`, который сам вызывает `store.add(value)` тоже без `return`) как побочный эффект. Поэтому `AomMethodHandler` возвращает `void` (`packages/core/src/defines/internals.ts`) — тип соответствует фактическому поведению: `methodDecorator` не может подменить дескриптор метода возвращаемым значением ни в `FIRST`, ни в `LAST`.
 
-Evidence: `packages/core/src/defines/core.ts` (`classDecorator`, `combinedDecorator`, `methodDecorator`, `propertyDecorator`, `parameterDecorator`), `packages/core/src/defines/internals.ts` (`AomHandler`, `AomCombinedHandler`, `AomMethodHandler`, `AomPropertyHandler`, `AomParameterHandler`, `AomClass`), `packages/core/src/defines/callstack.ts` (`LazyCallHandler`, `AomCallstackQueue.add`, `AomCallstack.add`); `packages/core/test/phases.test.ts` («propertyDecorator работает на свойствах инстанса», «parameterDecorator получает индекс параметра», «LAST на параметре выполняется, даже если левее декорированных параметров нет», «два LAST-декоратора на одном параметре выполняются оба», «combinedDecorator различает класс и статический метод»).
-
 ### Наследование: `inherit`, `transferTo`, каррирование
 
 `AomNode.inherit(parent)` (`packages/core/src/defines/node.ts`) выполняет два шага.
 
-Перед этим — дедупликация: `inherited` — `WeakSet<ClassType>` с уже унаследованными родителями (`packages/core/src/defines/node.ts`, `AomNode.inherited`). Повторный `inherit(того же parent)` просто возвращает `$parent` без повторного переноса (`packages/core/src/defines/node.ts`, `AomNode.inherit`) — без этого каждый вызов заново выполнял бы FIRST-очередь родителя; тест — `packages/core/test/inherit.test.ts` («повторный inherit того же родителя не повторяет FIRST-вызовы»).
+Перед этим — дедупликация: `inherited` — `WeakSet<ClassType>` с уже унаследованными родителями (`packages/core/src/defines/node.ts`, `AomNode.inherited`). Повторный `inherit(того же parent)` просто возвращает `$parent` без повторного переноса (`packages/core/src/defines/node.ts`, `AomNode.inherit`) — без этого каждый вызов заново выполнял бы FIRST-очередь родителя.
 
 Шаг первый — перенос собственных вызовов класса-родителя: `$parent._.callstack.transferTo(this.self)`. `transferTo` (`packages/core/src/defines/callstack.ts`, `AomCallstack.transferTo`, `AomCallstackQueue.transferTo`) для каждой фазы обходит `[...fired, ...queue]` и добавляет вызов в очередь потомка, подменив первый аргумент (`$`) на мета-инстанс потомка. Следствия: `FIRST` в момент `inherit` выполняется повторно — уже в контексте потомка; `LAST`/`DELAY` просто встают в очередь потомка. Размещение задаёт третий элемент ленивого вызова:
 
@@ -228,37 +216,27 @@ if (descriptor && descriptor.value) {
 }
 ```
 
-Копия — другая функция, значит и другой ключ в реестре: у потомка появляется собственный мета-инстанс метода, на который переносятся декораторы родителя. Каррированная копия — обычная `function`, и `this` внутри — тот, с которым вызвали копию (класс-потомок для статики, инстанс — для прототипного метода); тесты — `packages/core/test/inherit.test.ts` («унаследованный статический метод получает потомка как this при вызове», «унаследованный прототипный метод получает инстанс как this при вызове»). Идентичность методов родителя и потомка при этом разная (`Child.run !== Parent.run`) — это не дефект, сравнивать нужно по мета-инстансу.
+Копия — другая функция, значит и другой ключ в реестре: у потомка появляется собственный мета-инстанс метода, на который переносятся декораторы родителя. Каррированная копия — обычная `function`, и `this` внутри — тот, с которым вызвали копию (класс-потомок для статики, инстанс — для прототипного метода). Идентичность методов родителя и потомка при этом разная (`Child.run !== Parent.run`), поэтому сравнивать нужно по мета-инстансу.
 
-Порядок вызовов `inherit` по цепочке задаёт вызывающая сторона. `@Controller()` идёт от ближайшего родителя вверх (`packages/router/src/decorators/controllers/index.ts`, `Controller`), поэтому при `PREPEND` блок прародителя оказывается перед блоком родителя (`packages/core/test/inherit.test.ts`, «PREPEND у нескольких уровней: блок прародителя встаёт раньше блока родителя»).
+Порядок вызовов `inherit` по цепочке задаёт вызывающая сторона. `@Controller()` идёт от ближайшего родителя вверх (`packages/router/src/decorators/controllers/index.ts`, `Controller`), поэтому при `PREPEND` блок прародителя оказывается перед блоком родителя.
 
-Evidence: `packages/core/src/defines/callstack.ts` (`AomCallstack.transferTo`, `AomCallstackQueue.transferTo`), `packages/core/src/defines/node.ts` (`AomNode.inherit`); `packages/core/test/inherit.test.ts`.
+Декораторы параметров конструктора — особый случай `transferTo`: если у потомка свой конструктор со своими декорированными параметрами, родительские декораторы параметров конструктора не переносятся — иначе они встали бы в очередь после собственных и перезаписали бы их результат (`AomCallstackQueue.hasParameters()` и `skipParameters` в `AomCallstack.transferTo`, `packages/core/src/defines/callstack.ts`; признак — четвёртый элемент ленивого вызова, `parameter?: boolean`, `LazyCall`). Потомок без своего конструктора получает декораторы параметров конструктора родителя; предел распознавания — в §«Ограничения».
 
-Декораторы параметров конструктора — особый случай `transferTo`: если у потомка свой конструктор со своими декорированными параметрами, родительские декораторы параметров конструктора вообще не переносятся, вместо того чтобы встать в очередь после собственных и перезаписать их результат (`AomCallstackQueue.hasParameters()`, `packages/core/src/defines/callstack.ts`, и `skipParameters` в `AomCallstack.transferTo`, `packages/core/src/defines/callstack.ts`; признак — четвёртый элемент ленивого вызова, `parameter?: boolean`, `packages/core/src/defines/callstack.ts` (`LazyCall`)). Ограничение (см. комментарий `shortcut:`, `packages/core/src/defines/callstack.ts` (`AomCallstack.transferTo`)): свой конструктор потомка без собственных декорированных параметров не распознаётся, и родительские декораторы параметров всё равно перенесутся — точное распознавание требует чтения `design:paramtypes`. Тесты — `packages/core/test/inherit.test.ts` («потомок со своими декораторами параметров конструктора не получает родительские» — свой конструктор со своими параметрами не получает родительские, «потомок без своего конструктора получает декораторы параметров конструктора родителя» — без своего конструктора родительские переносятся как раньше, «собственные декораторы полей потомка не дополняются родительскими» — свои декораторы полей не дополняются родительскими); `packages/router/test/router-exec.test.ts` («потомок со своим конструктором получает свои аргументы, а не родительские») (тот же случай через `@Query`).
-
-Вызовы параметр-декораторов лежат в очереди подряд, без привязки к индексу параметра, поэтому перенос метода с `FIRST`-декоратором не на первом параметре проходит без ошибки.
-
-`packages/core/test/inherit.test.ts` («метод с FIRST-декоратором не первого параметра переносится на потомка без ошибки»):
+Вызовы параметр-декораторов лежат в очереди подряд, без привязки к индексу параметра, поэтому перенос метода с `FIRST`-декоратором не на первом параметре проходит без ошибки:
 
 ```ts
-it("метод с FIRST-декоратором не первого параметра переносится на потомка без ошибки", () => {
-  const seen: string[] = [];
-  const Param = () =>
-    Meta.parameterDecorator(($, index) => seen.push(`${$._.target.name}:${index}`));
-  class Parent {
-    static run(a: string, @Param() b: string) {}
-  }
-  class Child extends Parent {}
-  expect(() => Meta.instance(Child)._.inherit(Parent)).not.toThrow();
-  expect(seen).toEqual(["Parent:1", "Child:1"]);
-});
+const seen: string[] = [];
+const Param = () =>
+  Meta.parameterDecorator(($, index) => seen.push(`${$._.target.name}:${index}`));
+class Parent {
+  static run(a: string, @Param() b: string) {}
+}
+class Child extends Parent {}
+Meta.instance(Child)._.inherit(Parent); // не бросает
+seen; // ["Parent:1", "Child:1"]
 ```
 
-Evidence: `packages/core/test/inherit.test.ts` («метод с FIRST-декоратором не первого параметра переносится на потомка без ошибки»).
-
 ### `resolveFor`
-
-Evidence: `packages/core/src/defines/core.ts` (`AomCore.resolveFor`) (добавлено коммитом `4d7a5be`, `+12` строк).
 
 `resolveFor($, context)` решает задачу поздней привязки. Ссылка вида `@Before(Self.Method)` вычисляется в момент декорирования, когда `@Controller()` потомка ещё не отработал, и потому фиксирует мета-инстанс статики **родителя**. После `inherit()` у потомка появляется собственная каррированная копия метода со своим мета-инстансом, и ссылку нужно доразрешить.
 
@@ -280,38 +258,18 @@ static resolveFor<T extends AomCore>(this: AomClass<T>, $: T, context: ClassCons
 
 Три условия проверяются вместе: `$` описывает свойство, `context` — потомок владельца `$`, и у `context` уже есть собственная копия свойства. Не выполнено любое — возвращается исходный `$`, поэтому вызов безопасен на произвольной ссылке.
 
-Единственный потребитель — router: `AomCursor` перепривязывает `$` при создании курсора (`packages/router/src/common/cursor.ts`), а `@Before`/`@After`/`@UseMarker`/`@Next` доразрешают ссылки на middleware в контексте класса, объявившего декоратор (`packages/router/src/decorators/middlewares/index.ts`, `Before`, `After`, `UseMarker`, `Next`). Косвенное покрытие — `packages/router/test/inherited-static-refs.test.ts` («Before(Self.InheritedStatic) резолвится в инстанс потомка», «курсор реализует delayStack в контексте потомка (исходный краш)») (добавлен тем же коммитом `4d7a5be`).
+Единственный потребитель — router: `AomCursor` перепривязывает `$` при создании курсора (`packages/router/src/common/cursor.ts`), а `@Before`/`@After`/`@UseMarker`/`@Next` доразрешают ссылки на middleware в контексте класса, объявившего декоратор (`packages/router/src/decorators/middlewares/index.ts`, `Before`, `After`, `UseMarker`, `Next`).
 
 ## Инварианты и подводные камни
 
 - Мета-класс — наследник `AomCore` с собственными полями состояния; фабрики вызываются на самом мета-классе (`Meta.methodDecorator(($) => …)`). Деструктурировать фабрику нельзя: `this` внутри — это мета-класс, из него берутся реестр и конструктор инстанса.
 - Ссылки на владельца внутри обработчика — только через узел: `$._.target`, `$._.property`, `$._.root`. Прикладные данные класса складываются в `$._.root`, данные свойства — в сам `$`.
-- Декораторы-агрегаторы, вызывающие `$._.inherit()` и `$._.apply()`, объявляются в фазе `INSTANT` — иначе перенос на потомка повторит агрегатор и вызовет рекурсию. Так сделаны `@Controller()` (`packages/router/src/decorators/controllers/index.ts`, `Controller`), `@ComponentSchema()` (`packages/schemer/src/defines/decorators.ts`, `ComponentSchema`), `@Delay` (`packages/holder/src/decorators.ts`, `Delay`); `@Apply` объявлен в той же фазе и делает то же самое опосредованно — через `Reflect.decorate([Delay(...)])` (`packages/holder/src/decorators.ts`, `Apply`). Поэтому `INSTANT`-вызовы намеренно нигде не сохраняются и не наследуются — это особенность, а не дефект, см. §«Особенности» ниже.
+- Декораторы-агрегаторы, вызывающие `$._.inherit()` и `$._.apply()`, объявляются в фазе `INSTANT` — иначе перенос на потомка повторит агрегатор и вызовет рекурсию. Так сделаны `@Controller()` (`packages/router/src/decorators/controllers/index.ts`, `Controller`), `@ComponentSchema()` (`packages/schemer/src/defines/decorators.ts`, `ComponentSchema`), `@Delay` (`packages/holder/src/decorators.ts`, `Delay`); `@Apply` объявлен в той же фазе и делает то же самое опосредованно — через `Reflect.decorate([Delay(...)])` (`packages/holder/src/decorators.ts`, `Apply`). Поэтому `INSTANT`-вызовы намеренно нигде не сохраняются и не наследуются (см. §«Ограничения»).
 - `LAST`-вызовы свойств разбираются только через `apply()` корневого узла класса: без агрегатора на классе отложенные декораторы методов не выполнятся никогда.
-- Порядок применения legacy-декораторов задаёт TypeScript: методы класса декорируются раньше самого класса (`packages/core/test/phases.test.ts` («combinedDecorator различает класс и статический метод»)), а несколько декораторов на одной цели применяются снизу вверх — это правило TypeScript, тестом пакета не закреплено (комментарий в `packages/core/test/phases.test.ts`, тест «порядок фаз при apply(): FIRST уже выполнен, затем LAST, затем DELAY (асинхронно)»).
-- Реестры мета-классов с разными именами независимы (`Symbol.for` читается с конкретного `this`). Слияние возможно только у наследника мета-класса с тем же `name`: символ совпадает, собственного свойства у наследника ещё нет, и он читает карту родителя через цепочку статического наследования (проверено пробой на `dist`).
+- Порядок применения legacy-декораторов задаёт TypeScript: методы класса декорируются раньше самого класса, а несколько декораторов на одной цели применяются снизу вверх.
+- Реестры мета-классов с разными именами независимы (`Symbol.for` читается с конкретного `this`). Слияние возможно только у наследника мета-класса с тем же `name`: символ совпадает, собственного свойства у наследника ещё нет, и он читает карту родителя через цепочку статического наследования.
 - Относительные импорты в `src` пишутся без расширений — `tsc` их не подставляет, расширения дописывает `scripts/post-build.js` в `dist`; спецификаторы, уже написанные с расширением (js, json, mjs, cjs), скрипт пропускает как есть, падает он только на неразрешимых путях — копит их в `errors` и завершается с кодом 1 (`scripts/post-build.js` (`SPEC`, `errors`)).
 - `strictPropertyInitialization` выключен намеренно: поля узлов и мета-классов заполняют декораторы, а не конструктор (`tsconfig.base.json`).
-
-### Известные дефекты
-
-Открытых дефектов нет. Известное ограничение переноса декораторов параметров конструктора (комментарий `shortcut:`) — в §«Наследование: `inherit`, `transferTo`, каррирование».
-
-### Особенности
-
-Вызовы фазы `INSTANT` нигде не сохраняются и потому не наследуются — это намеренное поведение, не дефект. Evidence: `packages/core/src/defines/callstack.ts` (`AomCallstackQueue.add`) (ветка `INSTANT` только выполняет `run()`, не пишет ни в `queue`, ни в `fired`); характеризационный тест — `packages/core/test/phases.test.ts` («INSTANT выполняется немедленно и не сохраняется в очередях»). Причина — в §«Инварианты и подводные камни» выше: агрегаторы `@Controller()`/`@ComponentSchema()`/`@Delay`/`@Apply` вызывают `$._.inherit()`/`$._.apply()` и объявлены в `INSTANT` именно затем, чтобы не сохраняться — иначе перенос на потомка повторил бы агрегатор и ушёл в рекурсию. Поэтому holder сам переносит `$.queue` родительского `AomHolder`-инстанса перед `inherit()` — иначе класс-декораторы из `@Delay` родителя не доезжали бы до потомка при `@Apply` (`packages/holder/readme.md`). Как использовать: для наследуемого поведения выбирать `FIRST` вместо `INSTANT`.
-
-После `inherit` каррированная копия метода — другая функция с собственным мета-инстансом, поэтому `Child.run !== Parent.run`; сравнивать методы родителя и потомка нужно по мета-инстансу (`AomApi.instance(...)`), а не по ссылке на функцию. `this` копия пробрасывает вызывающей стороне (см. §«Наследование: `inherit`, `transferTo`, каррирование»). Evidence: `packages/core/src/defines/node.ts` (`AomNode.inherit`); тесты — `packages/core/test/inherit.test.ts` («унаследованный статический метод получает потомка как this при вызове», «унаследованный прототипный метод получает инстанс как this при вызове»).
-
-`checkExists` для свойства без дескриптора теоретически не является чистой проверкой — та же ветка `instanceKey`, что и в `instance()`, может создать и зарегистрировать синтетический инстанс (`packages/core/src/defines/core.ts` (`AomCore.instanceKey`) — ветка создания, `AomCore.checkExists` — сама `checkExists`). На практике эта ветка недостижима: она требует вызова с `property`, а во всей кодовой базе (`grep -rn "checkExists("`) каждый вызов передаёт только класс. Как использовать: не передавать `property` в `checkExists` без крайней необходимости; если понадобится — иметь в виду побочный эффект.
-
-Фаза `DELAY` выполняется в `setTimeout` (`packages/core/src/defines/callstack.ts`, `AomCallstackQueue`, `AomCallstackQueue.run`) без `try/catch`. Ошибка обработчика `DELAY` не «теряется молча» — она роняет процесс необработанным исключением (`uncaughtException`/`unhandledRejection`); проверено пробой в bun и node. Автоматического теста на это поведение в пакете нет — падение процесса тестом не воспроизвести без отдельного дочернего процесса. Решение автора — оставить фазу `DELAY` как есть. Как использовать: не класть в обработчик `DELAY` код, который может бросить исключение.
-
-Возврат обработчика из фабрик декораторов не доходит до TypeScript ни в одной фазе, поэтому обработчик метода типизирован как `void` — см. §«Фабрики декораторов» выше.
-
-### Легаси и мёртвый код
-
-Известного легаси и мёртвого кода в пакете нет.
 
 ## Пример собственного мета-класса
 
@@ -334,63 +292,22 @@ const RequireRole = (role: string) =>
 
 Косвенно ядро задействовано в каждом классе приложения на ядре: `@Controller()`, `@ComponentSchema()`, `@Isolator()` и все параметр-декораторы маршрутов — это фабрики `AomCore` поверх мета-классов router, schemer и transfer.
 
+## Ограничения
+
+- **`INSTANT` не наследуется.** Вызовы фазы `INSTANT` нигде не сохраняются (`AomCallstackQueue.add`, `packages/core/src/defines/callstack.ts`), поэтому перенос на потомка их не повторяет — так агрегаторы не уходят в рекурсию (см. §«Инварианты и подводные камни»). По той же причине holder сам переносит `$.queue` родительского `AomHolder`-инстанса перед `inherit()`, иначе класс-декораторы из `@Delay` родителя не доезжали бы до потомка при `@Apply` (`packages/holder/readme.md`). Как обойти: для наследуемого поведения выбирать `FIRST`.
+- **Методы потомка — другие функции.** После `inherit` каррированная копия метода — другая функция с собственным мета-инстансом, поэтому `Child.run !== Parent.run`. Как обойти: сравнивать методы родителя и потомка по мета-инстансу (`AomApi.instance(...)`), а не по ссылке на функцию.
+- **`checkExists` со свойством может создать инстанс.** Для свойства без дескриптора `checkExists` идёт по той же ветке `instanceKey`, что и `instance()`, и регистрирует синтетический инстанс (`AomCore.instanceKey`, `AomCore.checkExists`, `packages/core/src/defines/core.ts`). Как обойти: передавать в `checkExists` только класс.
+- **Исключение в `DELAY` роняет процесс.** Обработчик `DELAY` выполняется в `setTimeout` без `try/catch` (`AomCallstackQueue.run`), и его ошибка становится необработанным исключением (`uncaughtException`/`unhandledRejection`). Как обойти: не класть в обработчик `DELAY` код, который может бросить исключение.
+- **Возврат обработчика теряется.** Значение, возвращённое обработчиком, не доходит до TypeScript ни в одной фазе, поэтому обработчик метода типизирован как `void` и не может подменить дескриптор (см. §«Фабрики декораторов»).
+- **Свой конструктор потомка без декорированных параметров не распознаётся.** Родительские декораторы параметров конструктора перенесутся на такого потомка, хотя конструктор у него свой (`AomCallstack.transferTo`); точное распознавание требует чтения `design:paramtypes`. Как обойти: если у потомка свой конструктор, декорировать его параметры явно.
+
 ## Сборка и потребление
 
 Сборка пакета — `bun run build:core` в корне ядра (эквивалент `bun --filter @aom-js/core build`, `package.json` (`typescript`)): три прохода `tsc` по сгенерированным конфигам (`tsconfig.build.json` → `dist/cjs`, `tsconfig.build.mjs.json` → `dist/mjs`, `tsconfig.build.types.json` → `dist/types`), затем `node ../../scripts/post-build.js`, который дописывает расширения относительным импортам в собранном коде и кладёт `dist/cjs/package.json` с `{"type":"commonjs"}`. Сам `package.json` и все `tsconfig.build*.json` генерирует `scripts/prebuild.js` и они игнорируются git — править нужно `package.src.json` и шаблоны в `scripts/jsons`.
 
 Потребитель резолвит пакет через `exports` в `dist/mjs` (`dist/cjs` — для `require`). Отсюда инвариант: **правки `src` не видны потребителю без `bun run build`**. Полная схема сборки монорепо и dist-потребления — `docs/architecture.md`.
 
-> ❓ Открытый вопрос: `tsconfig.build.json` комбинирует `module: "commonjs"` с унаследованным `moduleResolution: "bundler"` — пара валидна только для TS 7 (комментарий в `packages/core/tsconfig.build.json`). Как предполагается работать в IDE с TS 5, не открывая этот конфиг?
+## Тесты пакета
 
-## Тесты
+Из корня ядра: `bunx vitest run packages/core` (все пакеты — `bun run test`).
 
-### Что покрыто
-
-| Файл                                                 | Что проверяет                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `packages/core/test/smoke.test.ts`                   | SWC эмитит legacy-сигнатуру декоратора `(target, property)` и `design:type`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `packages/core/test/registry.test.ts`                | Идентичность инстанса по классу; независимость мета-классов; ключ по функции для метода; пересоздание узла при обращении по свойству после обращения по функции; карты `properties`/`statics`; `checkExists` не создаёт инстанс для класса; `ClassInstanceMap`                                                                                                                                                                                                                                                                                                                                                                             |
-| `packages/core/test/phases.test.ts`                  | `FIRST`/`INSTANT` в момент декорирования (включая характеризацию: INSTANT не сохраняется в очередях)              ; `LAST` при `apply()`; `DELAY` асинхронно; порядок фаз; фабрики `property`/`parameter`/`combined`; `LAST` на параметре без декорированных соседей слева и два `LAST`-декоратора на одном параметре                                                                                                                                                                                                                                                                                 |
-| `packages/core/test/inherit.test.ts`                 | Повтор `FIRST` на потомке; каррированная копия статики; `this` каррированной копии — сам класс/инстанс, с которым её вызвали, а не `null`; повторный `inherit` того же родителя не повторяет `FIRST`-вызовы; защита собственных переопределений (статика и прототип); перенос `LAST`; `PREPEND` на одном и двух уровнях; `SKIP`; синтетический инстанс поля у потомка; перенос метода с `FIRST`-декоратором не первого параметра без ошибки; декораторы параметров конструктора не переносятся потомку со своим конструктором |
-| `packages/router/test/inherited-static-refs.test.ts` | Косвенное покрытие `resolveFor`: `@Before(Self.InheritedStatic)` резолвится в инстанс потомка, курсор реализует отложенный стек в контексте потомка                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-
-Запуск: `bun run test` из корня ядра, отдельно по пакету — `bunx vitest run packages/core`. Число файлов и тестов печатает сам прогон. Тесты пишутся только через публичный API пакета, классы объявляются внутри файла — vitest изолирует модули по файлам, поэтому WeakMap-реестры между файлами не пересекаются.
-
-### Expected-fail
-
-В самом пакете `it.fails`-тестов нет и не было: особенность фазы `INSTANT` характеризуется обычным (проходящим) тестом — `packages/core/test/phases.test.ts` («INSTANT выполняется немедленно и не сохраняется в очередях»). Связанный сценарий holder проверяет обычный проходящий тест того пакета — `packages/holder/test/holder.test.ts` («Delay на родителе + Apply на потомке переносит класс-декораторы родителя»).
-
-### Пробелы
-
-- `resolveFor` не покрыт тестом в core — только косвенно через router.
-- `DELAY` с исключением, роняющим процесс — не покрыт автотестом: падение процесса не воспроизвести в рамках vitest без отдельного дочернего процесса; проверено пробой в bun и node вручную. `DELAY` при `inherit`/`transferTo` тестом тоже не покрыт.
-- `isClass` на нестандартных значениях: стрелка, `bound`-функция, class-выражение с ведущим комментарием.
-- Наследование мета-классов (`Meta2 extends Meta`) и общий реестр при совпадении имён.
-- Методы с symbol-ключами.
-
-## Расхождения с историческими заметками
-
-| Заметка                                                 | Утверждение                                                                                                   | Фактически                                                                                                                                                                                                                           | Evidence                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/core/readme.md` (прежний, 5 строк, HEAD)      | `aom` = `abstract-oriented models`; «Core decoration fabric mechanism» — всё содержание                       | Пакет не описан; расшифровка расходится с `packages/core/src/readme.md` (`API over Maps`); файл перезаписан настоящим документом                                                                                                  | `packages/core/src/readme.md`                                                                                                                                                                                                                                                                                                                                             |
-| `packages/core/src/readme.md`                           | `target` + `property` хранятся «синглтоном в мета-свойствах» (Reflect metadata)                               | Хранение — в `WeakMap` на статическом Symbol-свойстве мета-класса; `reflect-metadata` в пакете не используется                                                                                                                       | `packages/core/src/defines/core.ts` (`AomCore.instancesMap`)                                                                                                                                                                                                                                                                                                                 |
-| `packages/core/src/readme.md`                           | API вида `$.property.meta.handler.define(origin)`, `$.target.meta.endpoints`, `$.meta.usedMiddlewares`        | Таких полей нет; узел доступен как `$._` с `target`/`property`/`root`, а «мету» реализуют поля наследника                                                                                                                            | `packages/core/src/defines/node.ts` (`AomNode.target`, `AomNode.property`, `AomNode.root`), `packages/core/src/defines/node.ts` (`AomCore._`)                                                                                                                                                                                                                                |
-| `packages/core/src/readme.md`                           | Независимо от статического или собственного свойства `target` равен самому классу                             | `_.target` действительно всегда конструктор, но `instance()` вызывается с классом для статики и с прототипом для полей инстанса; различие хранит `_.originInstance` и восстанавливает сравнение `origin.target === $origin._.target` | `packages/core/src/defines/node.ts` (`AomNode.target`, `AomNode.originInstance`, `AomNode.inherit`)                                                                                                                                                                                                                                                                          |
-| `../../readme.md`                                          | Ядро работает для класса и статических методов, декораторы методов инстанса и свойств «ещё бы запихнуть»      | Уже реализовано: `propertyDecorator`, карты `properties`/`statics`, перенос прототипных методов                                                                                                                                      | `packages/core/src/defines/core.ts` (`AomCore.propertyDecorator`), `packages/core/src/defines/node.ts` (`AomNode.properties`, `AomNode.statics`); `packages/core/test/inherit.test.ts` («собственный прототипный метод потомка не затирается переносом», «перенос декораторов свойств инстанса: у потомка появляется собственный мета-инстанс свойства»)                     |
-| `../../readme.md`                                          | Для не-функциональных свойств нужен «двойной `map.set`/`map.get`» с собственным ключом                        | Реализовано именно так: синтетический инстанс в `properties`/`statics` сам является ключом WeakMap                                                                                                                                   | `packages/core/src/defines/core.ts` (`AomCore.instanceKey`)                                                                                                                                                                                                                                                                                                                  |
-| `docs/correct-extends.md`                               | Родительские декораторы всегда переносятся в конец очереди потомка, нужен рефакторинг порядка                 | Добавлен `InheritPlacement`: `PREPEND` переносит блоком в начало (для отложенных фаз), `SKIP` исключает перенос                                                                                                                      | `packages/core/src/defines/callstack.ts` (`AomCallstackQueue.transferTo`); `packages/core/test/inherit.test.ts` («PREPEND: родительские LAST-вызовы встают единым блоком перед собственными вызовами потомка», «PREPEND у нескольких уровней: блок прародителя встаёт раньше блока родителя», «SKIP: вызов не переносится на потомка, APPEND-соседи переносятся как раньше») |
-| `docs/lazy-evaluations.md`                              | Наиболее корректный запуск lazy-декораторов — `setTimer` после всех наследований                              | Основной отложенный режим — `LAST`, выполняемый синхронно в `_.apply()`; `setTimeout` остался только у `DELAY`                                                                                                                       | `packages/core/src/defines/callstack.ts` (`AomCallstackQueue`, `AomCallstackQueue.run`)                                                                                                                                                                                                                                                                                      |
-| `docs/lazy-evaluations.md`                              | Замену контекста на потомка (`cursor.constructor = origin.constructor`) «имеет смысл повторить», место неясно | Реализовано как `AomCore.resolveFor`; вызывается в `AomCursor` и в `@Before`/`@After`/`@UseMarker`/`@Next`                                                                                                                           | `packages/core/src/defines/core.ts` (`AomCore.resolveFor`); `packages/router/src/common/cursor.ts` (`AomCursor`)                                                                                                                                                                                                                                                             |
-| `docs/core.md`                                          | В конфигурацию запуска ядра передаётся «внешний» веб-фреймворк                                                | В core нет ничего про HTTP и фреймворки; это уровень router и api                                                                                                                                                                    | `packages/core/src/index.ts`; `packages/core/package.json` (`dependencies: {}`)                                                                                                                                                                                                                                                                                              |
-
-## Открытые вопросы
-
-Закрыт: нужен ли `try/catch`/Promise-обёртка вокруг `DELAY` — решение автора: оставить фазу как есть, `DELAY` остаётся особенностью с описанным риском (роняет процесс), а не дефектом для исправления.
-
-> ❓ Открытый вопрос: `resolveFor` помещён в общий `AomCore`, хотя единственный потребитель — router. Оставлять в ядре или перенести в `AomApi`?
-
-> ❓ Открытый вопрос: при переходе на stage-3 декораторы — как сохранить ключ реестра по `descriptor.value` и синтетические инстансы полей, если дескрипторы в новой модели недоступны?
-
-Закрыт: каррирование с `this = null` было временным решением, не осознанным ограничением — исправлено, `this` теперь пробрасывается вызывающей стороне.
-
-> ❓ Открытый вопрос: наследование мета-классов (`Meta2 extends Meta`) — ожидается общий реестр или отдельный? Сейчас он отдельный, если имена различаются, и общий, если `name` совпадает.

@@ -47,7 +47,7 @@
   "creates": ["AccessController"], "hooks": [] }
 ```
 
-Вид своих классов приложение передаёт функцией — пример из `packages/api/test/manifest.test.ts`:
+Вид своих классов приложение передаёт функцией:
 
 ```ts
 const options = {
@@ -83,7 +83,7 @@ expect(kindOf(stepOf(router, Pages.T, Shells.Carry))).toBe(AomCursorKind.Step);
 | 8. Нет `ThisRef` и `@This()` без аргумента в конструкторах | `constructorThisRefs(router)` | параметр конструктора класса маршрута (рекурсивно по целям `@This`), чья цель зависит от курсора, первым создавшего класс | `{ inspected: number; found: string[] }` |
 | 9. Дамп совпадает с кодом | `manifestOf(router, options)` | устаревший файл дампа | текст для побайтной сверки (раздел «Дамп») |
 
-Все функции — `packages/router/src/testing/chain.ts` (`sharedEndpoints`, `accessIdents`, `identCollisions`, `serializationErrors`, `constructorThisRefs`, `repeatsOf`), кроме `manifestOf`. Роутер без маршрутов — пустые результаты, не ошибка. Нарушители и чистые роутеры каждого правила — `packages/router/test/chain-rules.test.ts`.
+Все функции — `packages/router/src/testing/chain.ts` (`sharedEndpoints`, `accessIdents`, `identCollisions`, `serializationErrors`, `constructorThisRefs`, `repeatsOf`), кроме `manifestOf`. Роутер без маршрутов — пустые результаты, не ошибка.
 
 **Как приложение оформляет тест.** Над всеми роутерами приложения: число проверенных объектов в названии теста и храповик «поиск жив» (не ниже зафиксированного — иначе проверка тихо перестала что-то видеть), затем `toEqual([])` по нарушениям с именем модуля. Пример:
 

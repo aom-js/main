@@ -3,7 +3,7 @@
 Пакет решает обратную задачу к дистрибуции изоляторов: транспорт (`@aom-js/transfer`) публикует по шине сериализуемый контракт сервиса (`TransferServiceDescriptor`), а `@aom-js/codegen` превращает его обратно в исходники TypeScript — DTO с `@ComponentSchema`/`@PropertySchema.*` и класс-изолятор с `@Isolator`/`@ResponseTopic`/`@CustomTopic`/`@IsQueue`/`@TopicSchema`. Потребитель получает типизированного клиента чужого сервиса, не импортируя его исходники.
 Читать до: `packages/transfer/readme.md` (дескриптор, `foldSchemas`, дистрибуция), `packages/schemer/readme.md` (`PropertySchema`, `SCALAR_TYPE_SCHEMAS`, `FoldedSchemas`). Читать после: `docs/architecture.md`.
 
-Пакет построен вокруг собственного формата свёртки схем (`descriptor.schemas`); прежний модуль обратного разбора JSON Schema в PropertySchema-декораторы удалён из пакета вместе со своей экспортируемой функцией.
+Пакет построен вокруг собственного формата свёртки схем (`descriptor.schemas`). Маршрутов API и OpenAPI он не касается — только схем и дескрипторов шины.
 
 ## Назначение и место в стеке
 
@@ -38,8 +38,6 @@
 | `TransferServiceDescriptor` | `export type { TransferServiceDescriptor } from "@aom-js/transfer"`                                     | Реэкспорт типа дескриптора                                                                                                          |
 | `aom-codegen`               | `aom-codegen collect\|generate\|check --flag value …`                                                   | CLI (`bin`, не экспортируется из `index.ts`)                                                                                        |
 
-Evidence: `packages/codegen/src/index.ts`; `packages/codegen/src/defines/types.ts`; `packages/codegen/src/defines/collect.ts`; `packages/codegen/src/defines/emit-schemas.ts` (`emitSchemas`); `packages/codegen/src/defines/emit-isolator.ts` (`refName`, `scalarNameOf`, `emitIsolator`); `packages/codegen/src/defines/emit.ts`; `packages/codegen/src/defines/check.ts`.
-
 ## Внутренние модули
 
 | Файл                                                  | Ответственность                                                                                                                                                                  | Ключевые символы                                                                               |
@@ -53,17 +51,13 @@ Evidence: `packages/codegen/src/index.ts`; `packages/codegen/src/defines/types.t
 | `packages/codegen/src/defines/emit.ts`                | Сборка файлов сервиса, имя каталога, планирование генерации по снапшоту                                                                                                          | `emitService`; `serviceDirName`; `planGeneration`                                              |
 | `packages/codegen/src/defines/check.ts`               | Чистая сверка снапшота с `<out>/manifest.json`                                                                                                                                   | `diffManifest`; `CheckResult`                                                                  |
 | `packages/codegen/src/cli.ts`                         | CLI: разбор флагов, чтение/запись файлов, `<out>/manifest.json`, коды выхода                                                                                                     | `flags`; `required`; `collectCommand`; `generateCommand`; `checkCommand`                       |
-| `packages/codegen/test/collect.test.ts`               | `collect`: LWW, сортировка, поздний ответ                                                                                                                                        | —                                                                                              |
-| `packages/codegen/test/emit.test.ts`                  | Восстановление DTO/изолятора, enum/extends/mapped-types, ошибки формата, вся граница безопасности (HIGH/MEDIUM/LOW), `check`                                                     | —                                                                                              |
-| `packages/codegen/test/roundtrip.test.ts`             | Сквозные тесты: классы фикстуры → дескриптор → `emitService` → `__generated__` → `import()` → `foldSchemas`/`render` `toEqual` с исходником                                      | —                                                                                              |
-| `packages/codegen/test/fixtures/roundtrip-service.ts` | Фикстура сквозного теста: наследование, `IsUUID`, `Date` nullable, `Enum` (`isArray`+`enumName`), цикл `Type` A↔B, `Pick`/`Partial`/`Intersection`, `Transform` (штатная потеря) | —                                                                                              |
 | `packages/codegen/package.src.json`                   | Исходный `package.json` (`bin`, зависимости); итоговый генерирует `scripts/prebuild.js`                                                                                          | `bin.aom-codegen`                                                                              |
 
 ## Ключевые механизмы
 
 ### Снапшот реестра (collect)
 
-Не изменился по сравнению с прежней версией пакета: `collect` подписывает обработчик через `source.collectDistributions(...)`, складывает дескрипторы в `Map` по `name` (последний ответ побеждает) и по истечении `timeoutMs` резолвит отсортированный массив. Единственное дополнение — запись с нестроковым `name` отбрасывается до `.sort()`, а не роняет весь снапшот на сравнении:
+`collect` подписывает обработчик через `source.collectDistributions(...)`, складывает дескрипторы в `Map` по `name` (последний ответ побеждает) и по истечении `timeoutMs` резолвит отсортированный массив. Запись с нестроковым `name` отбрасывается до `.sort()`, чтобы не ронять весь снапшот на сравнении:
 
 `packages/codegen/src/defines/collect.ts` (`collect`)
 
@@ -79,11 +73,9 @@ setTimeout(() => {
 }, timeoutMs);
 ```
 
-Evidence: `packages/codegen/src/defines/collect.ts` (`collect`); `packages/transfer/src/defines/main.ts` (`collectDistributions`, `acceptRegistry`); `packages/codegen/test/collect.test.ts` («собирает дескрипторы от нескольких узлов до таймаута, LWW по имени, сортировка», «ответ после таймаута не попадает в снапшот»).
-
 ### Восстановление DTO из собственного формата (emitSchemas)
 
-`emitSchemas` больше не разбирает JSON Schema — он читает `descriptor.schemas` (`FoldedSchemas` из `@aom-js/schemer`, `foldSchemas`) и разворачивает его обратно в те же вызовы `@PropertySchema.*`, что были в исходном классе, с теми же параметрами. Без `schemas` при непустых `components` (дескриптор до формата 1, из старого кэша реестра) — явная ошибка вместо попытки угадать формат:
+`emitSchemas` читает `descriptor.schemas` (`FoldedSchemas` из `@aom-js/schemer`, `foldSchemas`) и разворачивает его обратно в те же вызовы `@PropertySchema.*`, что были в исходном классе, с теми же параметрами. Без `schemas` при непустых `components` (дескриптор без формата свёртки, например из старого кэша реестра) — явная ошибка вместо попытки угадать формат:
 
 `packages/codegen/src/defines/emit-schemas.ts` (`emitSchemas`)
 
@@ -110,17 +102,13 @@ export function emitSchemas(descriptor: TransferServiceDescriptor): string | und
 - **Метки в параметрах**: `{$date}` → `new Date("…")`, `{$regexp: [source, flags]}` → `new RegExp(source, flags)`, `{$ref}` → `() => Компонент`, `{$enum}` → имя `enum`'а, `{$validator, args}` → вызов декоратора `class-validator` с этими аргументами и отдельный сортированный импорт из `"class-validator"`.
 - **`@ComponentSchema(params)`** — восстанавливается только если `params` были переданы при декорировании (`component.params` есть в `FoldedComponent`); без параметров — `@ComponentSchema()`.
 
-Evidence: `packages/codegen/src/defines/emit-schemas.ts` (`emitSchemas` — сборка файла, импорты), (`topoOrder`/`leafNames`/`parentExpr`), (`renderValue`, метки), (`tsType`), (`emitProperty`/`emitComponent`/`emitEnum`); формат — `packages/schemer/src/defines/folding.ts`; тесты `packages/codegen/test/emit.test.ts` (enum/extends/mapped), (nullable/числовой enum/цикл Type).
-
 ### Штатная потеря: декораторы без аргументов
 
-Декоратор из `component.properties[x].params.decorators`, который `foldSchemas` не смог свернуть в `{$validator, args}` (не декоратор `class-validator`, или дал больше одной метаданной, или его минимальные аргументы не подтвердились повторным применением — `Transform`/`TransformToArray` из `class-transformer`, `ValidateIf(fn)`, собственные `registerDecorator`, `message`-функции), при свёртке просто отсутствует в списке — `emitSchemas` о нём ничего не знает и восстанавливает свойство без него. Это решение автора, а не пробел реализации: восстановленный класс передаёт общую схему валидации, а не побитово идентичный декоратор.
-
-Evidence: `packages/schemer/src/defines/folding.ts` (свёртка `decorators`, см. `packages/schemer/readme.md`); тест `packages/codegen/test/roundtrip.test.ts` («непереносимый декоратор (Transform) молча пропадает при свёртке ChildEntity.note») (`ChildEntity.note` с `Transform` — `decorators` пустой после свёртки) и фикстура `packages/codegen/test/fixtures/roundtrip-service.ts` (`ChildEntity.note`).
+Декоратор из `component.properties[x].params.decorators`, который `foldSchemas` не смог свернуть в `{$validator, args}` (не декоратор `class-validator`, или дал больше одной метаданной, или его минимальные аргументы не подтвердились повторным применением — `Transform`/`TransformToArray` из `class-transformer`, `ValidateIf(fn)`, собственные `registerDecorator`, `message`-функции), при свёртке просто отсутствует в списке — `emitSchemas` о нём ничего не знает и восстанавливает свойство без него. Так задумано: восстановленный класс передаёт общую схему валидации, а не побитово идентичный декоратор.
 
 ### Восстановление изолятора (emitIsolator)
 
-Не изменилось в части декораторов метода: `waitForResponse` выбирает `@ResponseTopic`/`@CustomTopic`, `singleton` — их аргумент, `queue` даёт `@IsQueue()`; наличие поля `args` (а не его длина) отличает описанный метод от неописанного. Изменилось окружение: `$ref` в JSON Schema аргументов/ответа теперь обязан указывать на компонент из `descriptor.schemas.components` (см. границу безопасности ниже), а опция `{ distributed: true }` у `@Isolator` по-прежнему не переносится — сгенерированный код всегда получает голый `@Isolator(transfer)`: сгенерированный изолятор только вызывает чужой сервис, а с опцией узел-потребитель собрал бы дескриптор со своим `origin` и раздавал бы чужой контракт как свой; переизлучением чужих контрактов занимается кэш реестра (`packages/transfer/readme.md` §«Протокол реестра и кэш LWW»).
+Декораторы метода: `waitForResponse` выбирает `@ResponseTopic`/`@CustomTopic`, `singleton` — их аргумент, `queue` даёт `@IsQueue()`; наличие поля `args` (а не его длина) отличает описанный метод от неописанного. `$ref` в JSON Schema аргументов/ответа обязан указывать на компонент из `descriptor.schemas.components` (см. границу безопасности ниже), а опция `{ distributed: true }` у `@Isolator` не переносится — сгенерированный код всегда получает голый `@Isolator(transfer)`: сгенерированный изолятор только вызывает чужой сервис, а с опцией узел-потребитель собрал бы дескриптор со своим `origin` и раздавал бы чужой контракт как свой; переизлучением чужих контрактов занимается кэш реестра (`packages/transfer/readme.md` §«Протокол реестра и кэш LWW»).
 
 `packages/codegen/src/defines/emit-isolator.ts` (`emitIsolator`)
 
@@ -135,8 +123,6 @@ export function emitIsolator(descriptor: TransferServiceDescriptor, config: Code
 
 Сигнатура метода: имена параметров — ключи пар `args` (`[{ "id": { "type": "string" } }]` → `id: string`, имя проверяет `assertIdentifier`); метод без поля `args` → `(...args: unknown[])` без `@TopicSchema`; `args: []` → `()`. Тип в `@TopicSchema` и тип в сигнатуре строятся раздельно (`typeSource`, `tsOf`): `$ref` → имя компонента, скаляр → строковое имя по `scalarNameOf` в декораторе и TS-тип в сигнатуре, `{"type": "array", "items": X}` → `[X]` в декораторе и `X[]` в сигнатуре. Сгенерированный изолятор — обычный `@Isolator`-класс: наследник с `@Executor` делает узел исполнителем чужого контракта (`packages/transfer/readme.md` §«Executor и привязка исполнителя»).
 
-Evidence: `packages/codegen/src/defines/emit-isolator.ts` (`emitIsolator`, `emitMethod`, `typeSource`, `tsOf`), (проверка `<Name>Hash`); тесты `packages/codegen/test/emit.test.ts` («изолятор: исходные декораторы, именованные аргументы, hash-константа» — декораторы, hash-константа, `distributed` не переносится; «LOW: имя сервиса не может совпадать с тем, что импортирует/объявляет сам isolator.ts» и «LOW: имя сервиса, дающее '<имя>Hash' == имени импортируемого компонента — ошибка (redeclare)» — имя сервиса против собственных импортов изолятора и против `<Имя>Hash`).
-
 ### Граница безопасности: дескриптор с шины — недоверенные данные
 
 Дескриптор приходит по шине от произвольного узла. Всё, что из него превращается в идентификатор, ключ или литерал сгенерированного TS-кода, проходит через `safe.ts` и точечные проверки в `emit-schemas.ts`/`emit-isolator.ts`:
@@ -149,8 +135,6 @@ Evidence: `packages/codegen/src/defines/emit-isolator.ts` (`emitIsolator`, `emit
 - **Строки и числа.** Любое строковое значение параметра идёт через `JSON.stringify` — экранирование `*/`, обратных кавычек, `${`, переводов строк гарантировано; числа — тоже через `JSON.stringify` (`NaN`/`Infinity` невозможны как параметр; для значения `enum` нечисловое/нецелое отдельно отклоняется явной проверкой). Ключ `__proto__` в объектном литерале параметров выводится вычисляемой формой `["__proto__"]`, чтобы он остался обычным собственным свойством, а не сменил `[[Prototype]]` объекта (`propertyKey`, `safe.ts`); тот же ключ как имя члена `enum` — ошибка, а не автоматическое исправление (`enum` компилируется через присваивание, и computed-форма для него не работает — член молча потерялся бы без ошибки).
 - **Свойства и методы.** Имя свойства `constructor` — ошибка (поле с таким именем не собирается у потребителя); имена методов изолятора `name`/`length`/`prototype`/`constructor`/`caller`/`arguments` — тоже ошибка (это собственные свойства `Function.prototype`, метод `name` иначе молча подменил бы имя класса).
 - **Пути.** `serviceDirName` не пропускает `/`, `\`, `..` и пустое имя; коллизия каталогов при разном регистре/разбиении слов (`serviceDirName` регистронезависим: `Foo`/`foo`, `HTTPService`/`HttpService`, `HTTP_Service` → один и тот же `http-service`/`http_service`) ловится отдельно, на уровне снапшота — см. `planGeneration` ниже.
-
-Evidence: `packages/codegen/src/defines/safe.ts` (весь файл); `packages/codegen/src/defines/emit-schemas.ts` (`emitSchemas`, `assertKnownName`, `renderValue`, `emitProperty`, `emitComponent`, `emitEnum`); `packages/codegen/src/defines/emit-isolator.ts` (`ISOLATOR_OWN_NAMES`, `FORBIDDEN_METHOD_NAMES`, `refName`, `emitIsolator`); тесты `packages/codegen/test/emit.test.ts` (весь блок `describe("codegen: граница «данные шины → код»…")`, включая `HIGH`/`MEDIUM`/`LOW`-пробы из аудита безопасности).
 
 ### Планирование генерации (planGeneration) и CLI
 
@@ -189,8 +173,6 @@ aom-codegen check    --from descriptors.json --out <каталог>
 
 Живая шина нужна только `collect`: он импортирует модуль с настроенным `Transfer` (модуль на TS — запускать под bun, node потребует скомпилированный), а `generate` и `check` работают по файлу снапшота. Поэтому снапшот и `<out>` (код и манифест) рассчитаны на коммит в репозиторий потребителя: сборка воспроизводима без шины, а `check` на свежем снапшоте ловит дрейф контракта (`cli.ts` (`collectCommand`, `USAGE`)).
 
-Evidence: `packages/codegen/src/defines/emit.ts` (`planGeneration`); `packages/codegen/src/defines/check.ts`; `packages/codegen/src/cli.ts` (`generateCommand`, `checkCommand`); тесты `packages/codegen/test/emit.test.ts` («planGeneration: коллизия каталога (Foo/foo → foo) — ошибка с обоими именами, ничего не пишем», «planGeneration: один сломанный дескриптор не блокирует генерацию остальных», «planGeneration: null-запись в снапшоте не роняет обработку остальных, имена в ошибках экранированы» — `planGeneration`; «дрейф: hash в снапшоте разошёлся с manifest», «не сгенерирован: сервис есть в снапшоте, но не в manifest», «удалён: сервис есть в manifest, но пропал из снапшота», «совпадение — все списки пустые» — `diffManifest`).
-
 ## Инварианты и подводные камни
 
 - Имя класса изолятора и имена компонент переносятся дословно: топики выводятся из имени (`${Class}.${method}`), а `$ref`-имена — из `target.name`; переименование ломает адресацию.
@@ -201,47 +183,6 @@ Evidence: `packages/codegen/src/defines/emit.ts` (`planGeneration`); `packages/c
 - Сгенерированный код зависит на стороне потребителя от `@aom-js/transfer`, `@aom-js/schemer` и модуля `config.transferImport`; сам пакет эти зависимости не проверяет.
 - `foldSchemas` на стороне узла-издателя применяет пользовательские декораторы к временным классам (см. `packages/schemer/readme.md`) — это цена свёртки, а не codegen, но влияет на то, какие декораторы вообще могут попасть в `descriptor.schemas`.
 
-### Известные дефекты (закрыты)
-
-Открытых дефектов в пакете нет.
-
-## Легаси и мёртвый код
-
-Закомментированного и отвергнутого кода в пакете нет: все файлы `src/` участвуют в сборке, все экспорты `index.ts` достижимы. `safe.ts` не реэкспортируется намеренно — это внутренняя граница, а не публичный API. Единственный «недостижимый» элемент — сам пакет: его не импортирует ни один пакет ядра.
-
-## Сборка и потребление
-
-Сборка стандартная для монорепо: `bun run build:codegen` (он же `bun --filter @aom-js/codegen build`) — три прохода `tsc` (cjs → mjs → types) и `scripts/post-build.js`, который дописывает расширение `".js"` к относительным импортам в `dist`, кладёт `dist/cjs/package.json` с `{"type":"commonjs"}` и выставляет `chmod 0o755` на файлы из `pkg.bin`. Итоговый `package.json` и `tsconfig.build*.json` генерирует `scripts/prebuild.js` из `package.src.json`; редактировать нужно `package.src.json`, а не `package.json`.
-
-## Тесты
-
-### Что покрыто
-
-- `packages/codegen/test/collect.test.ts` — снапшот реестра: три ответа от разных узлов, LWW по имени, сортировка результата; ответ после таймаута в снапшот не попадает.
-- `packages/codegen/test/emit.test.ts` (`describe("codegen: восстановление сервиса из дескриптора")`) — `emitService` на рукописном дескрипторе `GoodsService`: состав файлов, перенос `hash`, `serviceDirName`; DTO с `@ComponentSchema`/`.String/.Type/.Date`, `isOptional` и `?`, `Ref<T>` для forward-ссылки на класс ниже по файлу, сквозной `description`; `$validator` (`IsUUID`) с импортом; изолятор — импорты, `<Name>Hash`, `@TopicSchema` с именованными аргументами, `@ResponseTopic(true)`, `@IsQueue()`, массивы `[T]`/`T[]`, `distributed` не переносится; три состояния метода (описан, `args: []`, не описан); сервис без компонент.
-- `packages/codegen/test/emit.test.ts` (`describe("codegen: emitSchemas — enum, extends, mapped-types")`, `describe("codegen: emitSchemas — nullable, числовой enum, цикл Type")`) — `emitSchemas`: `enum` (строковый и числовой, `enumName`), топологический порядок `extends`, `PickType`/`IntersectionType(A, PartialType(B))` со вложенной композицией, параметры `@ComponentSchema`, несколько `$validator`+`$regexp` на одном свойстве, `nullable → "| null"`, цикл `Type` A↔B независимо от порядка объявления.
-- `packages/codegen/test/emit.test.ts` (`describe("codegen: emitSchemas — ошибки формата")`) — ошибки формата: дескриптор без `schemas` при непустых `components`, дескриптор без `schemas` и без `components` (не ошибка), неизвестный `format`.
-- `packages/codegen/test/emit.test.ts` (`describe("codegen: граница «данные шины → код» — недоверенные данные не становятся кодом")`) — вся граница безопасности: недопустимые имена (компонент/enum/сервис/метод/аргумент), `extends`/`$ref`/`$enum` вне компонентов дескриптора, неизвестная фабрика свойства, весь спектр проверок `$validator` (исполняемый код, синтаксически валидный, но не экспорт, экспорт, но не декоратор, настоящие фабрики), поддельное значение `enum`, `serviceDirName` (traversal/пустое имя/коллизия при разном регистре), `origin` с переводом строки, «неудобное», но допустимое имя свойства, `$regexp` (форма/флаги/компилируемость), `__proto__` как ключ параметра и как ключ `enum`, `planGeneration` (коллизия каталога, один сломанный дескриптор, `null`-запись в снапшоте), сквозной HIGH-сценарий аудитора (`Date extends Function` + `$date`), имя сервиса против собственных импортов изолятора и против `<Имя>Hash`.
-- `packages/codegen/test/emit.test.ts` (`describe` «codegen: check — сверка снапшота с manifest») — `diffManifest`: дрейф, «не сгенерирован», «удалён», совпадение.
-- `packages/codegen/test/roundtrip.test.ts` — сквозной тест на фикстуре из 10 компонентов и 2 `enum` (наследование, `IsUUID`, `Date` nullable, циклы `Type`, все mapped-types, `Transform`): дескриптор несёт `schemas` формата 1 со всеми классами; повторный `emitService` на том же дескрипторе идемпотентен; `Transform` молча пропадает при свёртке; сгенерированные классы после `import()` дают `foldSchemas`/`render`, побитово совпадающие с исходными (эталон снят **до** генерации, чтобы совпадающие имена классов в одном процессе не давали ложный успех через общие метаданные `class-validator`).
-
-### Expected-fail
-
-`it.fails`-тестов в пакете нет.
-
-### Пробелы
-
-- CLI не покрыт напрямую (`flags`, `collectCommand`) — только `planGeneration`/`diffManifest`, которые CLI вызывает.
-- Нет теста на `transferExportName` в импорте транспорта.
-- Ни один тест не грузит `dist` — vitest ходит по `src` через алиас `@aom-js/codegen` (`vitest.config.ts`), кроме `roundtrip.test.ts`, который импортирует уже сгенерированный `__generated__/…/schemas.ts` напрямую по файловому пути (не через алиас пакета).
-- Нет явного детектора ReDoS для `$regexp` — сознательное решение автора, см. §«Ограничения».
-
-### Как запускать
-
-```bash
-bunx vitest run packages/codegen
-```
-
 ## Ограничения
 
 - **ReDoS.** `$regexp` из чужого дескриптора проверяется по форме (`[string, string]`), флагам (`^[dgimsuvy]*$` без повторов) и реальной компилируемостью (`new RegExp(source, flags)` на этапе генерации), но не по катастрофическому бэктрекингу источника — паттерн вида `(a+)+$` пройдёт все проверки и создаст `RegExp`, который зависнет на подходящей строке уже у потребителя, при валидации данных. Осознанно не реализовано: надёжно отличить безопасный regexp от катастрофического без эвристик нельзя, а эвристики дают ложные срабатывания.
@@ -249,17 +190,12 @@ bunx vitest run packages/codegen
 - **Происхождение дескриптора не проверяется.** Шина принимает дескрипторы без проверки источника (`acceptRegistry` в `@aom-js/transfer` не сверяет подпись/`origin`); узел, опубликовавший сервис с тем же именем и тем же контрактом (тем же `hash`), неотличим от легитимного издателя ни для `collect`, ни для `check` — `hash` защищает от дрейфа контракта, а не от подмены источника. Это граница ответственности транспортного слоя, а не codegen.
 - **Mapped-класс нельзя использовать напрямую как компонент распределённого сервиса.** И `SchemasCollector`, и `foldSchemas` требуют, чтобы у класса, участвующего в `components`, было собственное имя — анонимный результат `PickType(...)`/`PartialType(...)`/… нужно обернуть именованным наследником с `@ComponentSchema()` (тот же паттерн, что уже требуется для рендера OpenAPI, см. `packages/schemer/readme.md`).
 
-## Расхождения с историческими заметками
+## Сборка и потребление
 
-| Заметка                                          | Утверждение                                                                                                                                                                | Фактически                                                                                                                                                                                                                                 | Evidence                                                                                                                                                                                                                   |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/codegen.md` (старая заметка)               | Кодогенерация должна уметь работать и с API — «карты методов» для стандартных процедур                                                                                     | Реализованы только схемы и дескрипторы шины; маршрутов и OpenAPI пакет не касается                                                                                                                                                         | `packages/codegen/src/index.ts`                                                                                                                                                                                            |
-| Предыдущая версия этого `readme.md`              | Прежняя функция обратного разбора JSON Schema — публичный экспорт пакета; `@JSONSchema`-фолбэк для непереносимых ключей — планируемая доработка                            | Функция удалена вместе с породившим её модулем; идея фолбэка снята вместе с целым подходом — параметры фабрик теперь хранятся как есть, терять там нечего                                                                                  | `packages/codegen/src/defines/emit-schemas.ts` (маркеров `dropped` и комментариев-заглушек codegen в нём нет)                                                                                                                                             |
+Сборка стандартная для монорепо: `bun run build:codegen` (он же `bun --filter @aom-js/codegen build`) — три прохода `tsc` (cjs → mjs → types) и `scripts/post-build.js`, который дописывает расширение `".js"` к относительным импортам в `dist`, кладёт `dist/cjs/package.json` с `{"type":"commonjs"}` и выставляет `chmod 0o755` на файлы из `pkg.bin`. Итоговый `package.json` и `tsconfig.build*.json` генерирует `scripts/prebuild.js` из `package.src.json`; редактировать нужно `package.src.json`, а не `package.json`.
 
-## Открытые вопросы
+## Тесты пакета
 
-> ❓ Открытый вопрос: где предполагается запускать CLI у потребителя — напрямую из `node_modules/.bin/aom-codegen` или через команду-обёртку в его `package.json`? В самом ядре `bin` не слинкован.
-
-> ❓ Открытый вопрос: стоит ли `$regexp` из недоверенного дескриптора всё же получить грубый детектор катастрофического бэктрекинга (лимит длины источника или запрет вложенных квантификаторов), раз ReDoS остаётся единственным непроверяемым сценарием на этой границе?
-
-> ❓ Открытый вопрос: `acceptRegistry` (`@aom-js/transfer`) не проверяет происхождение дескриптора — стоит ли решать это на уровне транспорта (подпись/allowlist `origin`) или это осознанно оставлено на усмотрение адаптера шины конкретного приложения?
+```bash
+bunx vitest run packages/codegen
+```
