@@ -53,7 +53,7 @@ class MathExecutor extends MathService {
 await MathService.sum(2, 3); // 5 — ушло в топик "MathService.sum", вернулось из "reply_MathService.sum_k1_test-node"
 ```
 
-`publisher`/`subscriber` — единственное, что зависит от конкретной шины; сигнатуры — таблица «Типы» в [`packages/transfer/readme.md`](../../packages/transfer/readme.md#типы), NATS-адаптер приложения — там же, «Использование в приложении». Изолируются только **статические** методы: карты топиков ключуются значением функции на конструкторе (`packages/transfer/src/defines/decorators.ts` (`DefineTopics`)).
+`publisher`/`subscriber` — единственное, что зависит от конкретной шины; сигнатуры — таблица «Типы» в [`packages/transfer/readme.md`](../../packages/transfer/readme.md#типы). Изолируются только **статические** методы: карты топиков ключуются значением функции на конструкторе (`packages/transfer/src/defines/decorators.ts` (`DefineTopics`)).
 
 > Исполняется: `packages/transfer/test/rpc.test.ts` → «вызов изолированного метода публикует сообщение и возвращает результат исполнителя».
 
@@ -301,7 +301,7 @@ nodeC.collectDistributions((data) => {
 
 ### Ошибка в одном сообщении не должна ронять подписку целиком
 
-Абстракция `subscriber`/`publisher` пакета ничего не знает о конкретной шине — обработку ошибок обязан взять на себя адаптер. Живой пример — конфигурация NATS в приложении (`test/src/config/aom/transfer.ts`):
+Абстракция `subscriber`/`publisher` пакета ничего не знает о конкретной шине — обработку ошибок обязан взять на себя адаптер. Пример — адаптер NATS:
 
 ```ts
 subscriber: ({ topic, next, queue }) => {

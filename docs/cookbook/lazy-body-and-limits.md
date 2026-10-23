@@ -4,8 +4,8 @@
 
 Примеры ниже исполняются тестами из четырёх файлов — у каждого рецепта своя ссылка внизу раздела:
 
-- `packages/api/test/server.test.ts` → `describe("Server: ленивое чтение тела и лимит размера (KI-API-16)")`
-- `packages/api/test/units.test.ts` → `describe("parseJsonBody (KI-API-16)")`
+- `packages/api/test/server.test.ts` → describe «Server: ленивое чтение тела и лимит размера»
+- `packages/api/test/units.test.ts` → describe «parseJsonBody»
 - `packages/api/test/body-options.test.ts` → `describe("api: @BodyOptions")`
 - `packages/router/test/lazy-values.test.ts` → `describe("router: ленивые значения контекста (lazy/@Body)")`
 

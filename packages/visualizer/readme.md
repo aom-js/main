@@ -1,7 +1,7 @@
 # `@aom-js/visualizer`
 
 Пакет строит по дереву контроллеров граф API — маршруты, цепочки звеньев и компонентные схемы с их связями — и рендерит его в одну самодостаточную HTML-страницу. Страница отдаётся обычным endpoint-ом, поэтому карта живёт внутри самого модуля API рядом с `/openapi.json`.
-Читать до: `packages/router/readme.md` (мета-модель, курсоры, сборка маршрутов), `packages/schemer/readme.md` (компонентные схемы). Читать после: `packages/api/readme.md` (как endpoint отдаёт HTML). Термины — `test/docs/README.md#словарь`.
+Читать до: `packages/router/readme.md` (мета-модель, курсоры, сборка маршрутов), `packages/schemer/readme.md` (компонентные схемы). Читать после: `packages/api/readme.md` (как endpoint отдаёт HTML).
 
 ## Назначение и место в стеке
 
@@ -73,7 +73,7 @@
 ```ts
 @Get("/visualizer")
 static Page(@Route() route: AomRoute, @Ctx() ctx: HttpCtx): string {
-  // строка по умолчанию уходит как text/plain (KI-API-17) - тип страницы ставим сами
+  // строка по умолчанию уходит как text/plain - тип страницы ставим сами
   ctx.res.setHeader("Content-Type", "text/html; charset=utf-8");
   return new Visualizer(route).html;
 }
@@ -81,7 +81,7 @@ static Page(@Route() route: AomRoute, @Ctx() ctx: HttpCtx): string {
 
 `.html` здесь обязателен: строка уходит телом ответа, а объект — в JSON. Заголовок
 `Content-Type` нужно выставить самому до `return`: строковый результат `Server`
-по умолчанию отдаёт как `text/plain`, а не `text/html` (`KI-API-17` — иначе данные
+по умолчанию отдаёт как `text/plain`, а не `text/html` (иначе данные
 из запроса, попавшие в строку, браузер исполнил бы как разметку), и свой заголовок
 обработчика при этом не перетирается
 (`packages/api/src/server/http.ts` (`Server`); так же поступает
@@ -92,7 +92,8 @@ static Page(@Route() route: AomRoute, @Ctx() ctx: HttpCtx): string {
 
 **Готовым контроллером из `@aom-js/api`.** `BaseVisualizerController` объявляет
 `/visualizer` и `/visualizer.json` поверх той же компоненты; подключается бриджем
-или наследованием, если нужны свои ограничения доступа:
+или наследованием, если нужны свои ограничения доступа. Закрывать карту стоит не слабее,
+чем `/openapi.json`: страница раскрывает полную структуру API вместе с цепочками доступа.
 
 ```ts
 @Controller()
@@ -115,10 +116,6 @@ export class VisualizerController extends BaseVisualizerController {}
 Программно тот же срез недоступен намеренно: `buildVisualGraph(SomeController)`
 собирает **отдельный** граф от этого класса, с собственными префиксами — это другая
 операция, и её результат не совпадает со срезом.
-
-## Как использует приложение
-
-`test/src/common/controllers/visualizer/controller.ts` объявляет `VisualizerController` поверх `BaseVisualizerController` из `@aom-js/api` и закрывает его тем же `AuthBasic.Required`, что и `/openapi.json`: страница раскрывает полную структуру API вместе с цепочками доступа. Бридж стоит на `ModuleRootController` (`test/src/common/controllers/module/controller.ts`), который наследует каждый `ModuleRoot`, поэтому `/visualizer` и `/visualizer.json` поднимаются на всех семи серверах приложения.
 
 ## Ограничения
 

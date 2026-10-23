@@ -30,7 +30,7 @@
 
 ## Как выпустить
 
-1. Ворота зелёные: `../verify.sh` (полный).
+1. Ворота зелёные (из корня ядра): `bunx vitest run`, `bun run build` (сборка со smoke-проверкой), затем `bunx tsc -p tsconfig.json --noEmit` и `node scripts/lint-ratchet.js` — подробности в [`architecture.md`](architecture.md#сборка-тесты-и-инструменты-монорепо).
 2. Поднять `version` в корневом `package.json`, выполнить `node scripts/prebuild.js && bun install` (номер попадёт в `bun.lock`), дописать раздел версии в `CHANGELOG.md`, закоммитить всё вместе.
 3. Проверить без публикации: `bun run release:dry` — тесты, сборка и состав архива каждого пакета (`bun pm pack --dry-run`); вход в npm не нужен.
 4. Выпустить: `bun run release` (нужен вход в npm с правом публикации в скоуп `@aom-js`).
