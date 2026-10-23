@@ -48,7 +48,7 @@ export class BaseVisualizerController {
     schema: { type: "string" },
   })
   static Page(@Route() route: AomRoute, @Ctx() ctx: HttpCtx): string {
-    // a string defaults to text/plain (KI-API-17) - for a real HTML page we set the type
+    // a string defaults to text/plain - for a real HTML page we set the type
     // explicitly, before return
     ctx.res.setHeader("Content-Type", "text/html; charset=utf-8");
     return this.visualizer(route).html;

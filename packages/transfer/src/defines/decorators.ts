@@ -291,7 +291,7 @@ function distribute($: AomIsolator) {
     components[name] = schema;
   });
 
-  // own schema format for codegen (KI-CODEGEN-01) — built from the same classes that produced components;
+  // own schema format for codegen — built from the same classes that produced components;
   // with no components it's an empty format 1, so the "new descriptor" marker is always present
   let schemas: FoldedSchemas;
   try {

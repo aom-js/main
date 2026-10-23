@@ -115,7 +115,7 @@ describe("codegen: восстановление сервиса из дескри
     expect(serviceDirName("GoodsService")).toBe("goods-service");
   });
 
-  it("serviceDirName разбивает аббревиатуру и следующее слово (KI-CODEGEN-02)", () => {
+  it("serviceDirName разбивает аббревиатуру и следующее слово", () => {
     expect(serviceDirName("HTTPService")).toBe("http-service");
   });
 
@@ -123,7 +123,7 @@ describe("codegen: восстановление сервиса из дескри
     expect(schemas).toContain("@ComponentSchema()\nexport class GoodDto {");
     expect(schemas).toContain("@PropertySchema.String({ minLength: 1 })");
     expect(schemas).toContain("title!: string;");
-    // Type-связь — Ref<T> и ленивая ссылка () => X (KI-CODEGEN-03: класс объявлен ниже по файлу)
+    // Type-связь — Ref<T> и ленивая ссылка () => X (класс объявлен ниже по файлу)
     expect(schemas).toContain("@PropertySchema.Type({ value: () => PriceDto })");
     expect(schemas).toContain("price!: Ref<PriceDto>;");
     expect(schemas).toContain("type Ref<T> = T;");
@@ -1132,7 +1132,7 @@ describe("codegen: граница «данные шины → код» — не�
   });
 });
 
-describe("codegen: check — сверка снапшота с manifest (KI-CODEGEN-02)", () => {
+describe("codegen: check — сверка снапшота с manifest", () => {
   const descriptorOf = (name: string, hash: string): TransferServiceDescriptor => ({
     name,
     hash,

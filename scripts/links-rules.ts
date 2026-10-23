@@ -35,6 +35,8 @@ export const FORBIDDEN: readonly { rule: string; rx: RegExp }[] = [
       "u",
     ),
   },
+  // номер записи бывшего реестра дефектов: суть пишется словами; образец формата в угловых скобках не ловится
+  { rule: "номер KI", rx: /(?<![\p{L}\p{N}_-])KI-[A-Z][A-Z0-9]*-[A-Z0-9]+/u },
   {
     rule: "путь спеки или плана",
     rx: new RegExp(`${NOT_WORD_BEFORE}specs/|superpowers|docs-refresh|\\.supergoal`, "u"),
@@ -66,6 +68,8 @@ export const FORBIDDEN: readonly { rule: string; rx: RegExp }[] = [
     rule: "номер строки",
     rx: /(?<!\/\/[\p{L}\p{N}_.-]*)(?:[\p{L}\p{N}_.-]+\/)*[\p{L}\p{N}_.-]*\.\p{L}[\p{L}\p{N}]*:\d+/u,
   },
+  // прежнее имя метки отложенных решений (теперь `shortcut`)
+  { rule: "прежняя метка ponytail: нужна shortcut", rx: /(?<![\p{L}\p{N}_-])ponytail\s*:/iu },
 ];
 
 // ───────────────────────── комментарии и названия тестов ─────────────────────────

@@ -13,7 +13,7 @@ export const SCALAR_TYPE_SCHEMAS: Record<string, Record<string, any>> = {
   number: { type: "number" },
   integer: { type: "integer" },
   boolean: { type: "boolean" },
-  // the shape class-validator-jsonschema produces for IsDate (KI-SCHEMER-08) — otherwise
+  // the shape class-validator-jsonschema produces for IsDate — otherwise
   // PropertySchema.Date renders differently and codegen won't recognize it as the "date" scalar
   date: {
     oneOf: [
@@ -24,7 +24,7 @@ export const SCALAR_TYPE_SCHEMAS: Record<string, Record<string, any>> = {
 };
 
 // native scalar constructors → JSON Schema: the same dictionary used by design:type and @Type();
-// entries are those of SCALAR_TYPE_SCHEMAS, so Date renders like PropertySchema.Date (KI-SCHEMER-08)
+// entries are those of SCALAR_TYPE_SCHEMAS, so Date renders like PropertySchema.Date
 const SCALAR_SCHEMAS = new Map<unknown, Record<string, any>>([
   [String, SCALAR_TYPE_SCHEMAS.string],
   [Number, SCALAR_TYPE_SCHEMAS.number],

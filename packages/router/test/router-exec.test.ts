@@ -528,7 +528,7 @@ describe("router: исполнение запроса", () => {
     // miniature of the tickets' ResponseByType pattern: a decorator re-applies @Get
     // via a 3-argument Reflect.decorate — the polyfill hands the decorator
     // `descriptor = undefined`, @Get assigns it to element.descriptor, and before the
-    // fail-closed guard the endpoint body was silently skipped (KI-COMMON-17 class)
+    // fail-closed guard the endpoint body was silently skipped (the bug class that once left a class-level access gate unexecuted)
     const Relay = AomApi.methodDecorator(($) => {
       const { target, property } = $._;
       Reflect.decorate([Get("/replayed")], target, property!);

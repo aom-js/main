@@ -12,8 +12,8 @@ import { PropertySchema } from "../properties";
  *
  * Same rebuild mechanism as `PartialType`: walks `classRef`'s own decorated properties and re-applies
  * each selected property's original `PropertySchema.*` factory unchanged. The result is a component
- * in its own right (`ComponentSchema()` applied), but under the fixed class name `PickTypeClass`
- * (`KI-SCHEMER-07`) — wrap it in a named subclass before using it as a `$ref` target.
+ * in its own right (`ComponentSchema()` applied), but under the fixed class name `PickTypeClass` —
+ * wrap it in a named subclass before using it as a `$ref` target.
  *
  * @param classRef - a class decorated with `\@ComponentSchema()`
  * @param keys - property names to keep

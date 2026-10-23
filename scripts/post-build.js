@@ -72,7 +72,7 @@ if (errors.length) {
 
 fs.writeFileSync(path.join(cjsDir, "package.json"), JSON.stringify({ type: "commonjs" }) + "\n");
 
-// 3. bin-файлы (KI-CODEGEN-02): сборка каждый раз пишет dist заново без бита +x —
+// 3. bin-файлы: сборка каждый раз пишет dist заново без бита +x —
 //    без chmod здесь `aom-codegen` как исполняемый bin не запускается
 const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
 const binFiles = pkg.bin ? (typeof pkg.bin === "string" ? [pkg.bin] : Object.values(pkg.bin)) : [];

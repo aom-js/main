@@ -49,7 +49,7 @@ function fakeRequest(
   return stream as unknown as IncomingMessage;
 }
 
-describe("checkLocales (KI-API-04)", () => {
+describe("checkLocales", () => {
   it("сравнивает значения source с ключами target, а не имена экспортов", () => {
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
     const source = { A: "PREFIX:A", B: "PREFIX:B" };
@@ -67,7 +67,7 @@ describe("checkLocales (KI-API-04)", () => {
   });
 });
 
-describe("BodyBuilder.JSONSchema (KI-API-05)", () => {
+describe("BodyBuilder.JSONSchema", () => {
   @ComponentSchema({ description: "тестовая схема" })
   class TestSchema {
     @PropertySchema.String({})
@@ -90,7 +90,7 @@ describe("BodyBuilder.JSONSchema (KI-API-05)", () => {
   });
 });
 
-describe("коды и описания 423/424 (KI-API-06)", () => {
+describe("коды и описания 423/424", () => {
   it("код 423 без опечатки 432", () => {
     expect(API_ERROR_423_DATA_LOCKED).toBe("AOM_API:API_ERROR_423_DATA_LOCKED");
   });
@@ -101,7 +101,7 @@ describe("коды и описания 423/424 (KI-API-06)", () => {
   });
 });
 
-describe("BaseAccessController.CheckLayerPass (KI-API-13)", () => {
+describe("BaseAccessController.CheckLayerPass", () => {
   class TestAccess extends BaseAccessController {
     static readonly markerName = "test-marker";
   }
@@ -145,7 +145,7 @@ describe("BaseAccessController.CheckLayerPass (KI-API-13)", () => {
   });
 });
 
-describe("BaseAccessController.generateAccessMap: moduleIdent (KI-ORGS-42)", () => {
+describe("BaseAccessController.generateAccessMap: moduleIdent", () => {
   class TestAccess extends BaseAccessController {}
   const grants = (moduleIdent?: string) => ({
     fullAccess: false,
@@ -245,7 +245,7 @@ describe("BaseAccessController: экстра-слой на настоящем р
   });
 });
 
-describe("parseJsonBody (KI-API-16)", () => {
+describe("parseJsonBody", () => {
   it("Content-Length больше лимита - отказ до чтения потока", async () => {
     const req = fakeRequest({ "content-type": "application/json", "content-length": "1000" }, []);
     await expect(parseJsonBody(req, { limit: 10 })).rejects.toBeInstanceOf(PayloadTooLargeResponse);
@@ -290,7 +290,7 @@ describe("parseJsonBody (KI-API-16)", () => {
   });
 });
 
-describe("BaseRootController.Index: копия маршрутов на запрос (KI-COMMON-04)", () => {
+describe("BaseRootController.Index: копия маршрутов на запрос", () => {
   it("шаг перед Index сужает копию своего запроса, а не общий роутер", async () => {
     @Controller()
     class Root extends BaseRootController {

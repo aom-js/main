@@ -125,7 +125,7 @@ export async function parseJsonBody(
     }
 
     // accumulate raw Buffer chunks and join them once: concatenating decoded strings per chunk
-    // corrupts multi-byte UTF-8 characters that are split exactly on a TCP chunk boundary (KI-API-15)
+    // corrupts multi-byte UTF-8 characters that are split exactly on a TCP chunk boundary
     const chunks: Buffer[] = [];
     let received = 0;
 

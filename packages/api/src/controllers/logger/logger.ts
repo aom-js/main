@@ -109,7 +109,7 @@ export class Logger {
       // the log level follows the status class, not the exact code: 2xx and 3xx are ordinary
       // successful answers (201, 204, 303 included), 4xx is the client's mistake, and only 5xx
       // means this service failed. Logging every non-200 answer as an error made the error rate
-      // in the logs meaningless (`KI-API-18`).
+      // in the logs meaningless.
       if (self.status >= 500) {
         // log.error = ctx.res.body as Error; !! todo figure out how to do this!
         this.ENGINE.error("Request error:", self);

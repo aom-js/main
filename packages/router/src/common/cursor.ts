@@ -287,7 +287,7 @@ export class AomCursor {
         // polyfill invokes the decorator with `descriptor = undefined`, and a queued decorator
         // that assigns `element.descriptor = descriptor` (e.g. UseMarker) then overwrites the
         // descriptor the inherit() transfer had installed — the copied method becomes
-        // unexecutable (KI-COMMON-17: AccessController.Required died exactly this way)
+        // unexecutable (a class-level AccessController.Required once died exactly this way)
         const descriptor = Reflect.getOwnPropertyDescriptor(target, property!);
         // RouteRef is endpoint-specific, while the stack is realized once per meta-instance:
         // only the endpoint's own stack may hold it (a shared step would keep the first route's result)

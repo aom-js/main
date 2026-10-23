@@ -98,7 +98,7 @@ export function plain(cursors: AomCursor[], into: AomCursor[] = []): AomCursor[]
  * The constructor re-creates the class-level cursors it receives (they're shared
  * across every route of the same controller level) rather than mutating them, so each
  * route ends up with its own `endpoint` on every cursor and its own `RouteRef`
- * resolution — see the package readme's note on `KI-ROUTER-03`.
+ * resolution — see the package readme's section on route building (`Router.build`).
  */
 export class AomRoute {
   router: Router;

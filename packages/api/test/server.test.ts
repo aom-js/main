@@ -42,7 +42,7 @@ class FailingStream extends Readable {
   }
 }
 
-// бесконечный поток для проверки, что источник разрушается при обрыве клиента (KI-API-03)
+// бесконечный поток для проверки, что источник разрушается при обрыве клиента
 let infiniteStream: Readable | undefined;
 
 // шлём сырой HTTP-запрос по TCP и собираем ответ - нужно, чтобы отправить буквальные `..`-сегменты
@@ -171,7 +171,7 @@ class TestApi {
   }
 
   // параметр с валидатором прямо в пути: проверку делает сам regexp маршрута, отдельной
-  // проверки значения после совпадения нет (KI-API-01)
+  // проверки значения после совпадения нет
   @Get("/items/:id(\\d+)")
   static async itemById(@Params("id") id: string) {
     return new DataResponse("item", { id });
@@ -182,7 +182,7 @@ class TestApi {
     return new DataResponse("cookies", cookies);
   }
 
-  // точка в статической части пути - обычный символ, а не "любой символ" (KI-API-19)
+  // точка в статической части пути - обычный символ, а не "любой символ"
   @Get("/file.json")
   static async fileJson() {
     return new MessageResponse("file");
@@ -311,7 +311,7 @@ class PrefixApi {
   }
 }
 
-describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
+describe("Server: HTTP-конвейер", () => {
   let server: Server;
   let base: string;
   let port: number;
@@ -342,7 +342,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
     expect(res.status).toBe(404);
   });
 
-  it("cookie: значение с '=' целиком и декодировано, битое %-кодирование - как есть (KI-API-23)", async () => {
+  it("cookie: значение с '=' целиком и декодировано, битое %-кодирование - как есть", async () => {
     const res = await fetch(`${base}/cookies`, {
       headers: { cookie: "token=a=b==; name=%D0%AF%20x; bad=%E0%A4%A" },
     });
@@ -355,7 +355,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
     expect(res.status).toBe(200);
   });
 
-  it("точка в пути маршрута не подменяет собой любой символ: /fileXjson -> 404 (KI-API-19)", async () => {
+  it("точка в пути маршрута не подменяет собой любой символ: /fileXjson -> 404", async () => {
     const res = await fetch(`${base}/fileXjson`);
     expect(res.status).toBe(404);
   });
@@ -366,11 +366,11 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
     expect(res.headers.get("content-type")).toContain("application/json");
   });
 
-  describe("KI-API-17: строка по умолчанию - text/plain, HTML только явно", () => {
+  describe("строка по умолчанию - text/plain, HTML только явно", () => {
     it("строковый результат обработчика уходит как text/plain; charset=utf-8, а не text/html", async () => {
       const res = await fetch(`${base}/hello`);
       expect(res.status).toBe(200);
-      // именно этот заголовок не даёт браузеру исполнить строку как разметку (KI-API-17)
+      // именно этот заголовок не даёт браузеру исполнить строку как разметку
       expect(res.headers.get("content-type")).toBe("text/plain; charset=utf-8");
       expect(await res.text()).toBe("hello world");
     });
@@ -390,7 +390,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
     });
   });
 
-  describe("KI-API-02: content-type с параметрами и битый JSON", () => {
+  describe("content-type с параметрами и битый JSON", () => {
     it("charset после `;` не мешает распознать application/json", async () => {
       const res = await fetch(`${base}/echo`, {
         method: "POST",
@@ -425,7 +425,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
     });
   });
 
-  describe("KI-API-03: единый catch и потоки", () => {
+  describe("единый catch и потоки", () => {
     it("ErrorMessage-потомок уходит клиенту как есть", async () => {
       const res = await fetch(`${base}/error-message`);
       const body = await res.json();
@@ -569,7 +569,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
     });
   });
 
-  describe("KI-API-08: CORS-заголовки", () => {
+  describe("CORS-заголовки", () => {
     it("Access-Control-Allow-Headers отражает access-control-request-headers", async () => {
       const res = await fetch(`${base}/hello`, {
         method: "OPTIONS",
@@ -585,7 +585,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
     });
   });
 
-  describe("KI-API-12: OPTIONS сначала ищет маршрут", () => {
+  describe("OPTIONS сначала ищет маршрут", () => {
     it("собственный @Options()-эндпоинт исполняется, а не получает 204", async () => {
       const res = await fetch(`${base}/custom-options`, { method: "OPTIONS" });
       const body = await res.json();
@@ -742,7 +742,7 @@ describe("Server: HTTP-конвейер (KI-API-02, 03, 08, 12)", () => {
   });
 });
 
-// KI-API-16: тело запроса читается лениво. Отдельный сервер с маленьким глобальным лимитом -
+// тело запроса читается лениво. Отдельный сервер с маленьким глобальным лимитом -
 // чтобы тесты не гоняли мегабайты ради превышения
 let guardedBodyRead = false;
 let interceptedStatus: number | undefined;
@@ -828,7 +828,7 @@ class BodyLimitApi {
   }
 }
 
-describe("Server: ленивое чтение тела и лимит размера (KI-API-16)", () => {
+describe("Server: ленивое чтение тела и лимит размера", () => {
   let server: Server;
   let base: string;
   let port: number;
@@ -1015,7 +1015,7 @@ describe("Server: ленивое чтение тела и лимит разме�
   });
 });
 
-// уровень записи логгера зависит от класса статуса, а не от точного кода (KI-API-18)
+// уровень записи логгера зависит от класса статуса, а не от точного кода
 @Controller()
 class LoggerApi {
   @Get("/ok")
@@ -1043,7 +1043,7 @@ class LoggerApi {
   }
 }
 
-describe("Logger: уровень записи по классу статуса (KI-API-18)", () => {
+describe("Logger: уровень записи по классу статуса", () => {
   let server: Server;
   let base: string;
   const records: Array<{ level: string; status?: number }> = [];

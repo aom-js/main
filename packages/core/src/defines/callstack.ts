@@ -225,7 +225,7 @@ export class AomCallstack<T extends AomCore> {
     // constructor's parameters don't apply to it (otherwise they'd run after its own and overwrite them)
     // shortcut: a subclass's own constructor without decorated parameters isn't recognized as
     // such — the parent's will still transfer; detect via design:paramtypes if that's ever
-    // needed (KI-CORE-11)
+    // needed
     const skipParameters = Object.values(target._.callstack.stores).some((store) =>
       store.hasParameters(),
     );

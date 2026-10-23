@@ -1,4 +1,4 @@
-// Сквозной тест codegen (KI-CODEGEN-01); формат свёртки — packages/schemer/readme.md#свёртка-схем-для-кодогенерации-foldschemas-1,
+// Сквозной тест codegen; формат свёртки — packages/schemer/readme.md#свёртка-схем-для-кодогенерации-foldschemas-1,
 // восстановление DTO — packages/codegen/readme.md#восстановление-dto-из-собственного-формата-emitschemas.
 // Классы фикстуры → распределённый дескриптор (folding при декорировании) → emitService →
 // файлы в __generated__ → import() сгенерированного schemas.ts → foldSchemas(сгенерированные

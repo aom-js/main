@@ -14,7 +14,7 @@ import { AomApi } from "../../common";
  *    everything above it. This is why every class in a router-decorated hierarchy must
  *    carry its own `\@Controller()`: skip it on a subclass and it inherits neither the
  *    parent's FIRST/LAST decorator queue nor its `\@OnInstance` hooks (see the readme's
- *    `KI-ROUTER-05`/`KI-ROUTER-18`).
+ *    section on decorator phases and `\@Controller`).
  * 2. **Apply.** Runs the class's own deferred (`LAST`-phase) decorators — `\@Before`,
  *    `\@After`, `\@Next`, `\@UseMarker`, and parameter decorators (`\@Args` and everything
  *    built on it) only take effect at this point, not when they're written in source.

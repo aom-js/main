@@ -12,8 +12,8 @@ import { PropertySchema } from "../properties";
  * originally described.
  *
  * Same rebuild mechanism as `PartialType`/`PickType`, inverted: keeps every own property whose name
- * is not in `keys`. The result is a component under the fixed class name `OmitTypeClass`
- * (`KI-SCHEMER-07`) — wrap it in a named subclass before using it as a `$ref` target.
+ * is not in `keys`. The result is a component under the fixed class name `OmitTypeClass` —
+ * wrap it in a named subclass before using it as a `$ref` target.
  *
  * @param classRef - a class decorated with `\@ComponentSchema()`
  * @param keys - property names to drop

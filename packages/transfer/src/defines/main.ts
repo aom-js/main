@@ -489,7 +489,7 @@ export class Transfer implements TransferConfig {
           const isOwn =
             existing?.origin.instanceName === instanceName &&
             existing?.origin.instanceKey === instanceKey;
-          // shortcut: last-write-wins by hash; proper versioning if it's ever needed (KI-TRANSFER-14)
+          // shortcut: last-write-wins by hash; proper versioning if it's ever needed
           if (!isOwn && existing?.hash !== descriptor.hash) {
             this.registryMap.set(descriptor.name, descriptor);
           }

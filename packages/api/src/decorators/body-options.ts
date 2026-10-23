@@ -39,7 +39,7 @@ export const BODY_OPTIONS_MARKER = "aom:bodyOptions";
  */
 export function BodyOptions(options: BodyParseOptions): MethodDecorator {
   // a local class with @Controller() is required - only it triggers the deferred-decorator
-  // pass; without it, @Marker() on the method silently doesn't apply (KI-ROUTER-18)
+  // pass; without it, @Marker() on the method silently doesn't apply
   @Controller()
   class BodyOptionsMarker {
     @Marker()

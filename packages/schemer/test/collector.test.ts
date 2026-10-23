@@ -59,7 +59,7 @@ describe("schemer: сборщик компонент (каскад $ref)", () =>
     expect(collector.extract(String)).toEqual({ type: "string" });
     expect(collector.extract(Number)).toEqual({ type: "number" });
     expect(collector.extract(Boolean)).toEqual({ type: "boolean" });
-    // KI-SCHEMER-08: конструктор Date — та же форма, что имя "date" и рендер PropertySchema.Date
+    // конструктор Date — та же форма, что имя "date" и рендер PropertySchema.Date
     expect(collector.extract(Date)).toEqual(collector.extract("date"));
     expect(collector.components.size).toBe(0);
   });
@@ -70,7 +70,7 @@ describe("schemer: сборщик компонент (каскад $ref)", () =>
     expect(collector.extract("number")).toEqual({ type: "number" });
     expect(collector.extract("integer")).toEqual({ type: "integer" });
     expect(collector.extract("boolean")).toEqual({ type: "boolean" });
-    // KI-SCHEMER-08: форма совпадает с тем, что class-validator-jsonschema даёт для IsDate
+    // форма совпадает с тем, что class-validator-jsonschema даёт для IsDate
     expect(collector.extract("date")).toEqual({
       oneOf: [
         { format: "date", type: "string" },
@@ -96,7 +96,7 @@ describe("schemer: сборщик компонент (каскад $ref)", () =>
     expect(() => collector.extract(["string", "number"])).toThrow(/exactly one element type/);
   });
 
-  it("литерал даты — глубокая копия: правка oneOf не портит словарь (KI-SCHEMER-08)", () => {
+  it("литерал даты — глубокая копия: правка oneOf не портит словарь", () => {
     const collector = makeCollector();
     (collector.extract("date") as { oneOf: unknown[] }).oneOf.push({ type: "null" });
     expect((collector.extract(Date) as { oneOf: unknown[] }).oneOf).toHaveLength(2);

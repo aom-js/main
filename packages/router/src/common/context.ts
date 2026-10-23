@@ -63,7 +63,7 @@ export class RxContext {
   // instance hooks of the class it is building run concurrently (Promise.all in
   // AomApi.instanceWithHooks). While only one target per waiter was stored, the second wait
   // overwrote the first and a cycle closing through the forgotten edge hung the request
-  // instead of throwing CIRCULAR_INSTANCE_ERROR (`KI-ROUTER-19`).
+  // instead of throwing CIRCULAR_INSTANCE_ERROR.
   /** `waiter → targets` edges: which creations each class-creating branch is waiting on, used to turn mutual waiting into `CIRCULAR_INSTANCE_ERROR` instead of a hang. */
   waits = new Map<ClassConstructor, Set<ClassConstructor>>();
 
@@ -241,7 +241,7 @@ export class RxContext {
               // fail closed: only method decorators assign `element.descriptor`, so a cursor
               // without one is a decoration bug — executing a no-op here (the old
               // `|| new Function()`) turned every such bug into a silently skipped step
-              // (see KI-COMMON-17: the access gate never ran and looked "green")
+              // (a class-level access gate once never ran this way and looked "green")
               const executable = $.element.descriptor?.value;
               if (typeof executable !== "function") {
                 throw new Error(

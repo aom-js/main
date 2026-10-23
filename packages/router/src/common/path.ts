@@ -15,11 +15,11 @@ const PATH_TOKEN = new RegExp(`${PATH_PARAM.source}|${/[.*+?^${}()|[\]\\]/.sourc
  *
  * A parameter's own validator pattern is inlined into the route pattern, so a value that does not
  * satisfy it makes the whole path miss this route - there is deliberately no second per-parameter
- * check after the match (the old one was unreachable, `KI-API-01`).
+ * check after the match (it could never fire).
  *
  * Everything that is not a parameter is literal path text and gets escaped, so a route template
  * stays a path rather than a regexp of its own: `/file.json` matches only `/file.json`, not
- * `/fileXjson` (`KI-API-19`). A parameter's validator is the one place where regexp syntax is
+ * `/fileXjson`. A parameter's validator is the one place where regexp syntax is
  * meant literally, and the alternation lets that branch win before the escaping one.
  */
 export function compilePath(path: string): { pattern: RegExp; paramNames: string[] } {

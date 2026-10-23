@@ -129,7 +129,7 @@ export class AomServerEvents<E extends Record<string, ClassConstructor>> {
    */
   sendEnvelope(id: string, envelope: EventEnvelope<E>, eventId?: string): void {
     const frame = this.frameOf(envelope, eventId);
-    // shortcut: a slow client's PassThrough buffers without limit (write() result is ignored), cap or drop the stream once a client is seen lagging (KI-API-22)
+    // shortcut: a slow client's PassThrough buffers without limit (write() result is ignored), cap or drop the stream once a client is seen lagging
     this.connections.get(id)?.forEach((stream) => stream.write(frame));
   }
 

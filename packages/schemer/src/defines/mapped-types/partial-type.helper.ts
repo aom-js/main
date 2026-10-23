@@ -15,7 +15,7 @@ import { RemoveFieldsWithType } from "./types/remove-fields-with-type.type";
  * each property's original `PropertySchema.*` factory with `{...schemaParams, isOptional: true}` — a
  * property described with bare class-validator decorators (no `PropertySchema`) is silently dropped.
  * The result is itself decorated with `ComponentSchema()`, so it is a component in its own right, but
- * its class name is always the literal `PartialClassType` (`KI-SCHEMER-07`): wrap it in a named
+ * its class name is always the literal `PartialClassType`: wrap it in a named
  * subclass before using it as a `$ref` target (via `SchemasCollector` or `foldSchemas`) — used
  * unwrapped it is only safe where the schema gets flattened into plain parameters (e.g. query builders).
  *

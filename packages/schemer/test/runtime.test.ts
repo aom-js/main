@@ -69,7 +69,7 @@ describe("schemer: валидация", () => {
     expect(errors).toEqual([]);
   });
 
-  // KI-SCHEMER-02: Number с nullable без isOptional отвергал null — не было IsNullable()
+  // Number с nullable без isOptional пропускает null за счёт IsNullable()
   it("Number с nullable без isOptional пропускает null", () => {
     @ComponentSchema()
     class ScoreDto {
@@ -80,7 +80,7 @@ describe("schemer: валидация", () => {
     expect(errors).toEqual([]);
   });
 
-  // KI-SCHEMER-04: Min/Max вызывались без each — при isArray ограничение проверяло сам массив, а не элементы.
+  // Min/Max вызываются с each — при isArray ограничение проверяет элементы, а не сам массив.
   // Number.Transform приводит значение через Number(...), поэтому инстанс собираем напрямую, минуя plainToInstance
   it("minValue с isArray проверяет каждый элемент массива, а не сам массив", () => {
     @ComponentSchema()
@@ -100,7 +100,7 @@ describe("schemer: валидация", () => {
 });
 
 describe("schemer: params.decorators применяются", () => {
-  // KI-SCHEMER-03: Date и Type игнорировали params.decorators
+  // Date и Type применяют params.decorators
   it("Date применяет декораторы из params.decorators", () => {
     const seen: string[] = [];
     const marker: PropertyDecorator = (_target, key) => {

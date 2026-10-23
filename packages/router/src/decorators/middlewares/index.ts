@@ -81,7 +81,7 @@ export function Before(...middlewares: Array<MiddlewareHandler | FwdContainer>):
  * these cursors are placed **before the endpoint itself** in the final chain — the
  * order is `classBefore → classAfter → methodBefore → endpoint → methodAfter →
  * \@Next chain`. This is a documented quirk of how `Router.build` assembles routes, not
- * a bug (see the package readme's note on `KI-ROUTER-02`).
+ * a bug (see the package readme's section on cursor layout and execution order).
  *
  * Unlike `\@Before`, a class-level `\@After` does **not** propagate into `\@Bridge`d
  * child controllers. On inheritance, the parent's `\@After` middlewares run **after**

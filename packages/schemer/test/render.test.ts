@@ -75,7 +75,7 @@ describe("schemer: рендер JSON Schema", () => {
     expect(JSON.stringify(schema.properties!.pet)).toContain("#/components/schemas/Pet");
   });
 
-  // KI-SCHEMER-01: `params.x ? … : undefined` заменено на `params.x != null ? … : undefined`
+  // проверка `params.x != null ? … : undefined`, а не `params.x ? …`: ноль — допустимое значение
   it("minValue: 0 попадает в схему как minimum: 0", () => {
     @ComponentSchema()
     class ZeroMin {
@@ -105,7 +105,7 @@ describe("schemer: рендер JSON Schema", () => {
     );
   });
 
-  // KI-SCHEMER-05: readOnly не доходил до JSONSchema у Enum/Date/Type
+  // readOnly доходит до JSONSchema у Enum/Date/Type
   it("readOnly доходит до схемы у Enum, Date и Type", () => {
     @ComponentSchema()
     class Nested {
@@ -131,7 +131,7 @@ describe("schemer: рендер JSON Schema", () => {
     expect((schema.properties!.nested as any).readOnly).toBe(true);
   });
 
-  // KI-SCHEMER-05: pattern был объявлен в типе, но не превращался в валидатор — и не попадал в схему
+  // pattern превращается в валидатор Matches — и через него попадает в схему
   it("pattern у String попадает в схему через Matches", () => {
     @ComponentSchema()
     class PatternDto {
@@ -143,7 +143,7 @@ describe("schemer: рендер JSON Schema", () => {
     expect((schema.properties!.code as any).pattern).toBe("^[a-z]+$");
   });
 
-  // KI-SCHEMER-06: decorators утекали в JSONSchema класса
+  // decorators не утекают в JSONSchema класса
   it("decorators из ComponentSchema не попадают в схему класса", () => {
     @ComponentSchema({ description: "С доп. декораторами", decorators: [] })
     class WithClassDecorators {
@@ -174,8 +174,8 @@ describe("schemer: рендер JSON Schema", () => {
     expect($status?.schemaParams).toMatchObject({ enumName: "Status" });
   });
 
-  // KI-SCHEMER-10: недекорированный промежуточный класс не наследовал ничего сам, и
-  // targetConstructorToSchema поднимался по прототипам до предка, отдавая его description/свойства
+  // недекорированный промежуточный класс сам ничего не наследует — схема потомка не подменяется
+  // description/свойствами предка, до которого targetConstructorToSchema доходит по прототипам
   it("недекорированный промежуточный класс не подменяет схему потомка предком", () => {
     @ComponentSchema({ description: "base" })
     class Base {
@@ -212,7 +212,7 @@ describe("schemer: рендер JSON Schema", () => {
     expect(Object.keys(schema.properties ?? {})).toEqual(["a"]);
   });
 
-  // KI-SCHEMER-10: у самого промежуточного класса тоже может быть своё @PropertySchema-свойство
+  // у самого промежуточного класса тоже может быть своё @PropertySchema-свойство
   // (без @ComponentSchema) — оно должно дойти до потомка наравне со свойствами дальнего предка
   it("недекорированный промежуточный класс со своим свойством — оно тоже доходит до потомка", () => {
     @ComponentSchema({ description: "base" })

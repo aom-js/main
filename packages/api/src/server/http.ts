@@ -250,7 +250,7 @@ export class Server {
             req,
             res,
             ctx: { req, res },
-            // The body is read no earlier than the first @Body in the route chain (KI-API-16):
+            // The body is read no earlier than the first @Body in the route chain:
             // before access checks run, the stream isn't touched at all, and a route that doesn't
             // need the body never reads it. Limit resolution order: route marker (@BodyOptions) ->
             // server setting -> package default
@@ -281,7 +281,7 @@ export class Server {
           });
 
           if (typeof result === "string") {
-            // The default type is text/plain, not text/html (KI-API-17): a string returned by a
+            // The default type is text/plain, not text/html: a string returned by a
             // handler often carries user input, and text/html would make the browser execute it as
             // markup (reflected XSS). Explicit HTML works the same way as for streams below: the
             // handler sets Content-Type itself via res.setHeader before return, and then we don't
@@ -528,7 +528,7 @@ export class Server {
 
     if (cookieHeader) {
       cookieHeader.split(";").forEach((cookie) => {
-        // the value may itself contain '=' (base64 tokens): split on the first one only (KI-API-23)
+        // the value may itself contain '=' (base64 tokens): split on the first one only
         const at = cookie.indexOf("=");
         const name = cookie.slice(0, at).trim();
         const value = cookie.slice(at + 1).trim();

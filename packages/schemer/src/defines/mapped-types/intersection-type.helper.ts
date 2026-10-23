@@ -35,8 +35,8 @@ type Intersection<T extends Type[]> = MappedType<
  * `classRefs`, walks its own decorated properties and re-applies each property's original
  * `PropertySchema.*` factory unchanged. Properties are collected into two maps (static and instance)
  * keyed by name, so when the same property name appears in more than one source class, the last class
- * passed wins. The result is a component under the fixed class name `IntersectionClassType`
- * (`KI-SCHEMER-07`) — wrap it in a named subclass before using it as a `$ref` target. Composes with
+ * passed wins. The result is a component under the fixed class name `IntersectionClassType` —
+ * wrap it in a named subclass before using it as a `$ref` target. Composes with
  * the other mapped-types, including recursively (`IntersectionType(A, PartialType(B))`).
  *
  * @param classRefs - classes decorated with `\@ComponentSchema()`; later entries win on name conflicts

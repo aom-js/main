@@ -1,6 +1,6 @@
 // Lazy value for the request context: the factory is called no earlier than the first
 // access to it (see RxContext.value in classes.ts). The request body is the first
-// consumer of this (KI-API-16: the server must not read the body of an unauthorized
+// consumer of this (the server must not read the body of an unauthorized
 // request before access checks run); query, cookies and files are meant to become lazy
 // the same way later — adapters for third-party HTTP frameworks just put lazy(...) into
 // the matching field of HttpContextValues instead of a ready value.

@@ -10,7 +10,7 @@ describe("compilePath — the server's path grammar", () => {
     expect(pattern.test("/orgs/ab/users/x")).toBe(false);
   });
 
-  it("keeps the literal part of the template literal (KI-API-19)", () => {
+  it("keeps the literal part of the template literal", () => {
     expect(compilePath("/file.json").pattern.test("/fileXjson")).toBe(false);
     expect(compilePath("/a+b/:id").pattern.test("/a+b/5")).toBe(true);
     expect(compilePath("/a+b/:id").pattern.test("/aab/5")).toBe(false);

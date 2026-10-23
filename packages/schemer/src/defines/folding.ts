@@ -1,4 +1,4 @@
-// schemer's own schema-folding format for codegen (KI-CODEGEN-01) — see
+// schemer's own schema-folding format for codegen — see
 // packages/schemer/readme.md#свёртка-схем-для-кодогенерации-foldschemas-1
 import { ClassType, ClassConstructor } from "@aom-js/core";
 import * as classValidator from "class-validator";
