@@ -9,11 +9,14 @@ import {
   Get,
   Marker,
   Middleware,
+  Next,
+  Nextpoint,
   OpenApi,
   Router,
   This,
   ThisRef,
   UseMarker,
+  AomCursorKind,
   type AomCursor,
   type AomRoute,
 } from "@aom-js/router";
@@ -22,6 +25,7 @@ import {
   constructorThisRefs,
   identCollisions,
   parentsOf,
+  repeatsOf,
   routeName,
   serializationErrors,
   sharedEndpoints,
@@ -246,5 +250,79 @@ describe("a router without routes", () => {
     expect(identCollisions(router)).toEqual([]);
     expect(serializationErrors(router)).toEqual([]);
     expect(constructorThisRefs(router)).toEqual({ inspected: 0, found: [] });
+  });
+});
+
+describe("repeatsOf", () => {
+  @Controller()
+  class Mw {
+    @Middleware()
+    static async X() {}
+  }
+  const step = { kindOf: () => AomCursorKind.Step, writes: () => true, harmless: [] as AomCursorKind[] };
+
+  // X is attached to the class and to the method: twice before the handler, in the same group
+  const sameGroup = () => {
+    @Controller()
+    @Before(Mw.X)
+    class App {
+      @Get("/")
+      @Before(Mw.X)
+      static async Index() {}
+    }
+    return new Router(App, makeDocs()).routeOf(App.Index);
+  };
+
+  it("a repeat before the handler of a writing Step is not explained", () => {
+    const [repeat, ...rest] = repeatsOf(sameGroup(), step);
+    expect(rest).toEqual([]);
+    expect(repeat.earlier).toEqual([0]);
+    expect(repeat.i).toBe(1);
+    expect(repeat.branch).toBeUndefined();
+  });
+
+  it("a harmless kind explains the repeat as 'kind'", () => {
+    const options = { ...step, kindOf: () => AomCursorKind.Transport, harmless: [AomCursorKind.Transport] };
+    expect(repeatsOf(sameGroup(), options).map(({ branch }) => branch)).toEqual(["kind"]);
+  });
+
+  it("a repeat in different @Next groups is 'next-group'", () => {
+    @Controller()
+    class Pg {
+      @Nextpoint()
+      @Before(Mw.X)
+      static async Page() {}
+    }
+    @Controller()
+    class App {
+      @Get("/")
+      @Before(Mw.X)
+      @Next(Pg.Page)
+      static async Index() {}
+    }
+    const repeats = repeatsOf(new Router(App, makeDocs()).routeOf(App.Index), step);
+    expect(repeats.map(({ branch }) => branch)).toEqual(["next-group"]);
+  });
+
+  it("a repeat after the handler is 'after-handler' only when the step does not write", () => {
+    @Controller()
+    class App {
+      @Get("/")
+      @Before(Mw.X)
+      @After(Mw.X)
+      static async Index() {}
+    }
+    const route = new Router(App, makeDocs()).routeOf(App.Index);
+    expect(repeatsOf(route, { ...step, writes: () => false }).map(({ branch }) => branch)).toEqual(["after-handler"]);
+    expect(repeatsOf(route, step).map(({ branch }) => branch)).toEqual([undefined]);
+  });
+
+  it("a route without repeats gives []", () => {
+    @Controller()
+    class App {
+      @Get("/")
+      static async Index() {}
+    }
+    expect(repeatsOf(new Router(App, makeDocs()).routeOf(App.Index), step)).toEqual([]);
   });
 });

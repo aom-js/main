@@ -4,6 +4,8 @@
  */
 import { AomApi } from "../common/api";
 import { resolveTarget, type AomCursor } from "../common/cursor";
+import type { AomCursorKind } from "../common/kinds";
+import type { AomRoute } from "../common/route";
 import type { Router } from "../classes";
 import { ThisRef } from "../specials";
 
@@ -104,4 +106,52 @@ export function constructorThisRefs(router: Router): { inspected: number; found:
     }),
   );
   return { inspected: inspected.size, found };
+}
+
+/** What the application decides about a step for the repeat rule: its kind and whether it writes. */
+export interface RepeatOptions {
+  kindOf: (cursor: AomCursor) => AomCursorKind;
+  writes: (cursor: AomCursor) => boolean;
+  /** Kinds whose repeat is harmless. */
+  harmless: AomCursorKind[];
+}
+
+export type RepeatBranch = "kind" | "next-group" | "after-handler";
+
+/** A step met again in a route: `i` is the new occurrence, `earlier` the previous ones; no `branch` — not explained. */
+export interface Repeat {
+  step: AomCursor["$"]["_"];
+  i: number;
+  earlier: number[];
+  branch?: RepeatBranch;
+}
+
+const same = (a: AomCursor["$"]["_"], b: AomCursor["$"]["_"]) => a.target === b.target && a.property === b.property;
+
+/**
+ * P6: repeats of a step in a route (the same `$._` earlier in the chain) and the branch that explains
+ * each: (1) a harmless kind; (2) every earlier occurrence is in another `@Next` group (the group is
+ * the `viaGroup` of the nearest ancestor with `via === "next"`); (3) the repeat is after the handler
+ * and the step does not write. No branch — the repeat is not explained.
+ */
+export function repeatsOf(route: AomRoute, { kindOf, writes, harmless }: RepeatOptions): Repeat[] {
+  const { cursors } = route;
+  const handler = cursors.findIndex((cursor) => cursor.$ === route.endpoint.$);
+  const parent = parentsOf(cursors);
+  const groupOf = (j: number) => {
+    for (let k = j; k >= 0; k = parent[k]) if (cursors[k].via === "next") return cursors[k].viaGroup;
+    return undefined;
+  };
+  return cursors.flatMap((cursor, i): Repeat[] => {
+    const earlier = cursors.slice(0, i).flatMap((other, j) => (same(other.$._, cursor.$._) ? [j] : []));
+    if (!earlier.length) return [];
+    const branch: RepeatBranch | undefined = harmless.includes(kindOf(cursor))
+      ? "kind"
+      : earlier.every((j) => groupOf(j) !== groupOf(i))
+        ? "next-group"
+        : i > handler && !writes(cursor)
+          ? "after-handler"
+          : undefined;
+    return [{ step: cursor.$._, i, earlier, branch }];
+  });
 }
