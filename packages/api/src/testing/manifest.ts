@@ -7,11 +7,11 @@ import {
   type Router,
 } from "@aom-js/router";
 import { BaseAccessController, IDController } from "../controllers";
-import { BodyBuilderConstructor } from "../builders/body";
-import { CookieBuilderConstructor } from "../builders/cookie";
-import { HeadersBuilderConstructor } from "../builders/headers";
-import { ParamsBuilderConstructor } from "../builders/params";
-import { QueryStringBuilderConstructor } from "../builders/query-string";
+import { bodyBuilderBase } from "../builders/body";
+import { cookieBuilderBase } from "../builders/cookie";
+import { headersBuilderBase } from "../builders/headers";
+import { paramsBuilderBase } from "../builders/params";
+import { queryStringBuilderBase } from "../builders/query-string";
 
 /** Options of the step kind and of the dump. */
 export interface ManifestOptions {
@@ -24,11 +24,11 @@ type Class = abstract new (...args: never[]) => unknown;
 
 /** Classes whose own steps (`Query`, `Body`, `PathID`, …) read request input. */
 const inputBases: Class[] = [
-  BodyBuilderConstructor,
-  QueryStringBuilderConstructor,
-  HeadersBuilderConstructor,
-  CookieBuilderConstructor,
-  ParamsBuilderConstructor,
+  bodyBuilderBase,
+  queryStringBuilderBase,
+  headersBuilderBase,
+  cookieBuilderBase,
+  paramsBuilderBase,
   IDController,
 ];
 

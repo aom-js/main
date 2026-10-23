@@ -5,6 +5,7 @@ import { Controller, ThisRef, This, Middleware, Responses } from "@aom-js/router
 import { type ClassConstructor } from "../types";
 import { SafeData } from "../decorators";
 import { WrongDataResponse } from "../responses";
+import { type BuilderBase } from "./common";
 
 const SafeOrigin = ThisRef((<T extends typeof BodyBuilderConstructor>({ schema }: T) =>
   SafeData(schema)) as RefFunction);
@@ -14,10 +15,10 @@ const SafeOriginRequestBody = ThisRef((<T extends typeof BodyBuilderConstructor>
 ) => [RequestBody(constructor.JSONSchema())]) as RefFunction);
 
 /**
- * Base controller returned by {@link BodyBuilder}. Not re-exported from the package entry point (used by `@aom-js/api/testing`) — use `BodyBuilder(schema)`.
+ * Base controller returned by {@link BodyBuilder}. Not exported directly — use `BodyBuilder(schema)`.
  */
 @Controller()
-export class BodyBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>> {
+class BodyBuilderConstructor<T extends ClassConstructor, R = InstanceType<T>> {
   /** The component schema passed to {@link BodyBuilder}; validated by the `Body` middleware. */
   static readonly schema: ClassConstructor;
 
@@ -104,3 +105,10 @@ export function BodyBuilder<T extends ClassConstructor>(
     static description = description;
   };
 }
+
+/**
+ * Reference to the base class for `@aom-js/api/testing`, typed so that it does not expose the class
+ * (an exported class would break declaration emit of `class X extends BodyBuilder(...)` in applications).
+ * Not re-exported from `builders/index.ts`.
+ */
+export const bodyBuilderBase: BuilderBase = BodyBuilderConstructor;

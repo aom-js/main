@@ -1,5 +1,5 @@
-// named, not `export *`: the `…BuilderConstructor` bases are exported from their modules only for
-// `@aom-js/api/testing` and must stay out of the package's public surface
+// named, not `export *`: the `…BuilderBase` references of each module are for `@aom-js/api/testing`
+// only and must stay out of the package's public surface
 export { BodyBuilder } from "./body";
 export { QueryStringBuilder } from "./query-string";
 export { HeadersBuilder } from "./headers";

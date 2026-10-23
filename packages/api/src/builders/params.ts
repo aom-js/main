@@ -11,6 +11,7 @@ import { messages } from "../constants";
 
 //
 import { plainJsonSchema } from "../functions";
+import { type BuilderBase } from "./common";
 
 const SafeOrigin = ThisRef((<T extends typeof ParamsBuilderConstructor>({ schema }: T) =>
   SafeData(schema)) as RefFunction);
@@ -20,11 +21,11 @@ const SafeOriginParameters = ThisRef((<T extends typeof ParamsBuilderConstructor
 ) => [PathParameters(constructor.JSONSchema())]) as RefFunction);
 
 /**
- * Base controller returned by {@link ParamsBuilder}. Not re-exported from the package entry point (used by `@aom-js/api/testing`) — use
+ * Base controller returned by {@link ParamsBuilder}. Not exported directly — use
  * `ParamsBuilder(schema)`.
  */
 @Controller()
-export class ParamsBuilderConstructor<T extends ClassConstructor<any>, R = InstanceType<T>> {
+class ParamsBuilderConstructor<T extends ClassConstructor<any>, R = InstanceType<T>> {
   /** The component schema passed to {@link ParamsBuilder}; must declare exactly one property. */
   static readonly schema: ClassConstructor<any>;
 
@@ -148,3 +149,10 @@ export function ParamsBuilder<T extends ClassConstructor<any>>(
     static readonly attr = attrName;
   };
 }
+
+/**
+ * Reference to the base class for `@aom-js/api/testing`, typed so that it does not expose the class
+ * (an exported class would break declaration emit of `class X extends ParamsBuilder(...)` in applications).
+ * Not re-exported from `builders/index.ts`.
+ */
+export const paramsBuilderBase: BuilderBase = ParamsBuilderConstructor;

@@ -1,7 +1,7 @@
 {
-  "packages/api/src/builders/body.ts": 3,
+  "packages/api/src/builders/body.ts": 2,
   "packages/api/src/builders/cookie.ts": 2,
-  "packages/api/src/builders/headers.ts": 2,
+  "packages/api/src/builders/headers.ts": 1,
   "packages/api/src/builders/params.ts": 7,
   "packages/api/src/builders/query-string.ts": 2,
   "packages/api/src/controllers/access/access-controller.ts": 1,

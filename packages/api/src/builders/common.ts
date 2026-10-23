@@ -47,3 +47,6 @@ export class CookieBuildersBase extends PlainBuildersBase {
     return super.JSONSchema("cookie");
   }
 }
+
+/** Type of a builder base reference for `@aom-js/api/testing`: a constructor that hides the concrete class. */
+export type BuilderBase = abstract new (...args: never[]) => unknown;

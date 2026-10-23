@@ -8,7 +8,7 @@ import { messages } from "../constants";
 
 //
 import { CookieJSONSchema } from "../schemas";
-import { CookieBuildersBase } from "./common";
+import { CookieBuildersBase, type BuilderBase } from "./common";
 
 const SafeOrigin = ThisRef((<T extends typeof CookieBuilderConstructor>({ schema }: T) =>
   SafeData(schema)) as RefFunction);
@@ -18,11 +18,11 @@ const SafeOriginParameters = ThisRef((<T extends typeof CookieBuilderConstructor
 ) => [CookieParameters(...constructor.JSONSchema())]) as RefFunction);
 
 /**
- * Base controller returned by {@link CookieBuilder}. Not re-exported from the package entry point (used by `@aom-js/api/testing`) — use
+ * Base controller returned by {@link CookieBuilder}. Not exported directly — use
  * `CookieBuilder(schema)`.
  */
 @Controller()
-export class CookieBuilderConstructor<
+class CookieBuilderConstructor<
   T extends ClassConstructor,
   R = InstanceType<T>,
 > extends CookieBuildersBase {
@@ -98,3 +98,10 @@ export function CookieBuilder<T extends ClassConstructor>(
     static readonly schema = schema;
   };
 }
+
+/**
+ * Reference to the base class for `@aom-js/api/testing`, typed so that it does not expose the class
+ * (an exported class would break declaration emit of `class X extends CookieBuilder(...)` in applications).
+ * Not re-exported from `builders/index.ts`.
+ */
+export const cookieBuilderBase: BuilderBase = CookieBuilderConstructor;

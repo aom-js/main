@@ -6,7 +6,7 @@ import { WrongDataResponse } from "../responses";
 import { SafeData } from "../decorators";
 import { messages } from "../constants";
 import { QueryJSONSchema } from "../schemas";
-import { QueryStringBuildersBase } from "./common";
+import { QueryStringBuildersBase, type BuilderBase } from "./common";
 
 //
 
@@ -20,11 +20,11 @@ const SafeOriginParameters = ThisRef((<T extends typeof QueryStringBuilderConstr
 }) as RefFunction);
 
 /**
- * Base controller returned by {@link QueryStringBuilder}. Not re-exported from the package entry point (used by `@aom-js/api/testing`) — use
+ * Base controller returned by {@link QueryStringBuilder}. Not exported directly — use
  * `QueryStringBuilder(schema)`.
  */
 @Controller()
-export class QueryStringBuilderConstructor<
+class QueryStringBuilderConstructor<
   T extends ClassConstructor,
   R = InstanceType<T>,
 > extends QueryStringBuildersBase {
@@ -102,3 +102,10 @@ export function QueryStringBuilder<T extends ClassConstructor>(
     static readonly schema = schema;
   };
 }
+
+/**
+ * Reference to the base class for `@aom-js/api/testing`, typed so that it does not expose the class
+ * (an exported class would break declaration emit of `class X extends QueryStringBuilder(...)` in applications).
+ * Not re-exported from `builders/index.ts`.
+ */
+export const queryStringBuilderBase: BuilderBase = QueryStringBuilderConstructor;

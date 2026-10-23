@@ -7,7 +7,7 @@ import { type ClassConstructor } from "../types";
 import { WrongDataResponse } from "../responses";
 import { SafeData } from "../decorators";
 import { HeaderJSONSchema } from "../schemas";
-import { HeaderBuildersBase } from "./common";
+import { HeaderBuildersBase, type BuilderBase } from "./common";
 
 const SafeOrigin = ThisRef((<T extends typeof HeadersBuilderConstructor>({ schema }: T) =>
   SafeData(schema)) as RefFunction);
@@ -17,11 +17,11 @@ const SafeOriginParameters = ThisRef((<T extends typeof HeadersBuilderConstructo
 ) => [Parameters(...constructor.JSONSchema())]) as RefFunction);
 
 /**
- * Base controller returned by {@link HeadersBuilder}. Not re-exported from the package entry point (used by `@aom-js/api/testing`) — use
+ * Base controller returned by {@link HeadersBuilder}. Not exported directly — use
  * `HeadersBuilder(schema)`.
  */
 @Controller()
-export class HeadersBuilderConstructor<
+class HeadersBuilderConstructor<
   T extends ClassConstructor,
   R = InstanceType<T>,
 > extends HeaderBuildersBase {
@@ -96,3 +96,10 @@ export function HeadersBuilder<T extends ClassConstructor>(
     static readonly schema = schema;
   };
 }
+
+/**
+ * Reference to the base class for `@aom-js/api/testing`, typed so that it does not expose the class
+ * (an exported class would break declaration emit of `class X extends HeadersBuilder(...)` in applications).
+ * Not re-exported from `builders/index.ts`.
+ */
+export const headersBuilderBase: BuilderBase = HeadersBuilderConstructor;
