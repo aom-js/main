@@ -12,3 +12,12 @@ export { Observe, Probe, Report, Tester, isTester, type RouteMatch, type RouteOu
 export { TesterReport, type CheckResult } from "./report";
 export { routesOf, runAcross, runProbes, runSteps, type AcrossOptions, type RunOptions } from "./runner";
 export type { CreatedRecord } from "../common/context";
+export {
+  accessIdents,
+  constructorThisRefs,
+  identCollisions,
+  parentsOf,
+  routeName,
+  serializationErrors,
+  sharedEndpoints,
+} from "./chain";
