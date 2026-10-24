@@ -78,6 +78,11 @@ describe("core: реестр инстансов", () => {
     const created = Meta.instance(A);
     expect(Meta.checkExists(A)).toBe(created);
   });
+
+  it("отсутствующая цель (undefined/null) — ошибка с именем мета-класса", () => {
+    expect(() => Meta.checkExists(undefined as never)).toThrow(/Meta: target is undefined/);
+    expect(() => Meta.instance(null as never)).toThrow(/Meta: target is null/);
+  });
 });
 
 describe("core: ClassInstanceMap", () => {

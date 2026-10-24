@@ -80,8 +80,7 @@ describe("schemer: валидация", () => {
     expect(errors).toEqual([]);
   });
 
-  // Min/Max вызываются с each — при isArray ограничение проверяет элементы, а не сам массив.
-  // Number.Transform приводит значение через Number(...), поэтому инстанс собираем напрямую, минуя plainToInstance
+  // Min/Max вызываются с each — при isArray ограничение проверяет элементы, а не сам массив
   it("minValue с isArray проверяет каждый элемент массива, а не сам массив", () => {
     @ComponentSchema()
     class RanksDto {
