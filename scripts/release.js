@@ -1,8 +1,10 @@
 // Выпуск всех пакетов ядра одной версией — корневой из package.json (https://aom.js.org/publishing/).
 // `--dry-run` — всё то же без публикации и метки git: проверить сборку и состав пакетов.
 const { execFileSync } = require("node:child_process");
+const fs = require("node:fs");
 const path = require("node:path");
 const packages = require("./packages");
+const { staleWorkspaces } = require("./lock-versions");
 const { version } = require("../package.json");
 
 const dryRun = process.argv.includes("--dry-run");
@@ -24,6 +26,14 @@ const published = (dir) => {
 };
 const pending = packages.filter((dir) => !published(dir));
 if (!pending.length) throw new Error(`${version} уже выпущена у всех пакетов: поднимите версию в package.json`);
+
+const stale = staleWorkspaces(fs.readFileSync(path.join(__dirname, "../bun.lock"), "utf8"), version);
+if (stale.length) {
+  const list = stale.map(({ name, locked }) => `${name}@${locked}`).join(", ");
+  throw new Error(
+    `bun.lock отстаёт от ${version}: ${list} — выполните node scripts/prebuild.js && bun install и закоммитьте bun.lock`,
+  );
+}
 
 run("bunx", ["vitest", "run"]);
 run("bun", ["run", "build"]);

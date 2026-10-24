@@ -23,7 +23,7 @@
     },
     "packages/api": {
       "name": "@aom-js/api",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@aom-js/core": "workspace:*",
         "@aom-js/router": "workspace:*",
@@ -43,7 +43,7 @@
     },
     "packages/codegen": {
       "name": "@aom-js/codegen",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "bin": {
         "aom-codegen": "./dist/cjs/cli.js",
       },
@@ -59,7 +59,7 @@
     },
     "packages/core": {
       "name": "@aom-js/core",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "devDependencies": {
         "@types/node": "^26.1.2",
         "tslib": "^2.8.1",
@@ -68,7 +68,7 @@
     },
     "packages/holder": {
       "name": "@aom-js/holder",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@aom-js/core": "workspace:*",
         "reflect-metadata": "^0.2.2",
@@ -81,7 +81,7 @@
     },
     "packages/router": {
       "name": "@aom-js/router",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@aom-js/core": "workspace:*",
         "@aom-js/schemer": "workspace:*",
@@ -97,7 +97,7 @@
     },
     "packages/schemer": {
       "name": "@aom-js/schemer",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@aom-js/core": "workspace:*",
         "class-transformer": "^0.5.1",
@@ -113,7 +113,7 @@
     },
     "packages/transfer": {
       "name": "@aom-js/transfer",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@aom-js/core": "workspace:*",
         "@aom-js/schemer": "workspace:*",
@@ -128,7 +128,7 @@
     },
     "packages/visualizer": {
       "name": "@aom-js/visualizer",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@aom-js/core": "workspace:*",
         "@aom-js/router": "workspace:*",
