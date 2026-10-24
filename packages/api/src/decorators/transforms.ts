@@ -60,13 +60,16 @@ export function TransformToArray(): PropertyDecorator {
   };
 }
 
-/** Property decorator: coerces the value to a string and trims leading/trailing whitespace. */
+/**
+ * Property decorator: trims leading/trailing whitespace of a string. Any other value (`null`, a
+ * number, an array) is passed through unchanged, so a following `IsString()` still rejects it.
+ */
 export function TransformTrim(): PropertyDecorator {
   return (constructor, property) => {
     return Reflect.decorate(
       [
         Transform(({ value }) => {
-          return String(value).trim();
+          return typeof value === "string" ? value.trim() : value;
         }),
       ],
       constructor,
