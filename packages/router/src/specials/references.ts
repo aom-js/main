@@ -7,10 +7,20 @@ import {
 } from "../common";
 
 /**
- * Wraps a function that resolves without any class context, evaluated lazily on first
- * use. Use it to break circular imports: reference `Self.Method` inside a factory
- * instead of importing the class directly, or pass a class/method to `\@Before`,
- * `\@After`, `\@Next`, `\@UseMarker`, `\@This` or `\@DelayRefStack` before it exists yet.
+ * Wraps a function that resolves without any class context, called only after the
+ * declaring class is declared. Use it to reference a class that doesn't exist yet at
+ * declaration time — further down the file or across a circular import — or
+ * `Self.Method` before `\@Controller()` has resolved the current subclass.
+ *
+ * When the function is called depends on the decorator:
+ * - `\@Before`/`\@After`/`\@Next`/`\@UseMarker` — on the first read of the class's or
+ *   method's links, normally when a `Router` is built. A target that isn't the right kind
+ *   of step throws its `USE_*_DEFINE_ERROR` then, not at declaration.
+ * - `\@This` and other argument decorators — on every call.
+ * - `\@DelayRefStack` — once, when the first cursor of the method is created.
+ *
+ * Every module must be loaded by then: a `FwdRef` read while its target is still in the
+ * middle of a circular import fails the same way a direct reference would.
  *
  * @param fn - called with no arguments when the reference is realized
  * @returns a `FwdContainer` accepted wherever these decorators take a reference

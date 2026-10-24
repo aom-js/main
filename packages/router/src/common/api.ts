@@ -19,8 +19,9 @@ import type { AomRoute } from "./route";
 
 /**
  * How `OpenApi.registerPath` merges OpenAPI tags collected while walking a route's
- * cursors. The active rule changes only on a cursor that carries `\@UseTag`; it stays
- * in effect for every cursor after that until changed again.
+ * cursors. The active rule changes on any cursor that carries a rule decorator, with or
+ * without its own `\@UseTag`; it applies to that cursor's own tag and stays in effect for
+ * every cursor after it until changed again.
  *
  * - `REPLACE` (default) — the new tag replaces the last one collected.
  * - `MERGE` — the new tag is appended, producing a joined string like `"A > B"`.
@@ -166,8 +167,6 @@ class AomApiElement {
 
   bridges: AomBridge[] = [];
 
-  markers: AomApi[] = [];
-
   instanceHooks: AomApi[] = [];
 
   endpoints: AomEndpoint[] = [];
@@ -176,11 +175,31 @@ class AomApiElement {
 
   parameters: AomHttpParameters;
 
-  pre_middlewares: AomApi[] = [];
+  // links from @Before/@After/@Next/@UseMarker wait here until the first read: a FwdRef
+  // target may not exist yet when @Controller() runs LAST (circular import, class declared below)
+  private deferred: Array<() => void> = [];
 
-  post_middlewares: AomApi[] = [];
+  private links: { pre: AomApi[]; post: AomApi[]; next?: AomApi; markers: AomApi[] } = {
+    pre: [],
+    post: [],
+    markers: [],
+  };
 
-  nextpoint?: AomApi;
+  get pre_middlewares(): AomApi[] {
+    return this.realize().pre;
+  }
+
+  get post_middlewares(): AomApi[] {
+    return this.realize().post;
+  }
+
+  get nextpoint(): AomApi | undefined {
+    return this.realize().next;
+  }
+
+  get markers(): AomApi[] {
+    return this.realize().markers;
+  }
 
   /** Kind declared with `\@CursorKind` on the step's definition; derivable kinds are inferred by the application. */
   cursorKind?: AomCursorKind;
@@ -192,16 +211,45 @@ class AomApiElement {
     this.parameters = new AomHttpParameters(api);
   }
 
+  /**
+   * Queues a link-adding call made by `\@Before`/`\@After`/`\@Next`/`\@UseMarker`. Queued calls
+   * run in order on the first read of `pre_middlewares`/`post_middlewares`/`nextpoint`/`markers`
+   * (`Router.build`, route layout, projections), so a `FwdRef` is resolved only then.
+   */
+  defer(link: () => void) {
+    this.deferred.push(link);
+  }
+
+  // the add* methods are called from deferred links: they write directly, without realize()
   addPreMiddlewares(...middlewares: AomApi[]) {
-    this.pre_middlewares.push(...middlewares);
+    this.links.pre.push(...middlewares);
+  }
+
+  // @Bridge on a method: the bridge runs first in the mounted controller; links still deferred land after it anyway
+  prependPreMiddleware(middleware: AomApi) {
+    this.links.pre.unshift(middleware);
   }
 
   addPostMiddlewares(...middlewares: AomApi[]) {
-    this.post_middlewares.push(...middlewares);
+    this.links.post.push(...middlewares);
   }
 
   addNextpoint(nextpoint: AomApi) {
-    this.nextpoint = nextpoint;
+    this.links.next = nextpoint;
+  }
+
+  addMarker(marker: AomApi) {
+    this.links.markers.push(marker);
+  }
+
+  private realize() {
+    // the link leaves the queue only after it succeeds: a definition error repeats on every
+    // read instead of silently leaving a shorter chain
+    while (this.deferred.length) {
+      this.deferred[0]();
+      this.deferred.shift();
+    }
+    return this.links;
   }
 }
 
