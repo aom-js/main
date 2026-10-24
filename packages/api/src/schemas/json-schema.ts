@@ -1,10 +1,20 @@
 import type { OpenApiResponse, OpenApiParameterObject } from "@aom-js/router";
 import { pathVariants, plainJsonSchema, responseJsonSchema } from "../functions/json-schema";
 
-/** Base class that documents itself as an OpenAPI response via `responseJsonSchema`. `CommonResponse`/`ErrorMessage` build on this. */
+/**
+ * Base class that documents itself as an OpenAPI response via `responseJsonSchema`. `CommonResponse`
+ * builds on this. `JSONSchema()` falls back to the subclass's `static description`/`status` when
+ * the call doesn't pass its own.
+ */
 export class ResponseJSONSchema {
+  /** HTTP status a subclass is documented under by default. */
+  declare static status?: number;
+
+  /** OpenAPI description a subclass is documented with by default. */
+  declare static description?: string;
+
   static JSONSchema(description?: string | string[], status?: number): OpenApiResponse {
-    return responseJsonSchema(this, description, status);
+    return responseJsonSchema(this, description ?? this.description, status ?? this.status);
   }
 }
 
