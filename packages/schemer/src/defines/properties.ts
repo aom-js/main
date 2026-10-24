@@ -54,6 +54,27 @@ function requiredGuard(params: CommonDescriptionsProperties) {
   return IsDefined({ groups: params.groups, always: params.always });
 }
 
+// class-transformer runs Transforms in the decorators array's order: put this one after
+// params.decorators so it coerces what the user's transforms produced (e.g. "1,2" split into
+// ["1", "2"]), element-wise for arrays; undefined, and null when nullable, are left as is
+function coercion(params: CommonDescriptionsProperties, convert: (value: unknown) => unknown) {
+  const one = (item: unknown) =>
+    item === undefined || (params.nullable && item === null) ? item : convert(item);
+  return Transform(({ value }) =>
+    params.isArray && Array.isArray(value) ? value.map(one) : one(value),
+  );
+}
+
+// only unambiguous inputs become booleans; anything else stays as is for IsBoolean to reject
+const BOOLEAN_INPUTS = new Map<unknown, boolean>([
+  [true, true],
+  ["true", true],
+  ["1", true],
+  [false, false],
+  ["false", false],
+  ["0", false],
+]);
+
 /** Parameters for `PropertySchema.String`. */
 declare interface StringDescriptionsProperties extends CommonDescriptionsProperties {
   minLength?: number;
@@ -154,13 +175,7 @@ const _Number = (params: NumberDescriptionsProperties = {}) => {
         readOnly: params.readOnly,
       }),
       ...(params.decorators || []), // append the extra decorators
-      // class-transformer runs Transforms in this array's order: coerce after the user's
-      // transforms (e.g. splitting "1,2"), element-wise for arrays
-      Transform(({ value }) => {
-        const coerce = (item: unknown) =>
-          item === undefined || (params.nullable && item === null) ? item : Number(item);
-        return params.isArray && Array.isArray(value) ? value.map(coerce) : coerce(value);
-      }),
+      coercion(params, Number),
     ];
 
     // apply the resulting decorators
@@ -175,8 +190,9 @@ declare interface BooleanDescriptionsProperties extends CommonDescriptionsProper
 
 /**
  * Boolean property: `IsBoolean` plus the usual optional/nullable/hidden set. The applied `Transform`
- * accepts the literal strings `"true"`/`"false"`, an actual boolean, or falls back to
- * `Boolean(+value)` for anything else — convenient for query-string style input.
+ * turns `"true"`/`"1"` into `true` and `"false"`/`"0"` into `false`, keeps actual booleans, and leaves
+ * anything else as is so `IsBoolean` rejects it (`"yes"`, `""`, `"TRUE"`). Like `Number`, it runs
+ * after `params.decorators` and element by element with `isArray`.
  */
 const _Boolean = (params: BooleanDescriptionsProperties = {}) => {
   //
@@ -205,16 +221,8 @@ const _Boolean = (params: BooleanDescriptionsProperties = {}) => {
         examples: params.examples,
         readOnly: params.readOnly,
       }),
-      Transform(({ value }) => {
-        if (params.nullable && value === null) return null;
-
-        const isTrue = value === "true";
-        const isFalse = value === "false";
-        if (isTrue) return true;
-        if (isFalse) return false;
-        return typeof value === "boolean" ? value : Boolean(+value);
-      }),
       ...(params.decorators || []), // append the extra decorators
+      coercion(params, (value) => BOOLEAN_INPUTS.get(value) ?? value),
     ];
 
     // apply the resulting decorators
