@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   Controller, Get, Post, Router, OpenApi,
   Title, Description, Responses, RequestBody, PathParameters, Security,
-  Params, Body, UseTag, Middleware, Before, ThisRef,
+  Params, Body, UseTag, Middleware, Before, ThisRef, MergeNextTags, IgnoreNextTags,
 } from "@aom-js/router";
 import { ComponentSchema, PropertySchema } from "@aom-js/schemer";
 import type { ClassType } from "@aom-js/core";
@@ -268,5 +268,68 @@ describe("router: поток событий в @Responses (events → itemSchema
       description: "ok",
       content: { "application/json": { schema: { $ref: "#/components/schemas/UnreadEvent" } } },
     });
+  });
+});
+
+describe("router: путь и теги операции в OpenAPI", () => {
+  const docsOf = (root: ClassType) => {
+    const docs = new OpenApi({ title: "t", version: "1" });
+    new Router(root, docs);
+    return docs.toJSON();
+  };
+
+  it("PathParameters подменяют сегмент целиком, а не первое вхождение текста ключа", () => {
+    @Controller()
+    class Nested {
+      @Get("/:id2/sub/:id")
+      @PathParameters(
+        { ":id": { name: "id", schema: { type: "string" } } },
+        { ":id2": { name: "parent", schema: { type: "string" } } },
+      )
+      static async one() {}
+    }
+
+    expect(Object.keys(docsOf(Nested).paths)).toEqual(["/{parent}/sub/{id}"]);
+  });
+
+  it("правило тегов действует и на шаге без своего @UseTag", () => {
+    @Title("Section")
+    class SectionTag {}
+
+    @Title("Items")
+    class ItemsTag {}
+
+    class Steps {
+      @Middleware()
+      @UseTag(SectionTag)
+      static async section() {}
+
+      @Middleware()
+      @MergeNextTags()
+      static async merge() {}
+
+      @Middleware()
+      @IgnoreNextTags()
+      static async ignore() {}
+    }
+
+    @Controller()
+    @Before(Steps.section, Steps.merge)
+    class Merged {
+      @Get("/merged")
+      @UseTag(ItemsTag)
+      static async list() {}
+    }
+
+    @Controller()
+    @Before(Steps.section, Steps.ignore)
+    class Ignored {
+      @Get("/ignored")
+      @UseTag(ItemsTag)
+      static async list() {}
+    }
+
+    expect(docsOf(Merged).paths["/merged"].get.tags).toEqual(["Section > Items"]);
+    expect(docsOf(Ignored).paths["/ignored"].get.tags).toEqual(["Section"]);
   });
 });

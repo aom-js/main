@@ -70,12 +70,13 @@ export class OpenApi {
    * constructor — application code normally doesn't call this directly.
    *
    * Walks the route's cursors in order and accumulates, across all of them:
-   * - **tags** — the active `TagsRules` (set by `\@UseTag` + `\@ReplaceNextTags`/
-   *   `\@MergeNextTags`/`\@IgnoreNextTags`) decides whether each tagged cursor replaces,
+   * - **tags** — the active `TagsRules` (switched by `\@ReplaceNextTags`/`\@MergeNextTags`/
+   *   `\@IgnoreNextTags` on any cursor) decides whether each `\@UseTag` cursor replaces,
    *   merges into, or is dropped from the running tag list; the final list is joined
    *   with `OpenApi.tagsSeparator`;
-   * - **path parameters** (`\@PathParameters`) — the literal path segment key is
-   *   replaced with `{name}` in the operation's path;
+   * - **path parameters** (`\@PathParameters`) — the path segment equal to the key
+   *   (the whole segment, e.g. `:id`, not a substring of `:id2`) is replaced with
+   *   `{name}` in the operation's path;
    * - **other parameters** (`\@QueryParameters`/`\@CookieParameters`/`\@Parameters`);
    * - **responses** (`\@Responses`) — keyed by HTTP status, so the last cursor with a
    *   given status wins; `isArray: true` wraps the schema as `{type: "array", items}`;
@@ -148,8 +149,9 @@ export class OpenApi {
       // console.log("delayStack success started");
       // collect the tags
       const { tag } = cursor.$.openApi;
+      // the rule switches on any cursor carrying it, with or without its own @UseTag
+      nextTagRule = tag.rule || nextTagRule;
       if (tag.$) {
-        nextTagRule = tag.rule || nextTagRule;
         if (nextTagRule !== TagsRules.IGNORE) {
           const tagName = tag.$.title || tag.$._.target.name;
           // on a tag replacement, overwrite the last value
@@ -165,8 +167,12 @@ export class OpenApi {
       cursor.$.openApi.path.forEach((structure) => {
         Object.keys(structure).forEach((key) => {
           const value = structure[key];
-          // replace the key's value in the path with the corresponding argument placeholder
-          path = path.replace(key, `{${value.name}}`);
+          // replace the path segment equal to the key (not the first substring match:
+          // ":id" would hit ":id2") with the corresponding argument placeholder
+          path = path
+            .split("/")
+            .map((segment) => (segment === key ? `{${value.name}}` : segment))
+            .join("/");
           const schema = this.schemaExtract(value.schema, cursor);
           // console.log("parse parameters", path, value, schema);
           // maybe this parameter should be checked for having already been processed in this request, to avoid re-adding it
