@@ -58,14 +58,17 @@ const queueInherited = new WeakSet<AomHolder>();
  * as an `AomCore.classDecorator` in the `INSTANT` phase (see
  * `ExecutionPhase.INSTANT`) — it runs right away, doing three things:
  *
- * 1. Pushes `queue` onto this class's own holder queue (`$.queue`).
- * 2. Transfers the direct parent's `$.queue` (its own not-yet-applied class
- *    decorators) onto this class's queue, in front of the class's own
- *    entries — but only once per meta-instance (`queueInherited` guards
- *    against `Apply` calling `Delay` a second time on the same target).
- *    `$.queue` is a plain field, not part of `AomCore`'s callstack, so
- *    `inherit()` below does not transfer it on its own; `Delay` has to do it
- *    by hand.
+ * 1. Puts `queue` at the front of this class's own holder queue (`$.queue`).
+ * 2. Appends the direct parent's `$.queue` after the class's own entries —
+ *    only once per meta-instance (`queueInherited` guards against `Apply`
+ *    calling `Delay` a second time on the same target). The parent's queue
+ *    already holds everything from its own ancestors, nearest first, so
+ *    `Reflect.decorate` (which applies from the end) runs the farthest
+ *    ancestor first and this class last: the nearest class wins. If the
+ *    parent never ran `Delay` itself (a plain class, or one with only
+ *    `\@Hold` fields), `Delay()` is run on it first, so it collects its own
+ *    ancestors before handing them down. `$.queue` is a plain field, not part
+ *    of `AomCore`'s callstack, so `inherit()` below does not transfer it.
  * 3. Calls `$._.inherit(parent)` to pull in the parent's decorated
  *    properties (the `Hold` queues) and its callstack, then `$._.apply()` to
  *    run every deferred (`LAST`) call collected so far — this is what
@@ -77,11 +80,8 @@ const queueInherited = new WeakSet<AomHolder>();
  * `\@Delay(X())` with no `\@Apply()` anywhere in its subclass chain never gets
  * `X()` applied.
  *
- * Only the *direct* parent is inherited from (`Object.getPrototypeOf($._.target)`),
- * so multi-level class-decorator inheritance requires every intermediate
- * class to also carry `\@Delay` (or `\@Apply`) — a plain class in the middle
- * of the chain breaks the transfer silently for the properties it doesn't
- * re-declare.
+ * Only the *direct* parent is inherited from (`Object.getPrototypeOf($._.target)`);
+ * it carries everything from further up, so ancestors are never visited twice.
  *
  * @param queue - class decorators to apply later, on whichever class ends up calling `Apply`
  * @returns a `ClassDecorator` to place on the class
@@ -104,13 +104,21 @@ const queueInherited = new WeakSet<AomHolder>();
  */
 export function Delay(...queue: ClassDecorator[]): ClassDecorator {
   return AomHolder.classDecorator(($) => {
-    $.queue.push(...queue);
+    // own entries go in front of inherited ones: Reflect.decorate applies from the end,
+    // so ancestors run first and the nearest class runs last and wins
+    $.queue.unshift(...queue);
 
     const parent = Object.getPrototypeOf($._.target);
+    const $parent = AomHolder.instance(parent);
     if (!queueInherited.has($)) {
       queueInherited.add($);
+      // a parent that never ran Delay hasn't collected its own ancestors yet (a plain class,
+      // or one with only Hold) — let it do so, so it carries everything from above
+      if (parent !== Function.prototype && !queueInherited.has($parent)) {
+        Reflect.decorate([Delay()], parent);
+      }
       // $.queue is not part of AOM's callstack, so inherit() doesn't transfer it; transfer it ourselves
-      $.queue.unshift(...(AomHolder.checkExists(parent)?.queue ?? []));
+      $.queue.push(...$parent.queue);
     }
 
     // transfer the parent's property decorators
@@ -133,7 +141,8 @@ export function Delay(...queue: ClassDecorator[]): ClassDecorator {
  *    property's holder queue via `Reflect.decorate`, on the class itself for
  *    a static origin or on its prototype for an instance origin.
  * 3. Applies this class's own `$.queue` (its class decorators, including any
- *    pulled in from `Delay`d ancestors) to the class via `Reflect.decorate`.
+ *    pulled in from `Delay`d ancestors) to the class via `Reflect.decorate`:
+ *    ancestors' decorators run first, this class's own last, so it wins.
  *
  * Because `inherit()`/`transferTo` don't clear the source when copying calls
  * to a subclass, re-applying `\@Apply` on a further subclass of an

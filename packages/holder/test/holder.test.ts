@@ -73,10 +73,8 @@ describe("holder: отложенное применение декораторо
     class LeafChild extends MiddleBase {}
     void LeafChild;
 
-    // порядок внутри Reflect.decorate не гарантирован (см. тест ниже про Hold), важно,
-    // что перенеслись оба уровня и без дублирования
-    expect(applied).toEqual(expect.arrayContaining(["grand:LeafChild", "parent:LeafChild"]));
-    expect(applied).toHaveLength(2);
+    // дальний предок применяется первым, ближний — последним; без дублей
+    expect(applied).toEqual(["grand:LeafChild", "parent:LeafChild"]);
   });
 
   it("несколько Hold-декораторов применяются в сохраненном порядке", () => {
@@ -99,3 +97,150 @@ describe("holder: отложенное применение декораторо
     expect(applied).toEqual(expect.arrayContaining(["first", "second"]));
   });
 });
+
+describe("holder: порядок класс-декораторов по цепочке Delay/Apply", () => {
+  // классовый декоратор, перезаписывающий одно значение (как ComponentSchema описание схемы)
+  const setup = () => {
+    const calls: string[] = [];
+    const descriptions = new Map<object, string>();
+    const Describe =
+      (description: string): ClassDecorator =>
+      (target) => {
+        calls.push(`${description}:${target.name}`);
+        descriptions.set(target, description);
+      };
+    return { calls, descriptions, Describe };
+  };
+
+  it("на Apply-потомке ближний класс срабатывает последним и перекрывает предков", () => {
+    const { calls, descriptions, Describe } = setup();
+
+    @Delay(Describe("дед"))
+    class Grand {}
+
+    @Delay(Describe("отец"))
+    class Father extends Grand {}
+
+    @Apply(Describe("сын"))
+    class Son extends Father {}
+
+    expect(calls).toEqual(["дед:Son", "отец:Son", "сын:Son"]);
+    expect(descriptions.get(Son)).toBe("сын");
+  });
+
+  it("без своих декораторов у потомка побеждает прямой родитель", () => {
+    const { calls, descriptions, Describe } = setup();
+
+    @Delay(Describe("дед"))
+    class Grand {}
+
+    @Delay(Describe("отец"))
+    class Father extends Grand {}
+
+    @Apply()
+    class Son extends Father {}
+
+    expect(calls).toEqual(["дед:Son", "отец:Son"]);
+    expect(descriptions.get(Son)).toBe("отец");
+  });
+
+  it("Delay и Apply на одном потомке: оба собственных выше предков", () => {
+    const { calls, Describe } = setup();
+
+    @Delay(Describe("отец"))
+    class Father {}
+
+    @Apply(Describe("apply"))
+    @Delay(Describe("delay"))
+    class Son extends Father {}
+    void Son;
+
+    expect(calls).toEqual(["отец:Son", "delay:Son", "apply:Son"]);
+  });
+
+  it("класс-декораторы доходят через промежуточный класс без декораторов холдера", () => {
+    const { calls, Describe } = setup();
+
+    @Delay(Describe("дед"))
+    class Grand {}
+
+    class Father extends Grand {}
+
+    @Apply(Describe("сын"))
+    class Son extends Father {}
+    void Son;
+
+    expect(calls).toEqual(["дед:Son", "сын:Son"]);
+  });
+});
+
+describe("holder: Hold через промежуточный класс без декораторов холдера", () => {
+  const setup = () => {
+    const applied: string[] = [];
+    const Spy =
+      (label: string): PropertyDecorator =>
+      (target, property) => {
+        applied.push(`${label}:${(target as object).constructor.name}.${String(property)}`);
+      };
+    return { applied, Spy };
+  };
+
+  it("Hold деда применяется на Apply-внуке через обычный класс посередине", () => {
+    const { applied, Spy } = setup();
+
+    class Grand {
+      @Hold(Spy("a"))
+      field!: string;
+    }
+
+    class Father extends Grand {}
+
+    @Apply()
+    class Son extends Father {}
+    void Son;
+
+    expect(applied).toEqual(["a:Son.field"]);
+  });
+
+  it("Hold деда доходит через промежуточный класс, у которого только свой Hold", () => {
+    const { applied, Spy } = setup();
+
+    class Grand {
+      @Hold(Spy("a"))
+      grandField!: string;
+    }
+
+    class Father extends Grand {
+      @Hold(Spy("b"))
+      fatherField!: string;
+    }
+
+    @Apply()
+    class Son extends Father {}
+    void Son;
+
+    expect([...applied].sort()).toEqual(["a:Son.grandField", "b:Son.fatherField"]);
+  });
+
+  it("два потомка одного промежуточного класса получают Hold по одному разу", () => {
+    const { applied, Spy } = setup();
+
+    class Grand {
+      @Hold(Spy("a"))
+      field!: string;
+    }
+
+    class Father extends Grand {}
+
+    @Apply()
+    class FirstSon extends Father {}
+
+    @Apply()
+    class SecondSon extends Father {}
+    void FirstSon;
+    void SecondSon;
+
+    expect(applied).toEqual(["a:FirstSon.field", "a:SecondSon.field"]);
+  });
+});
+
