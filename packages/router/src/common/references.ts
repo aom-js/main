@@ -24,10 +24,12 @@ export class RefContainer {
 }
 
 /**
- * Reference resolved with no context — the wrapped function takes no argument. Used to
- * break circular imports (`FwdRef(() => SomeClass.method)`) where the target isn't
- * defined yet at decoration time. Accepted by `\@Before`/`\@After`/`\@Next`/`\@UseMarker`/
- * `\@This`/`\@DelayRefStack`.
+ * Reference resolved with no context — the wrapped function takes no argument. Used where
+ * the target isn't defined yet at declaration time: a class further down the file or
+ * across a circular import (`FwdRef(() => SomeClass.method)`). Accepted by
+ * `\@Before`/`\@After`/`\@Next`/`\@UseMarker` (resolved when the links are first read,
+ * normally at `Router` build), `\@This` and other argument decorators (on every call) and
+ * `\@DelayRefStack` (when the first cursor is created) — see `FwdRef`.
  *
  * Not exported from the package — obtain an instance through `FwdRef(...)`.
  */

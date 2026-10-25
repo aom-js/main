@@ -44,7 +44,6 @@
   "packages/router/src/common/types.ts": 3,
   "packages/router/src/decorators/arguments/index.ts": 9,
   "packages/router/src/decorators/controllers/index.ts": 1,
-  "packages/router/src/decorators/middlewares/index.ts": 1,
   "packages/router/src/decorators/openapi/index.ts": 6,
   "packages/router/src/types/index.ts": 7,
   "packages/router/test/cursor-kinds.test.ts": 2,

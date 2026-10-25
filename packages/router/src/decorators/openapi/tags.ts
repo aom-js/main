@@ -37,8 +37,9 @@ export function UseTag(constructor: ClassType) {
 }
 
 /**
- * From this cursor onward (until changed again), a tag set by `\@UseTag` on a later
- * cursor of the same route is dropped instead of being added to the operation's tags.
+ * From this cursor onward (until changed again), a tag set by `\@UseTag` — on this
+ * cursor or a later one of the same route — is dropped instead of being added to the
+ * operation's tags. Works on a cursor with or without its own `\@UseTag`.
  *
  * @returns a method decorator
  *
@@ -52,15 +53,16 @@ export function IgnoreNextTags() {
 }
 
 /**
- * From this cursor onward (until changed again), a tag set by `\@UseTag` on a later
- * cursor is appended to the running tag list instead of replacing it, producing a
- * joined tag name like `"Section > Tag"` (`OpenApi.tagsSeparator`).
+ * From this cursor onward (until changed again), a tag set by `\@UseTag` — on this
+ * cursor or a later one of the same route — is appended to the running tag list instead
+ * of replacing it, producing a joined tag name like `"Section > Tag"`
+ * (`OpenApi.tagsSeparator`). Works on a cursor with or without its own `\@UseTag`.
  *
  * @returns a method decorator
  *
  * @example
  * ```ts
- * import { Controller, Get, Title, UseTag, MergeNextTags } from "@aom-js/router";
+ * import { Controller, Get, Title, UseTag, MergeNextTags, Middleware, Before } from "@aom-js/router";
  *
  * \@Title("Section")
  * class SectionTag {}
@@ -68,8 +70,14 @@ export function IgnoreNextTags() {
  * \@Title("Items")
  * class ItemsTag {}
  *
+ * class Section {
+ *   \@Middleware()
+ *   \@UseTag(SectionTag)
+ *   static async setup() {}
+ * }
+ *
  * \@Controller()
- * \@UseTag(SectionTag)
+ * \@Before(Section.setup)
  * class Items {
  *   \@Get("/items")
  *   \@UseTag(ItemsTag)
@@ -87,8 +95,8 @@ export function MergeNextTags() {
 }
 
 /**
- * From this cursor onward (until changed again), a tag set by `\@UseTag` on a later
- * cursor replaces the last tag collected so far. This is the default rule, so this
+ * From this cursor onward (until changed again), a tag set by `\@UseTag` — on this
+ * cursor or a later one — replaces the last tag collected so far. This is the default rule, so this
  * decorator is only needed to switch back after `\@MergeNextTags`/`\@IgnoreNextTags`.
  *
  * @returns a method decorator

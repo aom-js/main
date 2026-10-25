@@ -1,7 +1,13 @@
 import { CombinedDecorator, ClassType, ExecutionPhase, InheritPlacement } from "@aom-js/core";
 
 import * as constants from "../../constants";
-import { FwdContainer, HandlerFunction, MarkerHandler, MiddlewareHandler } from "../../common";
+import {
+  FwdContainer,
+  FwdFunction,
+  HandlerFunction,
+  MarkerHandler,
+  MiddlewareHandler,
+} from "../../common";
 
 import { AomApi } from "../../common";
 
@@ -10,6 +16,30 @@ import { AomApi } from "../../common";
 function checkMiddleware($: AomApi): AomApi {
   if (!$.element.isMiddleware) throw new Error(constants.USE_MIDDLEWARE_DEFINE_ERROR);
   return $;
+}
+
+/**
+ * Links the references of `\@Before`/`\@After`/`\@Next`/`\@UseMarker` to the meta-instance `$`.
+ * A direct reference is resolved and checked right away — a wrong one is still a definition
+ * error at declaration. A `FwdRef` is resolved only when the link is realized (first read of
+ * the element's links: `Router.build`, route layout, projections), because its target may not
+ * exist yet when `\@Controller()` runs the LAST phase — a circular import or a class declared
+ * further down. The link itself is always deferred, so the order of links is kept.
+ */
+function link<T extends HandlerFunction>(
+  $: AomApi,
+  refs: Array<T | FwdContainer>,
+  check: (one: AomApi) => AomApi,
+  add: (resolved: AomApi[]) => void,
+) {
+  // the reference might have captured the parent's static side (Self.Method before
+  // @Controller() ran); re-resolve it in the context of the class declaring the decorator
+  const resolve = (ref: ReturnType<FwdFunction>) =>
+    check(AomApi.resolveFor(AomApi.instance(ref), $._.target));
+  const direct = refs.map((ref) => (ref instanceof FwdContainer ? ref : resolve(ref)));
+  $.element.defer(() =>
+    add(direct.map((one) => (one instanceof FwdContainer ? resolve(one.exec()) : one))),
+  );
 }
 
 // ************************************************ //
@@ -28,10 +58,10 @@ function checkMiddleware($: AomApi): AomApi {
  * default append behavior used everywhere else, including `\@After`).
  *
  * @param middlewares - `\@Middleware()`-decorated methods, or `FwdRef(...)` wrapping one
- *   (useful to reference a class not yet declared, or `Self.Method` before `\@Controller()`
- *   has resolved the current subclass)
+ *   (useful to reference a class not yet declared — further down the file or in a circular
+ *   import — or `Self.Method` before `\@Controller()` has resolved the current subclass)
  * @returns a decorator usable on both a class and a method
- * @throws {Error} `USE_MIDDLEWARE_DEFINE_ERROR` if an argument isn't `\@Middleware()`
+ * @throws {Error} `USE_MIDDLEWARE_DEFINE_ERROR` if an argument isn't `\@Middleware()` (for a `FwdRef` — when routes are built, see `FwdRef`)
  *
  * @example
  * ```ts
@@ -56,15 +86,8 @@ export function Before(...middlewares: Array<MiddlewareHandler | FwdContainer>):
   // PREPEND: on inheritance, the parent's Before middlewares go before the descendant's own
   return AomApi.combinedDecorator(
     ($) => {
-      $.element.addPreMiddlewares(
-        ...middlewares
-          .map((middleware) =>
-            middleware instanceof FwdContainer ? middleware.exec() : middleware,
-          )
-          // the reference might have captured the parent's static side (Self.Method before
-          // @Controller() ran); re-resolve it in the context of the class declaring the decorator
-          .map((middleware) => AomApi.resolveFor(AomApi.instance(middleware), $._.target))
-          .map(checkMiddleware),
+      link($, middlewares, checkMiddleware, (resolved) =>
+        $.element.addPreMiddlewares(...resolved),
       );
     },
     ExecutionPhase.LAST,
@@ -89,7 +112,7 @@ export function Before(...middlewares: Array<MiddlewareHandler | FwdContainer>):
  *
  * @param middlewares - `\@Middleware()`-decorated methods, or `FwdRef(...)` wrapping one
  * @returns a decorator usable on both a class and a method
- * @throws {Error} `USE_MIDDLEWARE_DEFINE_ERROR` if an argument isn't `\@Middleware()`
+ * @throws {Error} `USE_MIDDLEWARE_DEFINE_ERROR` if an argument isn't `\@Middleware()` (for a `FwdRef` — when routes are built, see `FwdRef`)
  *
  * @example
  * ```ts
@@ -112,12 +135,7 @@ export function Before(...middlewares: Array<MiddlewareHandler | FwdContainer>):
  */
 export function After(...middlewares: Array<MiddlewareHandler | FwdContainer>): CombinedDecorator {
   return AomApi.combinedDecorator(($) => {
-    $.element.addPostMiddlewares(
-      ...middlewares
-        .map((middleware) => (middleware instanceof FwdContainer ? middleware.exec() : middleware))
-        .map((middleware) => AomApi.resolveFor(AomApi.instance(middleware), $._.target))
-        .map(checkMiddleware),
-    );
+    link($, middlewares, checkMiddleware, (resolved) => $.element.addPostMiddlewares(...resolved));
   }, ExecutionPhase.LAST);
 }
 
@@ -214,7 +232,7 @@ export function Bridge(prefix: string, nextRoute: ClassType): CombinedDecorator 
     // of the next route
     if (descriptor) {
       $.element.descriptor = descriptor;
-      next.element.pre_middlewares = [$, ...next.element.pre_middlewares];
+      next.element.prependPreMiddleware($);
     }
     $._.root.element.bridges.push({ prefix, next, $ });
   });
@@ -265,7 +283,7 @@ export function Marker(): MethodDecorator {
  *
  * @param handler - a `\@Marker()`-decorated static method, or `FwdRef(...)` wrapping one
  * @returns a method decorator
- * @throws {Error} `USE_MARKER_DEFINE_ERROR` if `handler` isn't `\@Marker()`
+ * @throws {Error} `USE_MARKER_DEFINE_ERROR` if `handler` isn't `\@Marker()` (for a `FwdRef` — when routes are built, see `FwdRef`)
  *
  * @example
  * ```ts
@@ -287,16 +305,14 @@ export function Marker(): MethodDecorator {
  */
 export function UseMarker(handler: MarkerHandler | FwdContainer): MethodDecorator {
   return AomApi.methodDecorator(($, descriptor) => {
-    const marker = AomApi.resolveFor(
-      AomApi.instance(handler instanceof FwdContainer ? handler.exec() : handler),
-      $._.target,
-    );
-    if (marker.element.isMarker) {
+    const checkMarker = (marker: AomApi) => {
+      if (!marker.element.isMarker) throw new Error(constants.USE_MARKER_DEFINE_ERROR);
+      return marker;
+    };
+    link($, [handler], checkMarker, ([marker]) => {
       $.element.descriptor = descriptor;
-      $.element.markers.push(marker);
-    } else {
-      throw new Error(constants.USE_MARKER_DEFINE_ERROR);
-    }
+      $.element.addMarker(marker);
+    });
   }, ExecutionPhase.LAST);
 }
 
@@ -309,7 +325,7 @@ export function UseMarker(handler: MarkerHandler | FwdContainer): MethodDecorato
  *
  * @param handler - a `\@Nextpoint()`-decorated static method, or `FwdRef(...)` wrapping one
  * @returns a method decorator
- * @throws {Error} `USE_NEXT_DEFINE_ERROR` if `handler` isn't `\@Nextpoint()`
+ * @throws {Error} `USE_NEXT_DEFINE_ERROR` if `handler` isn't `\@Nextpoint()` (for a `FwdRef` — when routes are built, see `FwdRef`)
  *
  * @example
  * ```ts
@@ -331,16 +347,12 @@ export function UseMarker(handler: MarkerHandler | FwdContainer): MethodDecorato
  * ```
  */
 export function Next(handler: HandlerFunction | FwdContainer): MethodDecorator {
-  return AomApi.methodDecorator(($, descriptor) => {
-    const handlerInstance = AomApi.resolveFor(
-      AomApi.instance(handler instanceof FwdContainer ? handler.exec() : handler),
-      $._.target,
-    );
-    if (handlerInstance.element.isNextpoint) {
-      $.element.addNextpoint(handlerInstance);
-    } else {
-      throw new Error(constants.USE_NEXT_DEFINE_ERROR);
-    }
+  return AomApi.methodDecorator(($) => {
+    const checkNextpoint = (nextpoint: AomApi) => {
+      if (!nextpoint.element.isNextpoint) throw new Error(constants.USE_NEXT_DEFINE_ERROR);
+      return nextpoint;
+    };
+    link($, [handler], checkNextpoint, ([nextpoint]) => $.element.addNextpoint(nextpoint));
   }, ExecutionPhase.LAST);
 }
 

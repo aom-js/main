@@ -70,12 +70,13 @@ export class OpenApi {
    * constructor — application code normally doesn't call this directly.
    *
    * Walks the route's cursors in order and accumulates, across all of them:
-   * - **tags** — the active `TagsRules` (set by `\@UseTag` + `\@ReplaceNextTags`/
-   *   `\@MergeNextTags`/`\@IgnoreNextTags`) decides whether each tagged cursor replaces,
+   * - **tags** — the active `TagsRules` (switched by `\@ReplaceNextTags`/`\@MergeNextTags`/
+   *   `\@IgnoreNextTags` on any cursor) decides whether each `\@UseTag` cursor replaces,
    *   merges into, or is dropped from the running tag list; the final list is joined
    *   with `OpenApi.tagsSeparator`;
-   * - **path parameters** (`\@PathParameters`) — the literal path segment key is
-   *   replaced with `{name}` in the operation's path;
+   * - **path parameters** (`\@PathParameters`) — the path segment equal to the key
+   *   (the whole segment, e.g. `:id`, not a substring of `:id2`) is replaced with
+   *   `{name}` in the operation's path;
    * - **other parameters** (`\@QueryParameters`/`\@CookieParameters`/`\@Parameters`);
    * - **responses** (`\@Responses`) — keyed by HTTP status, so the last cursor with a
    *   given status wins; `isArray: true` wraps the schema as `{type: "array", items}`;
@@ -148,8 +149,9 @@ export class OpenApi {
       // console.log("delayStack success started");
       // collect the tags
       const { tag } = cursor.$.openApi;
+      // the rule switches on any cursor carrying it, with or without its own @UseTag
+      nextTagRule = tag.rule || nextTagRule;
       if (tag.$) {
-        nextTagRule = tag.rule || nextTagRule;
         if (nextTagRule !== TagsRules.IGNORE) {
           const tagName = tag.$.title || tag.$._.target.name;
           // on a tag replacement, overwrite the last value
@@ -165,9 +167,13 @@ export class OpenApi {
       cursor.$.openApi.path.forEach((structure) => {
         Object.keys(structure).forEach((key) => {
           const value = structure[key];
-          // replace the key's value in the path with the corresponding argument placeholder
-          path = path.replace(key, `{${value.name}}`);
-          const schema = this.schemaExtract(value.schema, cursor);
+          // replace the path segment equal to the key (not the first substring match:
+          // ":id" would hit ":id2") with the corresponding argument placeholder
+          path = path
+            .split("/")
+            .map((segment) => (segment === key ? `{${value.name}}` : segment))
+            .join("/");
+          const schema = this.schemaExtract(value.schema, cursor, `parameter ${value.name}`);
           // console.log("parse parameters", path, value, schema);
           // maybe this parameter should be checked for having already been processed in this request, to avoid re-adding it
           currentMethod.parameters!.push({ ...value, schema, in: "path", required: true });
@@ -176,7 +182,7 @@ export class OpenApi {
 
       cursor.$.openApi.parameters.forEach((parameter) => {
         // this is where a generic schema parser that extracts and records the relevant values would go
-        const schema = this.schemaExtract(parameter.schema, cursor);
+        const schema = this.schemaExtract(parameter.schema, cursor, `parameter ${parameter.name}`);
         // console.log("parse parameters", parameter, schema);
         // maybe this parameter should be checked for having already been processed in this request, to avoid re-adding it
         currentMethod.parameters!.push({ ...parameter, schema });
@@ -196,7 +202,7 @@ export class OpenApi {
           };
           return;
         }
-        const schema = this.schemaExtract(response.schema, cursor);
+        const schema = this.schemaExtract(response.schema, cursor, "response");
         const { contentType = "application/json", isArray } = response;
 
         currentMethod.responses![response.status] = {
@@ -219,7 +225,7 @@ export class OpenApi {
       // if the cursor's context expects a request body, record the relevant value
       if (requestBody) {
         const { contentType = "application/json", description } = requestBody;
-        const schema = this.schemaExtract(requestBody.schema, cursor);
+        const schema = this.schemaExtract(requestBody.schema, cursor, "body");
         currentMethod.requestBody = { description, content: { [contentType]: { schema } } };
       }
     });
@@ -255,7 +261,7 @@ export class OpenApi {
     if (!names.length || names.includes("type")) {
       throw new Error(`${constants.RESPONSE_EVENTS_DEFINE_ERROR}: ${operationId}`);
     }
-    const values = names.map((name) => [name, this.schemaExtract(events[name], cursor)]);
+    const values = names.map((name) => [name, this.schemaExtract(events[name], cursor, `event ${name}`)]);
     return {
       type: "object",
       required: ["data"],
@@ -289,8 +295,13 @@ export class OpenApi {
    * container if present, then hands the result to `SchemasCollector.extract` (from
    * `@aom-js/schemer`), which turns a component class into `{$ref}` and records its
    * rendered shape in `components.schemas`, or passes a plain schema object through.
+   *
+   * @param kind - what the schema describes (`response`, `body`, `parameter <name>`,
+   *   `event <name>`), for the error message
+   * @throws {Error} `OPENAPI_SCHEMA_UNDEFINED_ERROR` when the schema is (or resolves to)
+   *   `undefined`/`null` — e.g. a base class step reading a static its subclass didn't set
    */
-  private schemaExtract(value: OpenApiPossibleSchema, cursor: AomCursor) {
+  private schemaExtract(value: OpenApiPossibleSchema, cursor: AomCursor, kind: string) {
     //
     let schema: any;
     if (value instanceof ThisRefContainer) {
@@ -299,6 +310,11 @@ export class OpenApi {
       schema = value.exec(cursor.endpoint!.$._.target);
     } else {
       schema = value;
+    }
+    // fail here, with the step's address: further down schemer/core fail without one
+    if (schema == null) {
+      const step = cursor.$.toString();
+      throw new Error(`${constants.OPENAPI_SCHEMA_UNDEFINED_ERROR}: ${kind} of ${step}`);
     }
 
     // component classes and their cascade of relations are collected by schemer's shared collector
