@@ -86,8 +86,7 @@ declare interface StringDescriptionsProperties extends CommonDescriptionsPropert
 /**
  * String property: `IsString` plus `MaxLength`/`MinLength`/`Matches` when given, and the usual
  * `IsOptional`/`IsNullable`/`Exclude`/`JSONSchema` set. `pattern` is applied as a `Matches` validator
- * but does not appear in the rendered JSON Schema itself — read it off the property's decorators,
- * not off `schemer.render(...)`.
+ * and reaches the rendered JSON Schema through it (`pattern`, `items.pattern` with `isArray`).
  */
 const _String = (params: StringDescriptionsProperties = {}): PropertyDecorator => {
   //
