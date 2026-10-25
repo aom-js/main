@@ -20,7 +20,7 @@
   "packages/api/src/responses/error-responses.ts": 1,
   "packages/api/src/responses/types.ts": 1,
   "packages/api/src/server/body.ts": 2,
-  "packages/api/src/server/http.ts": 8,
+  "packages/api/src/server/http.ts": 6,
   "packages/api/test/server.test.ts": 17,
   "packages/api/test/units.test.ts": 8,
   "packages/codegen/src/defines/emit-isolator.ts": 6,

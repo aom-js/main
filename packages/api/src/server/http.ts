@@ -1,5 +1,4 @@
 import http from "node:http";
-import { parse } from "node:url";
 import Stream, { Readable } from "node:stream";
 import { Router, AomRoute, compilePath, lazy, type HTTPMethods } from "@aom-js/router";
 
@@ -16,6 +15,7 @@ import { type AomServerSettings } from "./types";
 import { I18nizer } from "./i18nizer";
 import { protocolHeaders } from "./protocol-headers";
 import { parseJsonBody, BODY_UNREAD, DEFAULT_BODY_LIMIT, type BodyParseOptions } from "./body";
+import { Logger } from "../controllers/logger";
 
 declare type StringStructures = Record<string, string | string[]>;
 
@@ -34,6 +34,52 @@ const STATUS_ERROR_MESSAGES: Record<number, string> = {
   424: messages.ERROR_WRONG_DEPENDENCY,
   500: messages.SERVER_ERROR,
 };
+
+// The response for an exception thrown in the route chain. The exception's text/stack is never sent
+// to the client on any branch: what goes out is either a ready-made ErrorMessage, or the error code
+// matching the status, or the generic error code
+function toErrorResponse(err: any): ErrorMessage {
+  let errorResponse: ErrorMessage;
+  if (err instanceof ErrorMessage) {
+    errorResponse = err;
+  } else if (Number.isInteger(err?.status) && err.status >= 400 && err.status <= 599) {
+    errorResponse = new ErrorMessage(
+      STATUS_ERROR_MESSAGES[err.status] ?? messages.ERROR_MESSAGE,
+      err.status,
+    );
+  } else {
+    // This also covers a status outside the HTTP range (e.g. 99999) - calling writeHead
+    // with it would crash the process
+    errorResponse = new ServerErrorResponse(messages.SERVER_ERROR);
+  }
+  // A valid status for the final response is an integer 200..999: 1xx are intermediate
+  // informational responses, not final ones (the client would never get a completion and
+  // would hang until it times out); non-standard 6xx-9xx are still not rejected, same as
+  // before; an ErrorMessage with an invalid status of its own (e.g. from a third-party
+  // middleware) is also replaced with a safe one
+  if (
+    !Number.isInteger(errorResponse.status) ||
+    errorResponse.status < 200 ||
+    errorResponse.status > 999
+  ) {
+    errorResponse = new ServerErrorResponse(messages.SERVER_ERROR);
+  }
+  return errorResponse;
+}
+
+// The level follows the status class, as in Logger: an expected answer below 500 (4xx is the
+// client's mistake) is logged without the exception and its stack; 5xx and anything unexpected -
+// as an error together with the exception itself
+function logFailure(label: string, err: any, status: number) {
+  if (status >= 500) {
+    Logger.ENGINE.error(label, err);
+  } else {
+    Logger.ENGINE[status >= 400 ? "warn" : "info"]("Request rejected:", {
+      status,
+      message: err?.message,
+    });
+  }
+}
 
 //
 class RouteMatcher {
@@ -241,7 +287,7 @@ export class Server {
 
         if (!match) {
           res.writeHead(404, { "Content-Type": "application/json" });
-          res.end(JSON.stringify(new NotFoundResponse(messages.PATH_NOT_FOUND)));
+          res.end(localize(JSON.stringify(new NotFoundResponse(messages.PATH_NOT_FOUND))));
           return;
         }
 
@@ -310,7 +356,7 @@ export class Server {
               // download): pipeline has already destroyed both ends, it's not a server error
               const { code } = streamErr as NodeJS.ErrnoException;
               if (code === "ERR_STREAM_PREMATURE_CLOSE" && res.destroyed) return;
-              console.error("Stream error:", streamErr);
+              Logger.ENGINE.error("Stream error:", streamErr);
               // pipeline may have already destroyed the whole pipeline, including res - then
               // there's nothing left to send
               if (res.destroyed) return;
@@ -334,12 +380,13 @@ export class Server {
             res.end(localize(JSON.stringify(result)));
           }
         } catch (err: any) {
+          const errorResponse = toErrorResponse(err);
           try {
             // Logging itself can throw (for example, the thrown object has a broken
             // util.inspect.custom) - in that case it's better to abort the connection than to
             // hang without a response
-            console.error("Request error:", err);
-          } catch (logErr) {
+            logFailure("Request error:", err, errorResponse.status);
+          } catch {
             res.destroy();
             return;
           }
@@ -349,34 +396,6 @@ export class Server {
           if (res.headersSent) {
             res.destroy();
             return;
-          }
-          // The exception's text/stack is never sent to the client on any branch: what goes out is
-          // either a ready-made ErrorMessage, or the error code matching the status, or the
-          // generic error code
-          let errorResponse: ErrorMessage;
-          if (err instanceof ErrorMessage) {
-            errorResponse = err;
-          } else if (Number.isInteger(err?.status) && err.status >= 400 && err.status <= 599) {
-            errorResponse = new ErrorMessage(
-              STATUS_ERROR_MESSAGES[err.status] ?? messages.ERROR_MESSAGE,
-              err.status,
-            );
-          } else {
-            // This also covers a status outside the HTTP range (e.g. 99999) - calling writeHead
-            // with it would crash the process
-            errorResponse = new ServerErrorResponse(messages.SERVER_ERROR);
-          }
-          // A valid status for the final response is an integer 200..999: 1xx are intermediate
-          // informational responses, not final ones (the client would never get a completion and
-          // would hang until it times out); non-standard 6xx-9xx are still not rejected, same as
-          // before; an ErrorMessage with an invalid status of its own (e.g. from a third-party
-          // middleware) is also replaced with a safe one
-          if (
-            !Number.isInteger(errorResponse.status) ||
-            errorResponse.status < 200 ||
-            errorResponse.status > 999
-          ) {
-            errorResponse = new ServerErrorResponse(messages.SERVER_ERROR);
           }
           try {
             // Serialization/localization happens before writeHead: otherwise, by the time it fails
@@ -388,7 +407,7 @@ export class Server {
           } catch (writeErr) {
             // Non-serializable data (BigInt, cycles) or a race on headersSent - fall back to a
             // safe response
-            console.error("Response write error:", writeErr);
+            Logger.ENGINE.error("Response write error:", writeErr);
             if (res.headersSent) {
               res.destroy();
             } else {
@@ -401,8 +420,8 @@ export class Server {
         // A safety net for errors outside the normal request logic (e.g. URL parsing) - without it,
         // an async throw here becomes an unhandled promise rejection and crashes the process
         try {
-          console.error("Request setup error:", err);
-        } catch (logErr) {
+          Logger.ENGINE.error("Request setup error:", err);
+        } catch {
           res.destroy();
           return;
         }
@@ -451,8 +470,8 @@ export class Server {
       } catch (err: any) {
         // The same risk as in the main handler: logging itself can throw
         try {
-          console.error("Request error:", err);
-        } catch (logErr) {
+          logFailure("Request error:", err, toErrorResponse(err).status);
+        } catch {
           // no-op - destroy() happens below regardless
         }
         socket.destroy();

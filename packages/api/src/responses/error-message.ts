@@ -37,7 +37,7 @@ export class ErrorMessage extends Error implements IErrorData {
   @PropertySchema.String({ description: messages.API_ERROR_MESSAGE })
   message: string;
 
-  @PropertySchema.Any({ description: messages.API_ERROR_DETAILS })
+  @PropertySchema.Any({ isOptional: true, description: messages.API_ERROR_DETAILS })
   data?: any;
 
   /**

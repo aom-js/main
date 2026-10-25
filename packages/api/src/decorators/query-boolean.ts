@@ -4,8 +4,9 @@ import { IsBoolean } from "class-validator";
 /**
  * Property decorator: coerces a query-string value (always a string over HTTP) into a real
  * `boolean` before validation, then applies `IsBoolean()`. Accepts the literal strings `"true"`/
- * `"false"`, an actual boolean (passed through), or falls back to `Boolean(+value)` for anything
- * else (e.g. `"1"`/`"0"`).
+ * `"false"` and `"1"`/`"0"`, or an actual boolean (passed through). Anything else (`"yes"`, `""`)
+ * is left as is, so `IsBoolean()` rejects it (400 through the builders) instead of reading it as
+ * `false`.
  *
  * @example
  * ```ts
@@ -24,12 +25,9 @@ export function QueryBoolean(): PropertyDecorator {
     return Reflect.decorate(
       [
         Transform(({ value }) => {
-          // compare against the string value
-          const isTrue = value === "true";
-          const isFalse = value === "false";
-          if (isTrue) return true;
-          if (isFalse) return false;
-          return typeof value === "boolean" ? value : Boolean(+value);
+          if (value === "true" || value === "1") return true;
+          if (value === "false" || value === "0") return false;
+          return value;
         }),
         IsBoolean(),
       ],
