@@ -29,7 +29,7 @@ import { AccessTypes } from "./init";
 
 // ThisRef + DelayRefStack are used so the marker is correctly threaded through subclasses
 const SafeAccessMarker = ThisRef((<T extends typeof BaseAccessController>(constructor: T) => [
-  UseMarker(constructor.setAccessMark),
+  UseMarker(constructor.SetAccessMark),
 ]) as RefFunction);
 
 /**
@@ -38,7 +38,7 @@ const SafeAccessMarker = ThisRef((<T extends typeof BaseAccessController>(constr
  * request time `Required` checks the caller's granted access map against that marker.
  *
  * Subclass once per application and set the four `static readonly` fields
- * (`markerName`/`allowedAccessTypes`/`AccessMarker`/`AccessCore`) before using any of the
+ * (`MarkerName`/`AllowedAccessTypes`/`AccessMarker`/`AccessCore`) before using any of the
  * decorators below — they are abstract on the base class.
  *
  * @example
@@ -50,8 +50,8 @@ const SafeAccessMarker = ThisRef((<T extends typeof BaseAccessController>(constr
  *
  * \@Controller()
  * class AccessController extends BaseAccessController {
- *   static readonly markerName = "app:access";
- *   static readonly allowedAccessTypes = Object.values(PermissionsTypes);
+ *   static readonly MarkerName = "app:access";
+ *   static readonly AllowedAccessTypes = Object.values(PermissionsTypes);
  *   static readonly AccessMarker = AomAccessMarkerElement;
  *   static readonly AccessCore = AomAccessCore;
  * }
@@ -70,10 +70,10 @@ const SafeAccessMarker = ThisRef((<T extends typeof BaseAccessController>(constr
 @Controller()
 export class BaseAccessController {
   /** Key this application's access marker is stored under in `route.markers`. Must be overridden. */
-  static readonly markerName: string;
+  static readonly MarkerName: string;
 
   /** Full set of access types this application recognizes. Must be overridden. */
-  static readonly allowedAccessTypes: AccessTypes[] | string[];
+  static readonly AllowedAccessTypes: AccessTypes[] | string[];
 
   /** Component-schema class describing the marker shape (accumulated per route). Must be overridden. */
   static readonly AccessMarker: typeof AomAccessMarkerElement;
@@ -101,8 +101,8 @@ export class BaseAccessController {
    * (`activeAccessTypes`), access is granted if `accessMap.fullAccess` is set or `ident` appears
    * in `accessMap.structure`.
    *
-   * @param ident - identifier of the route/middleware being checked (see `setAccessMark`)
-   * @param accessMarker - the marker accumulated for this point (`route.markers[markerName]`)
+   * @param ident - identifier of the route/middleware being checked (see `SetAccessMark`)
+   * @param accessMarker - the marker accumulated for this point (`route.markers[MarkerName]`)
    * @returns whether the current caller may reach this point
    */
   checkAccessPoint(ident: string, accessMarker: AomAccessMarkerElement): boolean {
@@ -186,18 +186,18 @@ export class BaseAccessController {
   /**
    * Method decorator: restricts an endpoint/middleware to the given access types and attaches
    * `Required` as a `\@Before` on it, so the restriction is actually enforced. The access types
-   * accumulate as markers walk up the cursor chain (see `setAccessMark`) and show up in
+   * accumulate as markers walk up the cursor chain (see `SetAccessMark`) and show up in
    * `BaseRootController.Index` via `markersToRoute`.
    *
-   * @param accessTypes - one or more of `allowedAccessTypes`
-   * @throws {Error} when called with no types, or with a type outside `allowedAccessTypes`
+   * @param accessTypes - one or more of `AllowedAccessTypes`
+   * @throws {Error} when called with no types, or with a type outside `AllowedAccessTypes`
    */
-  static TypesRequired(...accessTypes: typeof this.allowedAccessTypes): CombinedDecorator {
+  static TypesRequired(...accessTypes: typeof this.AllowedAccessTypes): CombinedDecorator {
     if (!accessTypes.length) {
       throw new Error(messages.CONTROLLERS_ACCESS_TYPES_REQUIRED);
     }
 
-    const diff = _.difference(<string[]>accessTypes, <string[]>this.allowedAccessTypes);
+    const diff = _.difference(<string[]>accessTypes, <string[]>this.AllowedAccessTypes);
     if (diff.length) {
       throw new Error(`${messages.CONTROLLERS_ACCESS_TYPES_MISMATCH}: ${diff}`);
     }
@@ -222,11 +222,11 @@ export class BaseAccessController {
    * reference, and attaches `CheckLayerPass` as a `\@Before` on it so passing the layer is
    * recorded on `layerPassed`.
    *
-   * @param accessTypes - one or more of `allowedAccessTypes` that may grant this layer
-   * @throws {Error} when a passed type is outside `allowedAccessTypes`
+   * @param accessTypes - one or more of `AllowedAccessTypes` that may grant this layer
+   * @throws {Error} when a passed type is outside `AllowedAccessTypes`
    */
-  static SetExtraAccess(...accessTypes: typeof this.allowedAccessTypes): MethodDecorator {
-    const diff = _.difference(<string[]>accessTypes, <string[]>this.allowedAccessTypes);
+  static SetExtraAccess(...accessTypes: typeof this.AllowedAccessTypes): MethodDecorator {
+    const diff = _.difference(<string[]>accessTypes, <string[]>this.AllowedAccessTypes);
     if (diff.length) {
       throw new Error(`${messages.CONTROLLERS_ACCESS_TYPES_MISMATCH}: ${diff}`);
     }
@@ -279,7 +279,7 @@ export class BaseAccessController {
       const originIdent = extraCursor.origin.toString();
 
       // find the current control point's info in the route data
-      const routeAccessControl: AomAccessMarkerElement = route.markers[this.markerName];
+      const routeAccessControl: AomAccessMarkerElement = route.markers[this.MarkerName];
 
       const accessPoint = routeAccessControl.accessPoints.find(
         (value) => value.ident === originIdent,
@@ -343,7 +343,7 @@ export class BaseAccessController {
   }
 
   /**
-   * Middleware: the actual access gate. Also registers `setAccessMark` as a route marker (via
+   * Middleware: the actual access gate. Also registers `SetAccessMark` as a route marker (via
    * `\@DelayRefStack`) so every point this decorator reaches gets recorded on the route's access
    * marker, which is what `checkAccessPoint`/`BaseRootController.Index` read.
    *
@@ -360,7 +360,7 @@ export class BaseAccessController {
     // ...
     const cursorIsEndpoint = route.endpoint.$ === cursor.$;
 
-    const markName = this.markerName;
+    const markName = this.MarkerName;
     const origin = cursorIsEndpoint ? route.endpoint.$ : cursor.origin;
 
     const ident = origin.toString();
@@ -378,8 +378,8 @@ export class BaseAccessController {
    * not meant to be called directly by application code.
    */
   @Marker()
-  static setAccessMark(route: AomRoute, cursor: AomCursor): void {
-    const markName = this.markerName;
+  static SetAccessMark(route: AomRoute, cursor: AomCursor): void {
+    const markName = this.MarkerName;
 
     let currentAccessControl: InstanceType<typeof this.AccessMarker>;
     if (!route.markers[markName]) {

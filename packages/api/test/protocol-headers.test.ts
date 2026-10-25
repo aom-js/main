@@ -67,7 +67,7 @@ describe("Server: заголовки подпротоколом доходят �
 
   @Controller()
   class EchoSocket {
-    static sockets = new AomWebSockets();
+    static Sockets = new AomWebSockets();
 
     @Middleware()
     @Before(WebSocketsController.Define)

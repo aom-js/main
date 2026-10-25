@@ -29,10 +29,10 @@ import { type HttpCtx } from "../types";
 @Controller()
 export class BaseVisualizerController {
   /** Graph-build and render options passed to `Visualizer`; override in a subclass to customize. */
-  static readonly visualizerOptions: BuildGraphOptions & RenderOptions = {};
+  static readonly VisualizerOptions: BuildGraphOptions & RenderOptions = {};
 
-  protected static visualizer(route: AomRoute): Visualizer {
-    return new Visualizer(route, this.visualizerOptions);
+  protected static CreateVisualizer(route: AomRoute): Visualizer {
+    return new Visualizer(route, this.VisualizerOptions);
   }
 
   /**
@@ -51,7 +51,7 @@ export class BaseVisualizerController {
     // a string defaults to text/plain - for a real HTML page we set the type
     // explicitly, before return
     ctx.res.setHeader("Content-Type", "text/html; charset=utf-8");
-    return this.visualizer(route).html;
+    return this.CreateVisualizer(route).html;
   }
 
   /** `GET /visualizer.json`: the same route graph as `Page`, as raw `VisualGraph` data. */
@@ -63,6 +63,6 @@ export class BaseVisualizerController {
     schema: { type: "object" },
   })
   static Data(@Route() route: AomRoute): VisualGraph {
-    return this.visualizer(route).graph;
+    return this.CreateVisualizer(route).graph;
   }
 }

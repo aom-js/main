@@ -103,7 +103,7 @@ describe("коды и описания 423/424", () => {
 
 describe("BaseAccessController.CheckLayerPass", () => {
   class TestAccess extends BaseAccessController {
-    static readonly markerName = "test-marker";
+    static readonly MarkerName = "test-marker";
   }
 
   const targetFn = function OriginTarget() {};
@@ -178,8 +178,8 @@ describe("BaseAccessController: экстра-слой на настоящем р
   class TestCore extends AomAccessCore {}
   @Controller()
   class TestAccess extends BaseAccessController {
-    static readonly markerName = "test-access";
-    static readonly allowedAccessTypes = ["a", "b"];
+    static readonly MarkerName = "test-access";
+    static readonly AllowedAccessTypes = ["a", "b"];
     static readonly AccessMarker = AomAccessMarkerElement;
     static readonly AccessCore = TestCore;
   }
@@ -295,7 +295,7 @@ describe("BaseRootController.Index: копия маршрутов на запр�
     @Controller()
     class Root extends BaseRootController {
       static readonly RoutesStructure = RoutesStructure;
-      readonly RouteElement = RouteElement;
+      static readonly RouteElement = RouteElement;
       readonly ident = "test";
       markersToRoute() {}
     }

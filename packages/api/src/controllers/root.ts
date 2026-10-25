@@ -77,7 +77,7 @@ export class RoutesStructure<RE extends RouteElement> extends CommonResponse {
  * \@Controller()
  * export class ModuleRootController extends BaseRootController {
  *   static readonly RoutesStructure = ModuleRoutesStructure;
- *   readonly RouteElement = ModuleRouteElement;
+ *   static readonly RouteElement = ModuleRouteElement;
  *
  *   markersToRoute(routeElement: ModuleRouteElement, markers: MarkerType): void {
  *     routeElement.access = markers["app:access"];
@@ -94,10 +94,10 @@ export class BaseRootController {
   static readonly RoutesStructure: typeof RoutesStructure<RouteElement>;
 
   /** Element class instantiated per route by `Index`; override with an application-specific subclass. */
-  readonly RouteElement: typeof RouteElement;
+  static readonly RouteElement: typeof RouteElement;
 
   /** Cache for `JSONDocs`, keyed by the class it was computed on (see `JSONDocs`). */
-  protected static docsJSON: OpenAPIObject;
+  protected static DocsJSON: OpenAPIObject;
 
   /** The `OpenApi` document builder for this controller's router, used by `JSONDocs`. */
   readonly docs: OpenApi;
@@ -122,7 +122,7 @@ export class BaseRootController {
    *
    * @throws {Error} always, unless overridden
    */
-  markersToRoute(_routeElement: InstanceType<typeof this.RouteElement>, _markers: MarkerType) {
+  markersToRoute(_routeElement: RouteElement, _markers: MarkerType) {
     // move route.markers to routeElemet properties
     // throw error if not overloaded
     throw new Error(
@@ -157,7 +157,7 @@ export class BaseRootController {
     const result = new this.RoutesStructure(ident);
     routes.forEach((route) => {
       const { method, path } = route;
-      const routeElement = new self.RouteElement();
+      const routeElement = new this.RouteElement();
       routeElement.method = method;
       routeElement.path = path;
       routeElement.operationId = route.endpoint.$.toString();
@@ -169,7 +169,7 @@ export class BaseRootController {
 
   /**
    * `GET /openapi.json`, protected by `AuthBasic.Required`. Serializes `docs` to an OpenAPI
-   * document on first call and caches it on `static docsJSON` for the concrete subclass, so
+   * document on first call and caches it on `static DocsJSON` for the concrete subclass, so
    * repeated requests don't rebuild it.
    */
   @Get("/openapi.json")
@@ -183,10 +183,10 @@ export class BaseRootController {
   static JSONDocs(@This() { docs }: BaseRootController) {
     // cache the docs on the class so they aren't regenerated on repeated calls
     // this is valid because subclasses will inherit from RootRoute
-    if (!this.docsJSON) {
-      this.docsJSON = docs.toJSON();
+    if (!this.DocsJSON) {
+      this.DocsJSON = docs.toJSON();
     }
-    return this.docsJSON;
+    return this.DocsJSON;
   }
 
   /**

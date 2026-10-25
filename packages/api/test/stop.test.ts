@@ -57,7 +57,7 @@ describe("Server.stop()", () => {
 
   @Controller()
   class Sockets {
-    static sockets = new AomWebSockets();
+    static Sockets = new AomWebSockets();
 
     @Middleware()
     @Before(WebSocketsController.Define)

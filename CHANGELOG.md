@@ -2,6 +2,16 @@
 
 Одна версия на все пакеты `@aom-js/*`; правила выпуска — [на сайте документации](https://aom.js.org/publishing/).
 
+## 0.2.0
+
+Несовместимый выпуск: статичные члены базовых контроллеров `api` названы с заглавной буквы, как шаги и маршруты. Наследники переименовывают свои поля; переходных имён нет.
+
+- `api`: `BaseAccessController` — `markerName` → `MarkerName`, `allowedAccessTypes` → `AllowedAccessTypes`, `setAccessMark` → `SetAccessMark`. Ключ маркера на маршруте — по-прежнему значение `MarkerName`, сохранённые роли не меняются.
+- `api`: `BaseRootController.RouteElement` стал статичным, как `RoutesStructure`: наследник пишет `static readonly RouteElement = ...`. `markersToRoute` получает экземпляр `RouteElement`. Кэш `docsJSON` → `DocsJSON`.
+- `api`: контроллер WebSocket-точки держит реестр в `static Sockets` (было `sockets`), в типе `WithWebSockets` — `Sockets` и `SocketsParam`; `WebSocketsController.wssMap` → `WssMap`.
+- `api`: `IDController` — `attr` → `Attr`, `pattern` → `Pattern`, `param()` → `Param()`; `toString()` прежний.
+- `api`: `BaseVisualizerController.visualizerOptions` → `VisualizerOptions`, защищённый `visualizer()` → `CreateVisualizer()`.
+
 ## 0.1.3
 
 Проверка входящих данных стала строже: запросы, которые раньше молча проходили, теперь получают 400.

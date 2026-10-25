@@ -14,8 +14,8 @@ export declare type WebSocketConnections = Map<string, WebSocket[]>;
 
 /** A controller class carrying WebSocket state: connection registry plus an optional id-source parameter. */
 export declare type WithWebSockets<T extends {}> = T & {
-  sockets: AomWebSockets;
-  socketsParam?: string | Function;
+  Sockets: AomWebSockets;
+  SocketsParam?: string | Function;
 };
 
 export declare type CtxWS = () => WebSocket;
@@ -108,7 +108,7 @@ class WebSocketWrapper {
     const { req, socket, head } = context;
     const { target } = this;
     wss.handleUpgrade(req, socket, head, (socket) => {
-      target.sockets.connect(id, socket);
+      target.Sockets.connect(id, socket);
       socket.onerror = (...args) => {
         console.error("socket error", args);
       };
@@ -117,12 +117,12 @@ class WebSocketWrapper {
         console.log("socket opened", ev);
       };
 
-      if (target.sockets.onMessage) {
+      if (target.Sockets.onMessage) {
         // a throwing (or rejecting) application handler must not become an unhandled rejection
         // that takes the whole process down: it's logged, the connection stays open
         socket.onmessage = async (ev: WebSocket.MessageEvent) => {
           try {
-            await Reflect.apply(target.sockets.onMessage!, null, [id, socket, ev.data]);
+            await Reflect.apply(target.Sockets.onMessage!, null, [id, socket, ev.data]);
           } catch (err) {
             console.error("socket message error", err);
           }
@@ -131,7 +131,7 @@ class WebSocketWrapper {
 
       socket.onclose = (ev: WebSocket.CloseEvent) => {
         console.log("socket closed", id);
-        target.sockets.disconnect(id, socket);
+        target.Sockets.disconnect(id, socket);
       };
     });
   }
@@ -145,30 +145,30 @@ class WebSocketWrapper {
  */
 @Controller()
 export class WebSocketsController {
-  static wssMap: SocketServerConnections = new Map();
+  static WssMap: SocketServerConnections = new Map();
 
   //
   /** Connection id for this request; set by an application middleware before `Connect` runs. */
   id!: string | null;
 
   /**
-   * Middleware: verifies the route's target controller has a `sockets: AomWebSockets` field and
-   * lazily registers a `WebSocketWrapper` for the route in `wssMap`.
+   * Middleware: verifies the route's target controller has a `Sockets: AomWebSockets` field and
+   * lazily registers a `WebSocketWrapper` for the route in `WssMap`.
    *
-   * @throws {Error} when the target controller doesn't declare `sockets` as an `AomWebSockets` instance
+   * @throws {Error} when the target controller doesn't declare `Sockets` as an `AomWebSockets` instance
    */
   @Middleware()
   static async Define(@Route() route: AomRoute) {
     //
     const target = route.endpoint.$._.target as WithWebSockets<ClassConstructor>;
-    if (!target.sockets || !(target.sockets instanceof AomWebSockets)) {
+    if (!target.Sockets || !(target.Sockets instanceof AomWebSockets)) {
       throw new Error(messages.CONTROLLERS_WEBSOCKETS_WRONG_TARGET);
     }
 
-    const existsWss = this.wssMap.get(route);
+    const existsWss = this.WssMap.get(route);
     if (!existsWss) {
       const wsWrap = new WebSocketWrapper(target);
-      this.wssMap.set(route, wsWrap);
+      this.WssMap.set(route, wsWrap);
     }
   }
 
@@ -183,7 +183,7 @@ export class WebSocketsController {
     @This() self: WebSocketsController,
     @Route() route: AomRoute,
   ) {
-    const wsWrap = this.wssMap.get(route);
+    const wsWrap = this.WssMap.get(route);
     if (wsWrap && self.id) {
       const context = { req: ctx.req, socket: ctx.res, head };
       await wsWrap.handle(context, self.id);
@@ -215,11 +215,11 @@ export class WebSocketsController {
   @Before(WebSockets.Define)
   @After(WebSockets.Setup)
   static async Param(@Params() params: {}, @Route() route: AomRoute, @This() self: WebSockets) {
-    const { target } = this.wssMap.get(route)!;
+    const { target } = this.WssMap.get(route)!;
 
-    const paramName = _.isString(target.socketsParam)
-      ? target.socketsParam
-      : Reflect.apply(target.socketsParam!, null, []);
+    const paramName = _.isString(target.SocketsParam)
+      ? target.SocketsParam
+      : Reflect.apply(target.SocketsParam!, null, []);
     self.id = Reflect.get(params, paramName);
   }
   */

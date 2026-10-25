@@ -102,7 +102,7 @@ describe("WebSocketsController через реальный Server", () => {
   @Before(Gate.Check)
   class EchoSocket {
     // обработчик приложения асинхронный, как в приложении; на "boom" он отклоняется
-    static sockets = new AomWebSockets(async (id, _socket, data) => {
+    static Sockets = new AomWebSockets(async (id, _socket, data) => {
       if (data === "boom") throw new Error("handler failed");
       received.push({ id, data });
     });
@@ -134,7 +134,7 @@ describe("WebSocketsController через реальный Server", () => {
       @This(WebSocketsController) { id }: WebSocketsController,
       @Headers("x-fail-body") failBody?: string,
     ) {
-      steps.push(`point:${EchoSocket.sockets.connections.get(id!)?.length ?? 0}`);
+      steps.push(`point:${EchoSocket.Sockets.connections.get(id!)?.length ?? 0}`);
       if (failBody) throw new Error("point failed");
     }
 
@@ -143,7 +143,7 @@ describe("WebSocketsController через реальный Server", () => {
     static async Room() {}
   }
 
-  // контроллеры с точкой сокета, но без `sockets: AomWebSockets`
+  // контроллеры с точкой сокета, но без `Sockets: AomWebSockets`
   @Controller()
   class NoSockets {
     @Middleware()
@@ -160,7 +160,7 @@ describe("WebSocketsController через реальный Server", () => {
 
   @Controller()
   class WrongSockets {
-    static sockets = { send() {} };
+    static Sockets = { send() {} };
 
     @Middleware()
     @Before(WebSocketsController.Define)
@@ -209,7 +209,7 @@ describe("WebSocketsController через реальный Server", () => {
     expect(await u1.opened).toBe(true);
     expect(await u2.opened).toBe(true);
 
-    EchoSocket.sockets.send("send-1", "only for 1");
+    EchoSocket.Sockets.send("send-1", "only for 1");
     await vi.waitFor(() => expect(u1.messages).toEqual(["only for 1"]));
     expect(u2.messages).toEqual([]);
 
@@ -251,29 +251,29 @@ describe("WebSocketsController через реальный Server", () => {
   it("после закрытия клиента сокет снят с регистрации", async () => {
     const c = connect(`${base}/echo`, { "x-user": "leaver" });
     expect(await c.opened).toBe(true);
-    expect(EchoSocket.sockets.connections.get("leaver")).toHaveLength(1);
+    expect(EchoSocket.Sockets.connections.get("leaver")).toHaveLength(1);
 
     c.client.close();
     await c.closed;
-    await vi.waitFor(() => expect(EchoSocket.sockets.connections.get("leaver")).toEqual([]));
+    await vi.waitFor(() => expect(EchoSocket.Sockets.connections.get("leaver")).toEqual([]));
   });
 
   it("id из параметра пути: соединение регистрируется под значением параметра", async () => {
     const c = connect(`${base}/rooms/r42`);
     expect(await c.opened).toBe(true);
-    expect(EchoSocket.sockets.connections.get("r42")).toHaveLength(1);
+    expect(EchoSocket.Sockets.connections.get("r42")).toHaveLength(1);
     c.client.close();
     await c.closed;
   });
 
   it("без id (self.id пуст) соединение разрывается и в реестр не попадает", async () => {
     // сервер снимает сокеты прошлых тестов позже, чем клиент видит close: иначе снятие попадёт между снимком и проверкой
-    await vi.waitFor(() => expect([...EchoSocket.sockets.connections.values()].flat()).toEqual([]));
-    const before = new Map(EchoSocket.sockets.connections);
+    await vi.waitFor(() => expect([...EchoSocket.Sockets.connections.values()].flat()).toEqual([]));
+    const before = new Map(EchoSocket.Sockets.connections);
     const c = connect(`${base}/echo`);
     expect(await c.opened).toBe(false);
     await c.closed;
-    expect(EchoSocket.sockets.connections).toEqual(before);
+    expect(EchoSocket.Sockets.connections).toEqual(before);
   });
 
   it("исключение в цепочке (гейт бросает) - соединение разрывается, сервер жив", async () => {
@@ -284,7 +284,7 @@ describe("WebSocketsController через реальный Server", () => {
       expect(await denied.opened).toBe(false);
       await denied.closed;
       expect(steps).toEqual(["gate"]);
-      expect(EchoSocket.sockets.connections.has("denied")).toBe(false);
+      expect(EchoSocket.Sockets.connections.has("denied")).toBe(false);
     } finally {
       errors.mockRestore();
     }
@@ -301,7 +301,7 @@ describe("WebSocketsController через реальный Server", () => {
       const c = connect(`${base}/echo`, { "x-user": "body-fail", "x-fail-body": "1" });
       await c.closed;
       await vi.waitFor(() =>
-        expect(EchoSocket.sockets.connections.get("body-fail")).toEqual([]),
+        expect(EchoSocket.Sockets.connections.get("body-fail")).toEqual([]),
       );
     } finally {
       errors.mockRestore();
@@ -309,7 +309,7 @@ describe("WebSocketsController через реальный Server", () => {
   });
 
   it.each(["/no-sockets", "/wrong-sockets"])(
-    "Define бросает CONTROLLERS_WEBSOCKETS_WRONG_TARGET, если у контроллера нет sockets: AomWebSockets (%s)",
+    "Define бросает CONTROLLERS_WEBSOCKETS_WRONG_TARGET, если у контроллера нет Sockets: AomWebSockets (%s)",
     async (path) => {
       const errors = vi.spyOn(console, "error").mockImplementation(() => {});
       try {

@@ -7,7 +7,7 @@ import { MongoIDSchema, NanoIDSchema, NumberIDSchema, ParamIDSchema, UUIDSchema 
 type pathIn = "path" | "query" | "header";
 
 const PathRefParams = ThisRef((<T extends typeof IDController>(constructor: T) => {
-  return [PathParameters(constructor.param())];
+  return [PathParameters(constructor.Param())];
 }) as RefFunction);
 
 const RefParams = (pathIn: pathIn) =>
@@ -19,7 +19,7 @@ const RefParams = (pathIn: pathIn) =>
  * Base controller for a single typed ID value that can live in the path, query, or a header,
  * validated against a `ParamIDSchema` pattern (regexp, length, format). Built by {@link IDValue}
  * — subclass through that factory (or the ready-made `UUIDParam`/`MongoIDParam`/`NanoIDParam`/
- * `NumberIDParam`) rather than extending `IDController` directly, since `attr`/`pattern` must be set.
+ * `NumberIDParam`) rather than extending `IDController` directly, since `Attr`/`Pattern` must be set.
  */
 @Controller()
 export class IDController {
@@ -29,12 +29,12 @@ export class IDController {
   /** Raw source object (path params, query, or headers) the value was read from. */
   source: any;
 
-  static readonly attr: string;
+  static readonly Attr: string;
 
-  static readonly pattern: ParamIDSchema;
+  static readonly Pattern: ParamIDSchema;
 
   /**
-   * Middleware: reads `attr` from the route's path parameters, registers it as a documented
+   * Middleware: reads `Attr` from the route's path parameters, registers it as a documented
    * `PathParameters` entry, and populates `value` via `PathValue`/`Assign`.
    */
   @Middleware()
@@ -42,13 +42,13 @@ export class IDController {
   @After(IDController.PathValue)
   static async PathID() {}
 
-  /** Middleware: same as `PathID`, but reads `attr` from the query string. */
+  /** Middleware: same as `PathID`, but reads `Attr` from the query string. */
   @Middleware()
   @DelayRefStack(RefParams("query"))
   @After(IDController.QueryValue)
   static async QueryID() {}
 
-  /** Middleware: same as `PathID`, but reads `attr` from the request headers. */
+  /** Middleware: same as `PathID`, but reads `Attr` from the request headers. */
   @Middleware()
   @DelayRefStack(RefParams("header"))
   @After(IDController.HeaderValue)
@@ -74,7 +74,7 @@ export class IDController {
 
   @Middleware()
   static async Assign(@This() self: IDController) {
-    self.value = self.source[this.attr];
+    self.value = self.source[this.Attr];
   }
 
   /**
@@ -82,11 +82,11 @@ export class IDController {
    * Use it to build paths: `` `/orgs/${OrgID}` ``.
    */
   static toString(): string {
-    return this.pattern.format(this.attr);
+    return this.Pattern.format(this.Attr);
   }
 
   /** Describes this ID as an OpenAPI path parameters object, keyed by `toString()`. */
-  static param(): OpenApiPathParameters {
+  static Param(): OpenApiPathParameters {
     return {
       [this.toString()]: this.JSONSchema("path"),
     };
@@ -95,9 +95,9 @@ export class IDController {
   /** Describes this ID as a single OpenAPI parameter for the given location. */
   static JSONSchema(pathIn: pathIn): OpenApiParameterObject {
     return {
-      name: this.attr,
-      description: this.attr,
-      schema: this.pattern.schema(),
+      name: this.Attr,
+      description: this.Attr,
+      schema: this.Pattern.schema(),
       required: true,
       in: pathIn,
     };
@@ -109,7 +109,7 @@ export class IDController {
  *
  * @param attr - name of the path parameter / query key / header this ID reads from
  * @param IDPattern - `ParamIDSchema` subclass describing the expected format
- * @returns an `IDController` subclass with `attr`/`pattern` set
+ * @returns an `IDController` subclass with `Attr`/`Pattern` set
  *
  * @example
  * ```ts
@@ -122,8 +122,8 @@ export class IDController {
  */
 export function IDValue<T extends typeof ParamIDSchema>(attr: string, IDPattern: T) {
   return class extends IDController {
-    static readonly attr = attr;
-    static pattern = new IDPattern();
+    static readonly Attr = attr;
+    static Pattern = new IDPattern();
   };
 }
 

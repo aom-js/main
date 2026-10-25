@@ -78,7 +78,7 @@ class AomAccessPoint extends AomAccessIdentPoint {
 }
 
 /**
- * Access marker accumulated on a route by `BaseAccessController.setAccessMark`: every access
+ * Access marker accumulated on a route by `BaseAccessController.SetAccessMark`: every access
  * point reachable through the route, plus the access types recognized at the point where the
  * marker is read. `BaseAccessController.AccessMarker` should point at this class or a subclass.
  */
