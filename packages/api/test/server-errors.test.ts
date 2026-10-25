@@ -25,16 +25,13 @@ describe("Server: локализация 404 и журнал ошибок", () =
   let server: Server;
   let base: string;
   const engine = Logger.ENGINE;
-  const fake = {
-    info: vi.fn(),
-    log: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  } satisfies AomLoggerEngine;
+  // a journal engine as the docs show it: it expects a Logger record and reads its route
+  const record = vi.fn((_message: string, log: Logger) => log.route.path);
+  const recordEngine = { info: record, log: record, warn: record, error: record, debug: record };
+  const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
   beforeAll(() => {
-    Logger.ENGINE = fake;
+    Logger.ENGINE = recordEngine satisfies AomLoggerEngine;
     const router = new Router(ErrorsApi, new OpenApi({ title: "errors", version: "1" }));
     const i18nizer = new I18nizer("en", "x-locale", "locale");
     server = new Server({ port: 0, url: "http://localhost" }, router, i18nizer);
@@ -43,11 +40,13 @@ describe("Server: локализация 404 и журнал ошибок", () =
 
   afterAll(() => {
     Logger.ENGINE = engine;
+    consoleError.mockRestore();
     server.server.close();
   });
 
   beforeEach(() => {
-    Object.values(fake).forEach((fn) => fn.mockClear());
+    record.mockClear();
+    consoleError.mockClear();
   });
 
   it("адрес без маршрута отвечает переведённым сообщением", async () => {
@@ -59,31 +58,25 @@ describe("Server: локализация 404 и журнал ошибок", () =
     expect((await en.json()).message).toBe("Path not found");
   });
 
-  it("брошенный ответ 4xx - warn через движок логгера, без стека и без error", async () => {
+  it("брошенный ответ 4xx сервер не пишет: это ожидаемый ответ, его записывает Logger", async () => {
     const response = await fetch(`${base}/missing`);
     expect(response.status).toBe(404);
-    expect(fake.error).not.toHaveBeenCalled();
-    expect(fake.warn).toHaveBeenCalledTimes(1);
-    const args = fake.warn.mock.calls[0];
-    expect(args.some((arg) => arg instanceof Error)).toBe(false);
-    expect(JSON.stringify(args)).toContain("APP:MISSING");
-    expect(JSON.stringify(args)).not.toContain("at ");
+    expect(consoleError).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
-  it("стороннее исключение со статусом 4xx - тоже warn", async () => {
+  it("стороннее исключение со статусом 4xx - тоже без записи", async () => {
     const response = await fetch(`${base}/third-party-4xx`);
     expect(response.status).toBe(400);
-    expect(fake.error).not.toHaveBeenCalled();
-    expect(fake.warn).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(fake.warn.mock.calls[0])).toContain("bad input");
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it("неожиданное исключение - error через движок логгера вместе с самим исключением", async () => {
+  it("неожиданное исключение - console.error вместе с самим исключением, движок журнала не получает чужое", async () => {
     const response = await fetch(`${base}/boom`);
     expect(response.status).toBe(500);
-    expect(fake.warn).not.toHaveBeenCalled();
-    expect(fake.error).toHaveBeenCalledTimes(1);
-    expect(fake.error.mock.calls[0][1]).toBeInstanceOf(Error);
-    expect(fake.error.mock.calls[0][1].message).toBe("boom");
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][1]).toBeInstanceOf(Error);
+    expect((consoleError.mock.calls[0][1] as Error).message).toBe("boom");
+    expect(record).not.toHaveBeenCalled();
   });
 });

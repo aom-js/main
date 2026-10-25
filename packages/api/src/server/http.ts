@@ -15,7 +15,6 @@ import { type AomServerSettings } from "./types";
 import { I18nizer } from "./i18nizer";
 import { protocolHeaders } from "./protocol-headers";
 import { parseJsonBody, BODY_UNREAD, DEFAULT_BODY_LIMIT, type BodyParseOptions } from "./body";
-import { Logger } from "../controllers/logger";
 
 declare type StringStructures = Record<string, string | string[]>;
 
@@ -67,18 +66,11 @@ function toErrorResponse(err: any): ErrorMessage {
   return errorResponse;
 }
 
-// The level follows the status class, as in Logger: an expected answer below 500 (4xx is the
-// client's mistake) is logged without the exception and its stack; 5xx and anything unexpected -
-// as an error together with the exception itself
+// An answer below 500 is expected (4xx is the client's mistake), and Logger records it with the
+// request, so the server stays silent; a failure goes to console with the exception itself -
+// not to Logger.ENGINE, whose engines receive Logger records
 function logFailure(label: string, err: any, status: number) {
-  if (status >= 500) {
-    Logger.ENGINE.error(label, err);
-  } else {
-    Logger.ENGINE[status >= 400 ? "warn" : "info"]("Request rejected:", {
-      status,
-      message: err?.message,
-    });
-  }
+  if (status >= 500) console.error(label, err);
 }
 
 //
@@ -356,7 +348,7 @@ export class Server {
               // download): pipeline has already destroyed both ends, it's not a server error
               const { code } = streamErr as NodeJS.ErrnoException;
               if (code === "ERR_STREAM_PREMATURE_CLOSE" && res.destroyed) return;
-              Logger.ENGINE.error("Stream error:", streamErr);
+              console.error("Stream error:", streamErr);
               // pipeline may have already destroyed the whole pipeline, including res - then
               // there's nothing left to send
               if (res.destroyed) return;
@@ -407,7 +399,7 @@ export class Server {
           } catch (writeErr) {
             // Non-serializable data (BigInt, cycles) or a race on headersSent - fall back to a
             // safe response
-            Logger.ENGINE.error("Response write error:", writeErr);
+            console.error("Response write error:", writeErr);
             if (res.headersSent) {
               res.destroy();
             } else {
@@ -420,7 +412,7 @@ export class Server {
         // A safety net for errors outside the normal request logic (e.g. URL parsing) - without it,
         // an async throw here becomes an unhandled promise rejection and crashes the process
         try {
-          Logger.ENGINE.error("Request setup error:", err);
+          console.error("Request setup error:", err);
         } catch {
           res.destroy();
           return;
@@ -470,7 +462,8 @@ export class Server {
       } catch (err: any) {
         // The same risk as in the main handler: logging itself can throw
         try {
-          logFailure("Request error:", err, toErrorResponse(err).status);
+          // a rejected upgrade has no Logger record: its reason is only here
+          console.error("Request error:", err);
         } catch {
           // no-op - destroy() happens below regardless
         }
