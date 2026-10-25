@@ -332,4 +332,47 @@ describe("router: путь и теги операции в OpenAPI", () => {
     expect(docsOf(Merged).paths["/merged"].get.tags).toEqual(["Section > Items"]);
     expect(docsOf(Ignored).paths["/ignored"].get.tags).toEqual(["Section"]);
   });
+
+  it("схема, разрешённая в undefined, — ошибка сборки с адресом шага и видом схемы", () => {
+    // базовый шаг читает схему со статики потомка; потомок её не задал
+    class EntityBase {
+      static entity?: ClassType;
+
+      @Middleware()
+      @Responses({
+        status: 200,
+        description: "ok",
+        schema: ThisRef(({ entity }: typeof EntityBase) => entity),
+      })
+      static async Data() {}
+    }
+
+    @Controller()
+    @Before(EntityBase.Data)
+    class NoEntity extends EntityBase {
+      @Get("/none")
+      static async list() {}
+    }
+    expect(() => docsOf(NoEntity)).toThrow(
+      "OPENAPI_SCHEMA_UNDEFINED_ERROR: response of NoEntity.Data",
+    );
+
+    @Controller()
+    class NoBody {
+      @Post("/body")
+      @RequestBody({ schema: undefined as never })
+      static async create() {}
+    }
+    expect(() => docsOf(NoBody)).toThrow("OPENAPI_SCHEMA_UNDEFINED_ERROR: body of NoBody.create");
+
+    @Controller()
+    class NoParam {
+      @Get("/:id")
+      @PathParameters({ ":id": { name: "id", schema: undefined as never } })
+      static async one() {}
+    }
+    expect(() => docsOf(NoParam)).toThrow(
+      "OPENAPI_SCHEMA_UNDEFINED_ERROR: parameter id of NoParam.one",
+    );
+  });
 });
