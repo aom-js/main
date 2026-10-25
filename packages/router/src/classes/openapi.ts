@@ -44,6 +44,16 @@ export class OpenApi {
   /** OpenAPI version of every document this generator renders: the version is the generator's, not the application's. */
   static readonly version = "3.2.0";
 
+  /**
+   * Replaces a `\@PathParameters` key in a route path with `{name}`: the first occurrence not
+   * followed by a word character, so the key may sit inside a segment (`id-:countryId(...)`)
+   * but `:id` does not hit `:id2`.
+   */
+  static replacePathKey(path: string, key: string, name: string): string {
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return path.replace(new RegExp(`${escaped}(?!\\w)`), () => `{${name}}`);
+  }
+
   private info: InfoObject;
 
   private tagsSet = new Set<string>();
@@ -74,9 +84,9 @@ export class OpenApi {
    *   `\@IgnoreNextTags` on any cursor) decides whether each `\@UseTag` cursor replaces,
    *   merges into, or is dropped from the running tag list; the final list is joined
    *   with `OpenApi.tagsSeparator`;
-   * - **path parameters** (`\@PathParameters`) — the path segment equal to the key
-   *   (the whole segment, e.g. `:id`, not a substring of `:id2`) is replaced with
-   *   `{name}` in the operation's path;
+   * - **path parameters** (`\@PathParameters`) — the key is replaced with `{name}` in the
+   *   operation's path (`OpenApi.replacePathKey`: also inside a segment, but `:id` does
+   *   not hit `:id2`);
    * - **other parameters** (`\@QueryParameters`/`\@CookieParameters`/`\@Parameters`);
    * - **responses** (`\@Responses`) — keyed by HTTP status, so the last cursor with a
    *   given status wins; `isArray: true` wraps the schema as `{type: "array", items}`;
@@ -167,12 +177,9 @@ export class OpenApi {
       cursor.$.openApi.path.forEach((structure) => {
         Object.keys(structure).forEach((key) => {
           const value = structure[key];
-          // replace the path segment equal to the key (not the first substring match:
-          // ":id" would hit ":id2") with the corresponding argument placeholder
-          path = path
-            .split("/")
-            .map((segment) => (segment === key ? `{${value.name}}` : segment))
-            .join("/");
+          // replace the key with the argument placeholder; the key may sit inside a segment
+          // ("id-:countryId"), but must not be the start of a longer name (":id" in ":id2")
+          path = OpenApi.replacePathKey(path, key, value.name);
           const schema = this.schemaExtract(value.schema, cursor, `parameter ${value.name}`);
           // console.log("parse parameters", path, value, schema);
           // maybe this parameter should be checked for having already been processed in this request, to avoid re-adding it

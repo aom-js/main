@@ -42,10 +42,7 @@ function openApiPath(route: AomRoute): string {
   route.cursors.forEach((cursor) => {
     cursor.$.openApi.path.forEach((structure) => {
       Object.keys(structure).forEach((key) => {
-        path = path
-          .split("/")
-          .map((segment) => (segment === key ? `{${structure[key].name}}` : segment))
-          .join("/");
+        path = OpenApi.replacePathKey(path, key, structure[key].name);
       });
     });
   });

@@ -292,6 +292,18 @@ describe("router: путь и теги операции в OpenAPI", () => {
     expect(Object.keys(docsOf(Nested).paths)).toEqual(["/{parent}/sub/{id}"]);
   });
 
+  it("PathParameters подменяют ключ и внутри сегмента: id-:countryId(шаблон)", () => {
+    const key = ":countryId([0-9a-f-]{36})";
+    @Controller()
+    class Locales {
+      @Get(`/countries/id-${key}/locales`)
+      @PathParameters({ [key]: { name: "countryId", schema: { type: "string" } } })
+      static async list() {}
+    }
+
+    expect(Object.keys(docsOf(Locales).paths)).toEqual(["/countries/id-{countryId}/locales"]);
+  });
+
   it("правило тегов действует и на шаге без своего @UseTag", () => {
     @Title("Section")
     class SectionTag {}
