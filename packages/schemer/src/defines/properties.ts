@@ -1,4 +1,13 @@
-import { Allow, IsBoolean, IsDate, IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
+import {
+  Allow,
+  IsBoolean,
+  IsDate,
+  IsDefined,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from "class-validator";
 import {
   Matches,
   Max,
@@ -36,6 +45,36 @@ function checkExistsSchemaParams($: AomSchemas) {
   $._.root.properties.add($._.property!);
 }
 
+// for factories whose main validator lets `undefined` through (Allow, ValidateNested): reject a
+// missing value exactly when class-validator-jsonschema lists the property in `required` — that is,
+// neither isOptional nor nullable (both are conditional validation). hidden values never arrive
+// from input (Exclude drops them in plainToInstance), so they are not required either
+function requiredGuard(params: CommonDescriptionsProperties) {
+  if (params.isOptional || params.nullable || params.hidden) return undefined;
+  return IsDefined({ groups: params.groups, always: params.always });
+}
+
+// class-transformer runs Transforms in the decorators array's order: put this one after
+// params.decorators so it coerces what the user's transforms produced (e.g. "1,2" split into
+// ["1", "2"]), element-wise for arrays; undefined, and null when nullable, are left as is
+function coercion(params: CommonDescriptionsProperties, convert: (value: unknown) => unknown) {
+  const one = (item: unknown) =>
+    item === undefined || (params.nullable && item === null) ? item : convert(item);
+  return Transform(({ value }) =>
+    params.isArray && Array.isArray(value) ? value.map(one) : one(value),
+  );
+}
+
+// only unambiguous inputs become booleans; anything else stays as is for IsBoolean to reject
+const BOOLEAN_INPUTS = new Map<unknown, boolean>([
+  [true, true],
+  ["true", true],
+  ["1", true],
+  [false, false],
+  ["false", false],
+  ["0", false],
+]);
+
 /** Parameters for `PropertySchema.String`. */
 declare interface StringDescriptionsProperties extends CommonDescriptionsProperties {
   minLength?: number;
@@ -50,7 +89,7 @@ declare interface StringDescriptionsProperties extends CommonDescriptionsPropert
  * but does not appear in the rendered JSON Schema itself — read it off the property's decorators,
  * not off `schemer.render(...)`.
  */
-const _String = (params: StringDescriptionsProperties): PropertyDecorator => {
+const _String = (params: StringDescriptionsProperties = {}): PropertyDecorator => {
   //
   return AomSchemas.propertyDecorator(($) => {
     checkExistsSchemaParams($);
@@ -98,10 +137,12 @@ declare interface NumberDescriptionsProperties extends CommonDescriptionsPropert
 
 /**
  * Number property: `IsNumber` plus `Max`/`Min` when given, and the usual optional/nullable/hidden
- * set. Also applies a `Transform` that coerces the input to `Number(value)` (or to `null` when
- * `nullable` and the input is `null`) before validation.
+ * set. Also applies a `Transform` that coerces the input to `Number(value)` (`undefined` stays as is,
+ * `null` too when `nullable`) before validation. The coercion runs after the transforms in
+ * `params.decorators` and, with `isArray`, element by element — so a splitter such as
+ * `TransformToArray()` turns `?ids=1,2` into `[1, 2]`.
  */
-const _Number = (params: NumberDescriptionsProperties) => {
+const _Number = (params: NumberDescriptionsProperties = {}) => {
   //
   return AomSchemas.propertyDecorator(($) => {
     checkExistsSchemaParams($);
@@ -133,11 +174,8 @@ const _Number = (params: NumberDescriptionsProperties) => {
         examples: params.examples,
         readOnly: params.readOnly,
       }),
-      Transform(({ value }) => {
-        if (params.nullable && value === null) return null;
-        return Number(value);
-      }),
       ...(params.decorators || []), // append the extra decorators
+      coercion(params, Number),
     ];
 
     // apply the resulting decorators
@@ -152,10 +190,11 @@ declare interface BooleanDescriptionsProperties extends CommonDescriptionsProper
 
 /**
  * Boolean property: `IsBoolean` plus the usual optional/nullable/hidden set. The applied `Transform`
- * accepts the literal strings `"true"`/`"false"`, an actual boolean, or falls back to
- * `Boolean(+value)` for anything else — convenient for query-string style input.
+ * turns `"true"`/`"1"` into `true` and `"false"`/`"0"` into `false`, keeps actual booleans, and leaves
+ * anything else as is so `IsBoolean` rejects it (`"yes"`, `""`, `"TRUE"`). Like `Number`, it runs
+ * after `params.decorators` and element by element with `isArray`.
  */
-const _Boolean = (params: BooleanDescriptionsProperties) => {
+const _Boolean = (params: BooleanDescriptionsProperties = {}) => {
   //
   return AomSchemas.propertyDecorator(($) => {
     checkExistsSchemaParams($);
@@ -182,16 +221,8 @@ const _Boolean = (params: BooleanDescriptionsProperties) => {
         examples: params.examples,
         readOnly: params.readOnly,
       }),
-      Transform(({ value }) => {
-        if (params.nullable && value === null) return null;
-
-        const isTrue = value === "true";
-        const isFalse = value === "false";
-        if (isTrue) return true;
-        if (isFalse) return false;
-        return typeof value === "boolean" ? value : Boolean(+value);
-      }),
       ...(params.decorators || []), // append the extra decorators
+      coercion(params, (value) => BOOLEAN_INPUTS.get(value) ?? value),
     ];
 
     // apply the resulting decorators
@@ -204,8 +235,11 @@ declare interface AnyDescriptionsProperties extends CommonDescriptionsProperties
   default?: any;
 }
 // any type
-/** Unvalidated property: `Allow(...)` plus the usual optional/nullable/hidden set — accepts any value. */
-const _Any = (params: AnyDescriptionsProperties) => {
+/**
+ * Unvalidated property: `Allow(...)` plus the usual optional/nullable/hidden set — accepts any value.
+ * Unless `isOptional`, `nullable` or `hidden`, the value must be present: `IsDefined` is added, as for `Type`.
+ */
+const _Any = (params: AnyDescriptionsProperties = {}) => {
   //
   return AomSchemas.propertyDecorator(($) => {
     checkExistsSchemaParams($);
@@ -221,6 +255,7 @@ const _Any = (params: AnyDescriptionsProperties) => {
         groups: params.groups,
         always: params.always,
       }),
+      requiredGuard(params),
       params.isOptional ? IsOptional() : undefined,
       params.nullable ? IsNullable() : undefined,
       params.hidden ? Exclude() : undefined,
@@ -305,7 +340,7 @@ declare interface DateDescriptionsProperties extends CommonDescriptionsPropertie
  * (the same shape as `SCALAR_TYPE_SCHEMAS.date`). Applies a `Transform` that turns the input into
  * `new Date(value)` (or `null` when `nullable` and the input is `null`).
  */
-const _Date = (params: DateDescriptionsProperties) => {
+const _Date = (params: DateDescriptionsProperties = {}) => {
   //
   //
   return AomSchemas.propertyDecorator(($) => {
@@ -358,7 +393,9 @@ declare interface TypeDescriptionsProperties extends CommonDescriptionsPropertie
 /**
  * Reference to another `\@ComponentSchema` class: `Type(params.value)` (class-transformer) plus
  * `ValidateNested` and the usual optional/nullable/hidden set — but no `default`/`examples` in the
- * rendered JSON Schema (`TypeDescriptionsProperties` declares neither field). Also registers the
+ * rendered JSON Schema (`TypeDescriptionsProperties` declares neither field). `ValidateNested` lets a
+ * missing value through, so a property that is neither `isOptional`, `nullable` nor `hidden` (i.e.
+ * listed in `required`) also gets `IsDefined`, which renders as `not: {type: "null"}`. Also registers the
  * property in `AomSchemas.connections`, which is how `SchemasCollector` and `foldSchemas` discover
  * the `$ref` graph without re-scanning every property.
  */
@@ -381,6 +418,7 @@ const _Type = (params: TypeDescriptionsProperties) => {
         groups: params.groups,
         always: params.always,
       }),
+      requiredGuard(params),
       params.isOptional ? IsOptional() : undefined,
       params.nullable ? IsNullable() : undefined,
       params.hidden ? Exclude() : undefined,

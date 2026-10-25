@@ -97,6 +97,9 @@ export class AomCore {
     target: E,
     property?: Property,
   ): T | E {
+    if (target == null) {
+      throw new TypeError(`${this.name}: target is ${target} — nothing to look up in the registry`);
+    }
     // extract the constructor that will be the root
     const constructor = (
       target instanceof Function ? target : target.constructor

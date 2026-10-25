@@ -39,6 +39,15 @@ describe("schemer: сборщик компонент (каскад $ref)", () =>
     );
   });
 
+  it("отсутствующая схема (undefined/null) — понятная ошибка", () => {
+    const collector = makeCollector();
+    expect(() => collector.extract(undefined)).toThrow(
+      /SchemasCollector\.extract: schema is undefined/,
+    );
+    expect(() => collector.extract(null)).toThrow(/SchemasCollector\.extract: schema is null/);
+    expect(() => collector.extract([undefined])).toThrow(/schema is undefined/);
+  });
+
   it("не-компонент возвращается как есть и не попадает в components", () => {
     const collector = makeCollector();
     const raw = { type: "string" };

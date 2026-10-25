@@ -70,7 +70,7 @@ export class SchemasCollector {
    *
    * @param schema - a scalar name/constructor, `[T]`, a `\@ComponentSchema` class, or a JSON Schema object
    * @returns the `$ref`/array/scalar/literal form of `schema`
-   * @throws {Error} for an unknown scalar name, a malformed `[T]` array, or a function that is
+   * @throws {Error} for `undefined`/`null`, an unknown scalar name, a malformed `[T]` array, or a function that is
    * neither a scalar constructor nor a `\@ComponentSchema` class
    *
    * @example
@@ -95,6 +95,11 @@ export class SchemasCollector {
    * ```
    */
   extract(schema: any): any {
+    if (schema == null) {
+      throw new Error(
+        `SchemasCollector.extract: schema is ${schema} — a declared schema (response, body, parameter) resolved to nothing, e.g. a ThisRef reading a static the class does not set`,
+      );
+    }
     if (typeof schema === "string") {
       const named = SCALAR_TYPE_SCHEMAS[schema];
       if (!named) {
