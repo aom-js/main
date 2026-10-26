@@ -69,4 +69,48 @@ describe("main: сцепка кода и docs", () => {
     ])
       expect(app(t), t).toBe(false);
   });
+
+  it("main: падежи отсылок к документам, латинские Task и line, Dockerfile и #L; хосты, план запроса, S3/R2 — чисты; shortcut со скобкой", () => {
+    const caught = [
+      "задачей 3",
+      "фазой 2",
+      "стадией 4",
+      "по спекам",
+      "спекой",
+      "Task 4.2",
+      "phase 3",
+      "Dockerfile:3",
+      "deploy/Dockerfile.dev:12",
+      "file.ts#L82",
+      "`a/b.md#L3-L5`",
+      "line 82",
+      "Lines 3-5",
+      "подплан 2",
+      "nats.local.ts:3",
+    ];
+    const clean = [
+      "2 плана запроса",
+      "подплан запроса",
+      "в плане запроса нет подплана",
+      "db.example.com:5432",
+      "nats.svc.cluster.local:4222",
+      "aom-test-postgres.local:5432",
+      "S3/R2",
+      "R2/S3",
+      "Cloudflare R2",
+      "Apple M1",
+      "pipeline 3",
+      "к спекам и планам",
+      "задачами трекера",
+      "#l82",
+    ];
+    for (const where of ["code", "docs"] as const) {
+      for (const s of caught) expect(forbiddenIn(s, where).length, s).toBeGreaterThan(0);
+      for (const s of clean) expect(forbiddenIn(s, where), s).toEqual([]);
+    }
+    for (const s of ["shortcut(KI-…): предел", "// Shortcut (x): y"])
+      expect(forbiddenIn(s, "code")).toEqual(["метка shortcut(…): нужна shortcut:"]);
+    expect(forbiddenIn("shortcut: предел, когда расширять", "code")).toEqual([]);
+    expect(forbiddenIn("R2 и M1", "code")).toEqual(["метка M№/R№ латиницей"]);
+  });
 });

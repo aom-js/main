@@ -33,7 +33,10 @@ export const FORBIDDEN: readonly { rule: string; rx: RegExp; where?: Where }[] =
   // в docs латинская буква с цифрой — узел схемы
   {
     rule: "метка M№/R№ латиницей",
-    rx: new RegExp(`(?<![\\p{L}\\p{N}_-])[MR]\\d{1,2}${NOT_WORD_AFTER}`, "u"),
+    rx: new RegExp(
+      `(?<![\\p{L}\\p{N}_-])(?<!S3\\/|(?:Cloudflare|Apple)\\s)[MR]\\d{1,2}${NOT_WORD_AFTER}(?!\\/S3)`,
+      "u",
+    ),
     where: "code",
   },
   // имена контейнеров docker (`aom-test-postgres`, `aom-test-nats`) — не задачи
@@ -52,12 +55,12 @@ export const FORBIDDEN: readonly { rule: string; rx: RegExp; where?: Where }[] =
   },
   {
     // «HTTP-спека», «OpenAPI-спека» — внешний стандарт, не документ проекта: дефис перед словом отсекает;
-    // «план запроса» — план выполнения запроса БД, не документ: ловится только план с номером или названием
+    // «план запроса», «2 плана запроса», «подплан» — план выполнения запроса БД, не документ: ловится только план с номером или названием
     rule: "отсылка к плану или спеке",
     rx: new RegExp(
-      `${NOT_WORD_BEFORE}(?:(?:задач[аеиу]|фаз[аеыу]|стади[яиюей]|этап[а-я]*) \\d` +
-        `|план[а-я]* (?:\\d|переноса|доработки|миграции|задач|пилота)|\\d+(?:\\.\\d+)* плана${NOT_WORD_AFTER}|подплан)` +
-        `|(?<![\\p{L}\\p{N}_-])спек[аеиу]${NOT_WORD_AFTER}`,
+      `${NOT_WORD_BEFORE}(?:(?:задач(?:[аеиу]|ей)|фаз(?:[аеыу]|ой)|стади(?:[яиюе]|ей)|этап[а-я]*|task|phase|stage) \\d` +
+        `|(?:под)?план[а-я]* (?:\\d|переноса|доработки|миграции|задач|пилота)|\\d+(?:\\.\\d+)* плана${NOT_WORD_AFTER}(?!\\s+запрос))` +
+        `|(?<![\\p{L}\\p{N}_-])(?:спек(?:[аеиу]|ой)|(?:по|в) спек(?:ам|ах))${NOT_WORD_AFTER}`,
       "iu",
     ),
   },
@@ -72,10 +75,11 @@ export const FORBIDDEN: readonly { rule: string; rx: RegExp; where?: Where }[] =
       "iu",
     ),
   },
-  // имя файла, точка, любое расширение из букв, двоеточие и число; адрес с портом после двух косых черт — не файл
+  // имя файла, точка, любое расширение из букв, двоеточие и число (или `#L82`); `Dockerfile` и подобные — без расширения;
+  // адрес с портом после двух косых черт и хост с доменом верхнего уровня или `local`, `svc`, `cluster` — не файл
   {
     rule: "номер строки",
-    rx: /(?<!\/\/[\p{L}\p{N}_.-]*)(?:[\p{L}\p{N}_.-]+\/)*[\p{L}\p{N}_.-]*\.\p{L}[\p{L}\p{N}]*:\d+/u,
+    rx: /(?<!\/\/[\p{L}\p{N}_.-]*)(?:[\p{L}\p{N}_.-]+\/)*(?:[\p{L}\p{N}_.-]*\.(?!(?:local|localhost|internal|lan|com|org|net|io|ru|svc|cluster)(?![\p{L}\p{N}]))\p{L}[\p{L}\p{N}]*|(?:Dockerfile|Containerfile|Makefile|Procfile)[\p{L}\p{N}_.-]*)(?::\d+|#L\d+)/u,
   },
   // ядро не ссылается на приложение; `packages/<pkg>/test/…` и `test/<файл>.test.ts` пакета — тесты ядра
   {
@@ -84,6 +88,10 @@ export const FORBIDDEN: readonly { rule: string; rx: RegExp; where?: Where }[] =
   },
   // в прозе docs: «`:82`» без имени файла и «строки 12–15»
   { rule: "висячий :N", rx: /`:\d+(?:[-–,]\d+)*`/u, where: "docs" },
+  {
+    rule: "line N",
+    rx: new RegExp(`${NOT_WORD_BEFORE}lines?\\s+\\d`, "iu"),
+  },
   {
     rule: "строки N",
     rx: new RegExp(`${NOT_WORD_BEFORE}строк(?:а|и|е|у|ой|ам|ах|ами)?\\s+(?:с\\s+)?\\d`, "iu"),
@@ -94,6 +102,12 @@ export const FORBIDDEN: readonly { rule: string; rx: RegExp; where?: Where }[] =
   {
     rule: "прежняя метка ponytail: нужна shortcut",
     rx: /(?<![\p{L}\p{N}_-])ponytail\s*:/iu,
+    where: "code",
+  },
+  // метка отложенного решения — `shortcut: <предел>, <когда расширять>`, без ссылки в скобках
+  {
+    rule: "метка shortcut(…): нужна shortcut:",
+    rx: /(?<![\p{L}\p{N}_-])shortcut\s*\(/iu,
     where: "code",
   },
 ];
