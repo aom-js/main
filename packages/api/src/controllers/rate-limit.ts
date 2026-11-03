@@ -19,6 +19,8 @@ import { TooManyRequestsResponse } from "../responses";
  * import { RateLimit, RateLimiterMemory } from "@aom-js/api";
  * import { Controller, Before, After, Middleware, Post, Body, This } from "@aom-js/router";
  *
+ * type LoginBody = { login: string };
+ *
  * \@Controller()
  * class LoginLimit extends RateLimit {
  *   static readonly Limiter = new RateLimiterMemory({ points: 5, duration: 60 });
@@ -70,7 +72,7 @@ export class RateLimit {
       await self.limiter.consume(self.key, self.points);
     } catch (error) {
       if (!(error instanceof RateLimiterRes)) throw error;
-      ctx.res.setHeader?.(
+      ctx.res?.setHeader?.(
         "Retry-After",
         String(Math.max(1, Math.ceil(error.msBeforeNext / 1000))),
       );

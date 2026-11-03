@@ -5,6 +5,7 @@ import {
   RateLimiterRedis,
   RateLimiterRes,
   TooManyRequestsResponse,
+  WrongDataResponse,
   type HttpCtx,
 } from "@aom-js/api";
 import {
@@ -219,13 +220,17 @@ describe("RateLimit", () => {
     const route = new Router(Root, new OpenApi({ title: "t", version: "1" })).routeOf(Root.X);
     await route.apply(context({}));
     await expect(route.apply(context({}))).rejects.toMatchObject({ status: 429 });
+    // и вовсе без ctx.res
+    await expect(route.apply(context(undefined))).rejects.toMatchObject({ status: 429 });
   });
 
   it("Retry-After не меньше 1", async () => {
+    let refusal = new RateLimiterRes(0, 1);
+
     @Controller()
     class Almost extends RateLimit {
       static readonly Limiter = {
-        consume: () => Promise.reject(new RateLimiterRes(0, 1)),
+        consume: () => Promise.reject(refusal),
       } as never;
 
       @Middleware()
@@ -244,6 +249,11 @@ describe("RateLimit", () => {
 
     const route = new Router(Root, new OpenApi({ title: "t", version: "1" })).routeOf(Root.X);
     const { res, headers } = fakeRes();
+    await expect(route.apply(context(res))).rejects.toMatchObject({ status: 429 });
+    expect(headers["Retry-After"]).toBe("1");
+    // ноль мс до сброса: Math.ceil даёт 0, заголовок всё равно «1»
+    headers["Retry-After"] = "";
+    refusal = new RateLimiterRes(0, 0);
     await expect(route.apply(context(res))).rejects.toMatchObject({ status: 429 });
     expect(headers["Retry-After"]).toBe("1");
   });
@@ -354,6 +364,44 @@ describe("RateLimit", () => {
     // пятый запрос с адреса — отказ ещё на первом шаге, до проверки логина
     await expect(attempt("1.1.1.1", "carl")).rejects.toMatchObject({ status: 429 });
     expect((await LoginLimit.Limiter.get("carl"))?.consumedPoints).toBeUndefined();
+  });
+
+  // см. https://aom.js.org/cookbook/rate-limit/#ключ-из-логина-нормализация-и-проверка-типа
+  it("ключ из логина: нормализация, не строка — 400 до Apply", async () => {
+    @Controller()
+    class LoginLimit extends RateLimit {
+      static readonly Limiter = new RateLimiterMemory({ points: 1, duration: 60 });
+
+      @Middleware()
+      @After(LoginLimit.Apply)
+      static async ByLogin(@This() self: LoginLimit, @Body() body: { login?: unknown }) {
+        if (typeof body.login !== "string" || !body.login.trim()) {
+          throw new WrongDataResponse("APP:LOGIN_REQUIRED");
+        }
+        // та же нормализация, что и при поиске учётной записи
+        self.key = body.login.trim().toLowerCase();
+      }
+    }
+
+    @Controller()
+    class Auth {
+      @Post("/login")
+      @Before(LoginLimit.ByLogin)
+      static async login() {
+        return "ok";
+      }
+    }
+
+    const route = new Router(Auth, new OpenApi({ title: "t", version: "1" })).routeOf(Auth.login);
+    const attempt = (login: unknown) => route.apply(context(fakeRes().res, {}, { login }));
+
+    expect(await attempt("Ann")).toBe("ok");
+    // «ann» и " ann " — тот же счётчик, что и у «Ann»
+    await expect(attempt("ann")).rejects.toMatchObject({ status: 429 });
+    await expect(attempt(" ann ")).rejects.toMatchObject({ status: 429 });
+    // не строка — 400 ещё до Apply: счётчик «[object Object]» не создаётся
+    await expect(attempt({ a: 1 })).rejects.toMatchObject({ status: 400 });
+    expect(await LoginLimit.Limiter.get("[object Object]")).toBeNull();
   });
 
   // см. https://aom.js.org/cookbook/rate-limit/#память-и-база

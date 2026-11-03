@@ -31,6 +31,7 @@ const STATUS_ERROR_MESSAGES: Record<number, string> = {
   413: messages.ERROR_PAYLOAD_TOO_LARGE,
   423: messages.ERROR_DATA_LOCKED,
   424: messages.ERROR_WRONG_DEPENDENCY,
+  429: messages.ERROR_TOO_MANY_REQUESTS,
   500: messages.SERVER_ERROR,
 };
 

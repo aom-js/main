@@ -240,6 +240,11 @@ class TestApi {
     return infiniteStream;
   }
 
+  @Get("/foreign-too-many")
+  static async foreignTooMany() {
+    throw Object.assign(new Error("limiter of a third party"), { status: 429 });
+  }
+
   @Get("/foreign-conflict")
   static async foreignConflict() {
     // сторонняя ошибка с "чужим" полем status и текстом, который не должен уйти клиенту
@@ -455,6 +460,13 @@ describe("Server: HTTP-конвейер", () => {
       expect(res.status).toBe(409);
       expect(body.message).toBe("AOM_API:ERROR_CONFLICT");
       expect(JSON.stringify(body)).not.toContain("secret internal detail");
+    });
+
+    it("сторонняя ошибка со статусом 429 -> код ERROR_TOO_MANY_REQUESTS", async () => {
+      const res = await fetch(`${base}/foreign-too-many`);
+      const body = await res.json();
+      expect(res.status).toBe(429);
+      expect(body.message).toBe("AOM_API:ERROR_TOO_MANY_REQUESTS");
     });
 
     it("status вне HTTP-диапазона (99999) -> 500, а не падение процесса", async () => {
