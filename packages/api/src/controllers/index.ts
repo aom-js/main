@@ -5,3 +5,4 @@ export * from "./visualizer";
 export * from "./id-value";
 export * from "./logger";
 export * from "./events";
+export * from "./rate-limit";

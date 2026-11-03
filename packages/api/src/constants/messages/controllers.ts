@@ -2,7 +2,7 @@ import { PREFIX } from "./prefix";
 
 /**
  * Message codes used as OpenAPI descriptions and internal error messages across
- * `BaseRootController`, `BaseVisualizerController`, `BaseAccessController`, and the WebSocket
+ * `BaseRootController`, `BaseVisualizerController`, `BaseAccessController`, `RateLimit`, and the WebSocket
  * controller. Internal to the package, like the rest of `constants/messages/*`.
  */
 export const CONTROLLERS_ROOT_ROUTE_ELEMENT = PREFIX("CONTROLLERS_ROOT_ROUTE_ELEMENT");
@@ -44,3 +44,6 @@ export const CONTROLLERS_ACCESS_WRONG_MIDDLEWARE_ACCESS_LAYER = PREFIX(
 );
 
 export const CONTROLLERS_WEBSOCKETS_WRONG_TARGET = PREFIX("CONTROLLERS_WEBSOCKETS_WRONG_TARGET");
+
+export const CONTROLLERS_RATE_LIMIT_NO_LIMITER = PREFIX("CONTROLLERS_RATE_LIMIT_NO_LIMITER");
+export const CONTROLLERS_RATE_LIMIT_NO_KEY = PREFIX("CONTROLLERS_RATE_LIMIT_NO_KEY");
