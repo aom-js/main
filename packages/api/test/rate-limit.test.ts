@@ -121,6 +121,38 @@ describe("RateLimit", () => {
     expect((await B.Limiter.get("k"))?.consumedPoints).toBe(2);
   });
 
+  // см. https://aom.js.org/cookbook/rate-limit/#в-тестах-сброс-счётчика
+  it("сброс счётчика в тесте: Limiter.delete(ключ) без keyPrefix", async () => {
+    @Controller()
+    class ByIp extends RateLimit {
+      static readonly Limiter = new RateLimiterMemory({ keyPrefix: "ip", points: 1, duration: 60 });
+
+      @Middleware()
+      @After(ByIp.Apply)
+      static async Key(@Ctx() ctx: HttpCtx, @This() self: ByIp) {
+        self.key = ctx.req.socket.remoteAddress ?? null;
+      }
+    }
+
+    @Controller()
+    class Root {
+      @Post("/x")
+      @Before(ByIp.Key)
+      static async X() {
+        return "ok";
+      }
+    }
+
+    const route = new Router(Root, new OpenApi({ title: "t", version: "1" })).routeOf(Root.X);
+    const request = (address: string) =>
+      route.apply(context(fakeRes().res, { socket: { remoteAddress: address } }));
+    const address = "203.0.113.5";
+    expect(await request(address)).toBe("ok");
+    await expect(request(address)).rejects.toMatchObject({ status: 429 });
+    await ByIp.Limiter.delete(address);
+    expect(await request(address)).toBe("ok");
+  });
+
   // см. https://aom.js.org/cookbook/rate-limit/#память-и-база
   it("ошибка хранилища пробрасывается как есть", async () => {
     @Controller()
