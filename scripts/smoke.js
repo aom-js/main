@@ -40,6 +40,8 @@ for (const name of names) {
     try {
       const m = await load(name);
       if (!Object.keys(m).length) failures.push(\`\${name} (\${kind}): пустой набор экспортов\`);
+      if (name === "@aom-js/api" && typeof m.RateLimiterMemory !== "function")
+        failures.push(\`\${name} (\${kind}): RateLimiterMemory из rate-limiter-flexible не отдаётся функцией\`);
     } catch (e) {
       failures.push(\`\${name} (\${kind}): \${e.code || e.name} — \${String(e.message).split("\\n")[0]}\`);
     }

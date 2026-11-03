@@ -31,6 +31,7 @@
         "@aom-js/visualizer": "workspace:*",
         "dayjs": "^1.11.21",
         "es-toolkit": "^1.50.0",
+        "rate-limiter-flexible": "^11.2.4",
         "reflect-metadata": "^0.2.2",
         "ws": "^8.21.2",
       },
@@ -554,6 +555,8 @@
     "prettier": ["prettier@3.9.6", "http://registry.npmjs.org/prettier/-/prettier-3.9.6.tgz", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g=="],
 
     "punycode": ["punycode@2.3.1", "http://registry.npmjs.org/punycode/-/punycode-2.3.1.tgz", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
+
+    "rate-limiter-flexible": ["rate-limiter-flexible@11.2.4", "", {}, "sha512-z28uTq33lBUAszaKtX9Vq4Fwemf6Lfr06tw3jo5pkqjsxfFyqk4yx5T4bEHAeLr39ZS6VeVtfaIu35QhVNKAvA=="],
 
     "reflect-metadata": ["reflect-metadata@0.2.2", "http://registry.npmjs.org/reflect-metadata/-/reflect-metadata-0.2.2.tgz", {}, "sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q=="],
 

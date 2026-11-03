@@ -19,3 +19,4 @@ export * from "./decorators";
 export * from "./functions";
 export * from "./responses";
 export * from "./schemas";
+export * from "rate-limiter-flexible";
