@@ -25,6 +25,7 @@ const locales = {
   [errors.ERROR_DATA_LOCKED]: "Данные заблокированы",
   [errors.ERROR_WRONG_DEPENDENCY]: "Ошибка зависимости данных",
   [errors.ERROR_PAYLOAD_TOO_LARGE]: "Тело запроса превышает допустимый размер",
+  [errors.ERROR_TOO_MANY_REQUESTS]: "Превышено количество запросов",
   [errors.PAYMENT_REQUIRED]: "Требуется оплата",
   [errors.SERVER_ERROR]: "Ошибка сервера",
   [errors.API_ERROR_CODE]: "Код ошибки",
@@ -41,6 +42,7 @@ const locales = {
   [errors.API_ERROR_413_PAYLOAD_TOO_LARGE]: "Тело запроса превышает допустимый размер",
   [errors.API_ERROR_423_DATA_LOCKED]: "Данные заблокированы",
   [errors.API_ERROR_424_WRONG_DEPENDENCY]: "Ошибка зависимости данных",
+  [errors.API_ERROR_429_TOO_MANY_REQUESTS]: "Превышен лимит запросов",
   [errors.COMPONENT_SCHEMA_NOT_DEFINED]: "Схема компонента не определена",
   [errors.COMPONENT_SCHEMA_ONLY_PROPERTY_REQUIRED]: "Требуется ровно одно свойство схемы",
 };

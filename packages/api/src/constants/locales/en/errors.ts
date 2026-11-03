@@ -25,6 +25,7 @@ const locales = {
   [errors.ERROR_DATA_LOCKED]: "Data is locked",
   [errors.ERROR_WRONG_DEPENDENCY]: "Wrong data dependency",
   [errors.ERROR_PAYLOAD_TOO_LARGE]: "Payload too large",
+  [errors.ERROR_TOO_MANY_REQUESTS]: "Too many requests",
   [errors.PAYMENT_REQUIRED]: "Payment required",
   [errors.SERVER_ERROR]: "Server error",
   [errors.API_ERROR_CODE]: "Error code",
@@ -41,6 +42,7 @@ const locales = {
   [errors.API_ERROR_413_PAYLOAD_TOO_LARGE]: "Payload too large",
   [errors.API_ERROR_423_DATA_LOCKED]: "Data is locked",
   [errors.API_ERROR_424_WRONG_DEPENDENCY]: "Wrong data dependency",
+  [errors.API_ERROR_429_TOO_MANY_REQUESTS]: "Request limit exceeded",
   [errors.COMPONENT_SCHEMA_NOT_DEFINED]: "Component schema not defined",
   [errors.COMPONENT_SCHEMA_ONLY_PROPERTY_REQUIRED]: "Exactly one schema property required",
 };

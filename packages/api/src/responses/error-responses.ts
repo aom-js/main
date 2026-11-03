@@ -69,6 +69,14 @@ export class FailedDependencyResponse extends ErrorWithStatusResponse {
   static description = messages.ERROR_WRONG_DEPENDENCY;
 }
 
+/** HTTP 429 — the client exceeded the request limit; thrown by `RateLimit` controllers. */
+@ComponentSchema({ description: messages.API_ERROR_429_TOO_MANY_REQUESTS })
+export class TooManyRequestsResponse extends ErrorWithStatusResponse {
+  static status = 429;
+
+  static description = messages.ERROR_TOO_MANY_REQUESTS;
+}
+
 /** HTTP 403 — the caller is authenticated but not allowed to access this resource; thrown by `BaseAccessController.Required`. */
 @ComponentSchema({ description: messages.API_ERROR_403_ACCESS_DENY })
 export class AccessDenyResponse extends ErrorWithStatusResponse {
