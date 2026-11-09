@@ -170,6 +170,63 @@ describe("BaseAccessController.generateAccessMap: moduleIdent", () => {
   });
 });
 
+describe("BaseAccessController.generateAccessMap: extra точки — объединение", () => {
+  class TestAccess extends BaseAccessController {}
+  const P = (extra?: string[] | null) => ({ ident: "P", ...(extra === undefined ? {} : { extra }) });
+  const role = (...elements: object[]) => ({
+    fullAccess: false,
+    modulesAccess: [{ moduleIdent: "m", elements }],
+  });
+  const mapOf = (roles: object[]) => {
+    const access = new TestAccess();
+    access.moduleIdent = "m";
+    access.generateAccessMap(["a"], roles as never);
+    return access.accessMap.structure;
+  };
+
+  it.each([
+    ["разные слои", [P(["X"]), P(["Y"])], ["X", "Y"]],
+    ["обратный порядок", [P(["Y"]), P(["X"])], ["Y", "X"]],
+    ["разная длина", [P(["X", "Z"]), P(["Y"])], ["X", "Z", "Y"]],
+    ["три роли", [P(["X"]), P(["Y"]), P(["Z"])], ["X", "Y", "Z"]],
+    ["повтор слоя", [P(["X"]), P(["X"])], ["X"]],
+    ["у второй пусто", [P(["X"]), P([])], ["X"]],
+    ["у первой пусто", [P([]), P(["X"])], ["X"]],
+    ["у второй нет extra", [P(["X"]), P()], ["X"]],
+    ["у первой нет extra", [P(), P(["X"])], ["X"]],
+    ["у второй null", [P(["X"]), P(null)], ["X"]],
+    ["у первой null", [P(null), P(["X"])], ["X"]],
+  ])("роли: %s", (_name, elements, expected) => {
+    expect(mapOf(elements.map((element) => role(element))).P.extra).toEqual(expected);
+  });
+
+  it("точка дважды внутри одной роли - слои обеих записей", () => {
+    expect(mapOf([role(P(["X"]), P(["Y"]))]).P.extra).toEqual(["X", "Y"]);
+  });
+
+  it("две записи одного модуля внутри роли - слои обеих", () => {
+    const entry = (extra: string[]) => ({ moduleIdent: "m", elements: [P(extra)] });
+    const roles = [{ fullAccess: false, modulesAccess: [entry(["X"]), entry(["Y"])] }];
+    expect(mapOf(roles).P.extra).toEqual(["X", "Y"]);
+  });
+
+  it("ни у одной роли нет extra - точка выдана, слоёв нет", () => {
+    expect(mapOf([role(P()), role(P())])).toEqual({ P: { ident: "P" } });
+  });
+
+  it("сборка карты не меняет роли", () => {
+    const roles = [role(P(["X"])), role(P(["Y"])), role(P(["Z"]))];
+    const before = structuredClone(roles);
+    mapOf(roles);
+    expect(roles).toEqual(before);
+  });
+
+  it("ident __proto__ из роли не засоряет Object.prototype", () => {
+    mapOf([JSON.parse('{"modulesAccess":[{"moduleIdent":"m","elements":[{"ident":"__proto__","polluted":true}]}]}')]);
+    expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+  });
+});
+
 describe("BaseAccessController: экстра-слой на настоящем роутере", () => {
   // роли и типы запроса — до вызова маршрута; шаг Setup строит из них карту
   let types: string[] = [];
@@ -234,6 +291,13 @@ describe("BaseAccessController: экстра-слой на настоящем р
 
   it("грант точки без extra - слой не пройден, без исключения", async () => {
     expect(await layerOf(["a"], [grant()])).toBe(false);
+  });
+
+  it("слой есть только у одной роли, у другой иной слой - пройден при любом порядке", async () => {
+    const granted = grant(["Layers.Layer"]);
+    const other = grant(["Layers.Other"]);
+    expect(await layerOf(["a"], [granted, other])).toBe(true);
+    expect(await layerOf(["a"], [other, granted])).toBe(true);
   });
 
   it("fullAccess - слой пройден", async () => {
