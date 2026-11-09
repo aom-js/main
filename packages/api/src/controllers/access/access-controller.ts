@@ -152,14 +152,17 @@ export class BaseAccessController {
     userRoles.forEach((role) => {
       // mark that in the current context the user has full access
       this.accessMap.fullAccess = this.accessMap.fullAccess || role.fullAccess;
-      _.reduce(
-        role.modulesAccess,
-        (result: AomAccessIdentElement[], value) =>
-          // without a module there are no grants: a grant lacking `moduleIdent` must not match `undefined`
-          result.concat(
-            this.moduleIdent && value.moduleIdent === this.moduleIdent ? value.elements : [],
-          ),
-        [],
+      // `compact`: a damaged stored grant gives nothing, it must not fail the whole request
+      _.compact(
+        _.reduce(
+          role.modulesAccess,
+          (result: AomAccessIdentElement[], value) =>
+            // without a module there are no grants: a grant lacking `moduleIdent` must not match `undefined`
+            result.concat(
+              this.moduleIdent && value.moduleIdent === this.moduleIdent ? value.elements : [],
+            ),
+          [],
+        ),
       ).forEach((element) => {
         // `extra` is a set of layers: a plain merge would overwrite the lists position by position
         _.mergeWith(this.accessMap.structure, { [element.ident]: element }, (current, incoming) =>

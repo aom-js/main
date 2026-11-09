@@ -221,6 +221,15 @@ describe("BaseAccessController.generateAccessMap: extra точки — объе�
     expect(roles).toEqual(before);
   });
 
+  it.each([
+    ["запись модуля без elements", { moduleIdent: "m" }],
+    ["elements: null", { moduleIdent: "m", elements: null }],
+    ["пустой элемент", { moduleIdent: "m", elements: [null] }],
+  ])("повреждённая роль не роняет запрос: %s", (_name, broken) => {
+    const roles = [{ fullAccess: false, modulesAccess: [broken] }, role(P(["X"]))];
+    expect(mapOf(roles).P.extra).toEqual(["X"]);
+  });
+
   it("ident __proto__ из роли не засоряет Object.prototype", () => {
     mapOf([JSON.parse('{"modulesAccess":[{"moduleIdent":"m","elements":[{"ident":"__proto__","polluted":true}]}]}')]);
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
